@@ -17,9 +17,13 @@ class Smartbridge:
     Telnet commands found here:
     http://www.lutron.com/TechnicalDocumentLibrary/040249.pdf
     """
-    def __init__(self, hostname=None, port=23, username='lutron', password='intergration'):
+    def __init__(self, hostname=None, username='lutron', password='intergration'):
         self.devices = []
         self._telnet = None
+        self._hostname = hostname
+        self._username = username
+        self._password = password
+        self.logged_in = False
         self._load_devices_using_ssh(hostname)
         if not len(self.devices) > 0:
             raise RuntimeError("No devices were found.")
@@ -59,18 +63,18 @@ class Smartbridge:
         resp = resp.split(b"\r")[0].split(b",")
         state = {'id': resp[1].decode("utf-8"),
                  'action': resp[2].decode("utf-8"),
-                 'value': resp[3].decode("utf-8").replace("GNET>", "")}
+                 'value': float(resp[3].decode("utf-8").replace("GNET>", ""))}
         return state
 
     def _login(self):
         # Only log in if needed
         if not self.logged_in or self._telnet is None:
             log.debug("logging into smart bridge")
-            self._telnet = telnetlib.Telnet(self.host, self.port, timeout=2)
+            self._telnet = telnetlib.Telnet(self._hostname, 23, timeout=2)
             self._telnet.read_until(b"login:")
-            self._telnet.write(bytes(self.username + "\r\n", encoding='ascii'))
+            self._telnet.write(bytes(self._username + "\r\n", encoding='ascii'))
             self._telnet.read_until(b"password:")
-            self._telnet.write(bytes(self.password + "\r\n", encoding='ascii'))
+            self._telnet.write(bytes(self._password + "\r\n", encoding='ascii'))
             log.debug("login complete")
             self.logged_in = True
 
@@ -109,3 +113,6 @@ class Smartbridge:
 
 
 
+if __name__ == "__main__":
+    smartbridge = Smartbridge(hostname="192.168.86.101")
+    print(smartbridge.get_devices())

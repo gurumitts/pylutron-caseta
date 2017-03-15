@@ -1,4 +1,4 @@
-
+__all__ = ['smartbridge']
 """
 This is the private key for the lutron smartbridge 'leap' user
  https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
