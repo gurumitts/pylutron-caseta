@@ -1,4 +1,8 @@
 
+"""
+This is the private key for the lutron smartbridge 'leap' user
+ https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
+"""
 lutron_ssh_key = """\
 -----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEApX6g2uGLyC8ZDw13Vvn/lgp4pf5BrEy2oZf+yFouGOn+UI+J

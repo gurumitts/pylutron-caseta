@@ -1,39 +1,86 @@
 import json
-
-import paramiko
-from io import StringIO
-
-import time
-
-from pylutron_caseta import lutron_ssh_key
 import logging
 import sys
+import time
+from io import StringIO
+
+import paramiko
+import telnetlib
+
+from pylutron_caseta import lutron_ssh_key
 
 log = logging.getLogger('smartbridge')
-log.setLevel(logging.DEBUG)
 
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-log.addHandler(ch)
 
 class Smartbridge:
-
+    """
+    Telnet commands found here:
+    http://www.lutron.com/TechnicalDocumentLibrary/040249.pdf
+    """
     def __init__(self, hostname=None, port=23, username='lutron', password='intergration'):
         self.devices = []
+        self._telnet = None
         self._load_devices_using_ssh(hostname)
         if not len(self.devices) > 0:
             raise RuntimeError("No devices were found.")
-        print(self.devices)
+        self._login()
+        log.debug(self.devices)
 
     def get_devices(self):
-        return  self.devices
+        return self.devices
 
+    def turn_on(self, device_id):
+        return self.set_value(device_id, 100)
 
+    def turn_off(self, device_id):
+        return self.set_value(device_id, 0)
 
+    def is_on(self, device_id):
+        state = self.get_state(device_id)
+        if float(state['value']) > 0:
+            return True
+        else:
+            return False
+
+    def set_value(self, device_id, value):
+        cmd = "#OUTPUT,{},1,{}\r\n".format(device_id, value)
+        return self._exec_telnet_command(cmd)
+
+    def get_state(self, device_id):
+        cmd = "?OUTPUT,{},1\r\n".format(device_id)
+        return self._exec_telnet_command(cmd)
+
+    def _exec_telnet_command(self, cmd):
+        log.debug("exec")
+        self._login()
+        self._telnet.read_very_eager()
+        self._telnet.write(bytes(cmd, encoding='ascii'))
+        resp = self._telnet.read_until(b"\r\n")
+        resp = resp.split(b"\r")[0].split(b",")
+        state = {'id': resp[1].decode("utf-8"),
+                 'action': resp[2].decode("utf-8"),
+                 'value': resp[3].decode("utf-8").replace("GNET>", "")}
+        return state
+
+    def _login(self):
+        # Only log in if needed
+        if not self.logged_in or self._telnet is None:
+            log.debug("logging into smart bridge")
+            self._telnet = telnetlib.Telnet(self.host, self.port, timeout=2)
+            self._telnet.read_until(b"login:")
+            self._telnet.write(bytes(self.username + "\r\n", encoding='ascii'))
+            self._telnet.read_until(b"password:")
+            self._telnet.write(bytes(self.password + "\r\n", encoding='ascii'))
+            log.debug("login complete")
+            self.logged_in = True
 
     def _load_devices_using_ssh(self, hostname):
+        """
+        This interaction over ssh is not really documented anywhere.  I was looking for a
+          way to get a list of devices connected to the Smartbridge.  I found several references
+           indicating this was possible over ssh.  The most complete reference is located here:
+        https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
+        """
         log.debug('Connecting to smartbridge via ssh')
         ssh_user = 'leap'
         ssh_port = 22
@@ -56,13 +103,8 @@ class Smartbridge:
             device_id = device['href'][device['href'].rfind('/')+1:]
             device_name = device['Name']
             device_type = device['DeviceType']
-            self.devices.append({"id": device_id, "name": device_name, "type": device_type})
+            self.devices.append({"device_id": device_id, "name": device_name, "type": device_type})
 
-if __name__ == '__main__':
-    bridge = Smartbridge(hostname='192.168.7.53')
-    #bridge = Smartbridge(hostname='192.168.86.101')
-    device_str = '{"Body": {"Devices": [{"DeviceType": "SmartBridge", "RepeaterProperties": {"IsRepeater": "True"}, "Parent": {"href": "/project"}, "href": "/device/1", "ModelNumber": "L-BDGPRO2-WH", "SerialNumber": 32506945, "Name": "Smart Bridge"}, {"DeviceType": "WallDimmer", "LocalZones": [{"href": "/zone/1"}], "Parent": {"href": "/project"}, "href": "/device/2", "ModelNumber": "PD-6WCL-XX", "SerialNumber": 26531187, "Name": "Living Room Can Lights"}, {"ButtonGroups": [{"href": "/buttongroup/3"}], "DeviceType": "Pico3ButtonRaiseLower", "Parent": {"href": "/project"}, "href": "/device/4", "ModelNumber": "PJ2-3BRL-GXX-X01", "SerialNumber": 29167242, "Name": "Pico Remote"}, {"DeviceType": "WallSwitch", "LocalZones": [{"href": "/zone/2"}], "Parent": {"href": "/project"}, "href": "/device/5", "ModelNumber": "PD-8ANS-XX", "SerialNumber": 26438022, "Name": "Entry Lights"}]}, "CommuniqueType": "ReadResponse", "Header": {"StatusCode": "200 OK", "Url": "/device", "MessageBodyType": "MultipleDeviceDefinition"}}'
-    #bridge._load_devices(device_str)
 
 
 
