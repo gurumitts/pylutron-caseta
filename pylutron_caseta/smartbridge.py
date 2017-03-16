@@ -77,16 +77,17 @@ class Smartbridge:
                 self._login()
                 resp = self._telnet.read_until(b"\r\n")
                 log.debug(resp)
-                resp = resp[resp.rfind(b"OUTPUT,"):]
-                resp = resp.split(b"\r")[0].split(b",")
-                _id = resp[1].decode("utf-8")
-                # _action = resp[2].decode("utf-8")
-                _value = float(resp[3].decode("utf-8").replace("GNET>", ""))
-                if _value != self.devices[_id]['current_state']:
-                    self.devices[_id]['current_state'] = _value
-                    if _id in self._subscribers:
-                        self._subscribers[_id]()
-                    print(self.devices[_id])
+                if b'OUTPUT' in resp:
+                    resp = resp[resp.rfind(b"OUTPUT,"):]
+                    resp = resp.split(b"\r")[0].split(b",")
+                    _id = resp[1].decode("utf-8")
+                    # _action = resp[2].decode("utf-8")
+                    _value = float(resp[3].decode("utf-8").replace("GNET>", ""))
+                    if _value != self.devices[_id]['current_state']:
+                        self.devices[_id]['current_state'] = _value
+                        if _id in self._subscribers:
+                            self._subscribers[_id]()
+                        log.debug(self.devices[_id])
             except ConnectionError:
                 self._telnet = None
                 self.logged_in = False
