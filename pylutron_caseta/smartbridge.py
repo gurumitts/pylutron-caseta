@@ -30,13 +30,13 @@ class Smartbridge:
             raise RuntimeError("No devices were found.")
         self._login()
         log.debug(self.devices)
-        log.debug("about to start monitor")
+        for _id in self.devices:
+            self.get_value(_id)
         monitor = threading.Thread(target=self._monitor)
         monitor.setDaemon(True)
-        log.debug("before start")
         monitor.start()
-        log.debug("after start")
         self._subscribers = {}
+
 
     def add_subscriber(self, device_id, _callback):
         self._subscribers[device_id] = _callback
@@ -46,6 +46,10 @@ class Smartbridge:
 
     def get_device_by_id(self, device_id):
         return self.devices[device_id]
+
+    def get_value(self, device_id):
+        cmd = "?OUTPUT,{},1\r\n".format(device_id)
+        return self._exec_telnet_command(cmd)
 
     def is_on(self, device_id):
         return self.devices[device_id]['current_state'] > 0
