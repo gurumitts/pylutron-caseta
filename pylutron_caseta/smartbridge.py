@@ -76,8 +76,8 @@ class Smartbridge:
             try:
                 self._login()
                 resp = self._telnet.read_until(b"\r\n")
-                self._telnet.read_very_eager()
                 log.debug(resp)
+                resp = resp[resp.rfind(b"OUTPUT,"):]
                 resp = resp.split(b"\r")[0].split(b",")
                 _id = resp[1].decode("utf-8")
                 # _action = resp[2].decode("utf-8")
@@ -90,10 +90,6 @@ class Smartbridge:
             except ConnectionError:
                 self._telnet = None
                 self.logged_in = False
-            except KeyError:
-                self._telnet.read_very_eager()
-                for sub in self._subscribers:
-                    self._subscribers[sub]()
 
 
     def _login(self):
@@ -144,8 +140,15 @@ def mycallback():
     print("mycallback is called")
 
 if __name__ == "__main__":
-    smartbridge = Smartbridge(hostname="192.168.86.101")
-    print(smartbridge.get_devices())
-    smartbridge.add_subscriber("2", mycallback)
-    while True:
-        pass
+    #smartbridge = Smartbridge(hostname="192.168.86.101")
+    #print(smartbridge.get_devices())
+    #smartbridge.add_subscriber("2", mycallback)
+
+    resp = b'GNET> ~ERROR,4\n\nGNET> ~ERROR,4\n\nGNET> ~OUTPUT,2,1,0.00\r\n'
+    resp = resp[resp.rfind(b"OUTPUT,") :]
+    print(resp)
+    resp = resp.split(b"\r")[0].split(b",")
+    print(resp)
+
+    #while True:
+    #    pass
