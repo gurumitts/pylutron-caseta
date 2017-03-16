@@ -76,6 +76,7 @@ class Smartbridge:
             try:
                 self._login()
                 resp = self._telnet.read_until(b"\r\n")
+                self._telnet.read_very_eager()
                 log.debug(resp)
                 resp = resp.split(b"\r")[0].split(b",")
                 _id = resp[1].decode("utf-8")
