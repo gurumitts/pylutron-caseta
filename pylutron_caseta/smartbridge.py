@@ -89,6 +89,11 @@ class Smartbridge:
             except ConnectionError:
                 self._telnet = None
                 self.logged_in = False
+            except KeyError:
+                self._telnet.read_very_eager()
+                for sub in self._subscribers:
+                    self._subscribers[sub]()
+
 
     def _login(self):
         # Only log in if needed
