@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 from io import StringIO
+import threading
 
 import paramiko
 import telnetlib
@@ -10,15 +11,21 @@ import telnetlib
 from pylutron_caseta import lutron_ssh_key
 
 log = logging.getLogger('smartbridge')
+log.setLevel(logging.DEBUG)
 
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+log.addHandler(ch)
 
 class Smartbridge:
     """
     Telnet commands found here:
     http://www.lutron.com/TechnicalDocumentLibrary/040249.pdf
     """
-    def __init__(self, hostname=None, username='lutron', password='intergration'):
-        self.devices = []
+    def __init__(self, hostname=None, username='lutron', password='integration'):
+        self.devices = {}
         self._telnet = None
         self._hostname = hostname
         self._username = username
@@ -29,9 +36,29 @@ class Smartbridge:
             raise RuntimeError("No devices were found.")
         self._login()
         log.debug(self.devices)
+        log.debug("about to start monitor")
+        monitor = threading.Thread(target=self._monitor)
+        monitor.setDaemon(True)
+        log.debug("before start")
+        monitor.start()
+        log.debug("after start")
+        self._subscribers = {}
+
+    def add_subscriber(self, device_id, _callback):
+        self._subscribers[device_id] = _callback
 
     def get_devices(self):
         return self.devices
+
+    def get_device_by_id(self, device_id):
+        return self.devices[device_id]
+
+    def is_on(self, device_id):
+        return self.devices[device_id]['current_state'] > 0
+
+    def set_value(self, device_id, value):
+        cmd = "#OUTPUT,{},1,{}\r\n".format(device_id, value)
+        return self._exec_telnet_command(cmd)
 
     def turn_on(self, device_id):
         return self.set_value(device_id, 100)
@@ -39,32 +66,28 @@ class Smartbridge:
     def turn_off(self, device_id):
         return self.set_value(device_id, 0)
 
-    def is_on(self, device_id):
-        state = self.get_state(device_id)
-        if float(state['value']) > 0:
-            return True
-        else:
-            return False
-
-    def set_value(self, device_id, value):
-        cmd = "#OUTPUT,{},1,{}\r\n".format(device_id, value)
-        return self._exec_telnet_command(cmd)
-
-    def get_state(self, device_id):
-        cmd = "?OUTPUT,{},1\r\n".format(device_id)
-        return self._exec_telnet_command(cmd)
-
     def _exec_telnet_command(self, cmd):
         log.debug("exec")
         self._login()
-        self._telnet.read_very_eager()
         self._telnet.write(bytes(cmd, encoding='ascii'))
-        resp = self._telnet.read_until(b"\r\n")
-        resp = resp.split(b"\r")[0].split(b",")
-        state = {'id': resp[1].decode("utf-8"),
-                 'action': resp[2].decode("utf-8"),
-                 'value': float(resp[3].decode("utf-8").replace("GNET>", ""))}
-        return state
+
+    def _monitor(self):
+        while True:
+            try:
+                self._login()
+                resp = self._telnet.read_until(b"\r\n")
+                resp = resp.split(b"\r")[0].split(b",")
+                _id = resp[1].decode("utf-8")
+                # _action = resp[2].decode("utf-8")
+                _value = float(resp[3].decode("utf-8").replace("GNET>", ""))
+                if _value != self.devices[_id]['current_state']:
+                    self.devices[_id]['current_state'] = _value
+                    if _id in self._subscribers:
+                        self._subscribers[_id]()
+                    print(self.devices[_id])
+            except ConnectionError:
+                self._telnet = None
+                self.logged_in = False
 
     def _login(self):
         # Only log in if needed
@@ -107,12 +130,6 @@ class Smartbridge:
             device_id = device['href'][device['href'].rfind('/')+1:]
             device_name = device['Name']
             device_type = device['DeviceType']
-            self.devices.append({"device_id": device_id, "name": device_name, "type": device_type})
+            self.devices[device_id] = {"device_id": device_id, "name": device_name,
+                                       "type": device_type, "current_state": -1}
 
-
-
-
-
-if __name__ == "__main__":
-    smartbridge = Smartbridge(hostname="192.168.86.101")
-    print(smartbridge.get_devices())
