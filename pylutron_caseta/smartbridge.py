@@ -67,7 +67,7 @@ class Smartbridge:
         return self.set_value(device_id, 0)
 
     def _exec_telnet_command(self, cmd):
-        log.debug("exec")
+        log.debug("exec: " + cmd)
         self._login()
         self._telnet.write(bytes(cmd, encoding='ascii'))
 
