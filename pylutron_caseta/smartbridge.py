@@ -76,6 +76,7 @@ class Smartbridge:
             try:
                 self._login()
                 resp = self._telnet.read_until(b"\r\n")
+                log.debug(resp)
                 resp = resp.split(b"\r")[0].split(b",")
                 _id = resp[1].decode("utf-8")
                 # _action = resp[2].decode("utf-8")
@@ -133,3 +134,12 @@ class Smartbridge:
             self.devices[device_id] = {"device_id": device_id, "name": device_name,
                                        "type": device_type, "current_state": -1}
 
+def mycallback():
+    print("mycallback is called")
+
+if __name__ == "__main__":
+    smartbridge = Smartbridge(hostname="192.168.86.101")
+    print(smartbridge.get_devices())
+    smartbridge.add_subscriber("2", mycallback)
+    while True:
+        pass
