@@ -26,8 +26,6 @@ class Smartbridge:
         self._password = password
         self.logged_in = False
         self._load_devices_using_ssh(hostname)
-        if not len(self.devices) > 0:
-            raise RuntimeError("No devices were found.")
         self._login()
         log.debug(self.devices)
         for _id in self.devices:
@@ -37,12 +35,18 @@ class Smartbridge:
         monitor.start()
         self._subscribers = {}
 
-
     def add_subscriber(self, device_id, _callback):
         self._subscribers[device_id] = _callback
 
     def get_devices(self):
         return self.devices
+
+    def get_devices_by_type(self, _type):
+        devs = []
+        for device_id in self.devices:
+            if self.devices[device_id]['type'] == _type:
+                devs.append(self.devices[device_id])
+        return devs
 
     def get_device_by_id(self, device_id):
         return self.devices[device_id]
@@ -50,6 +54,9 @@ class Smartbridge:
     def get_value(self, device_id):
         cmd = "?OUTPUT,{},1\r\n".format(device_id)
         return self._exec_telnet_command(cmd)
+
+    def is_connected(self):
+        return self.logged_in
 
     def is_on(self, device_id):
         return self.devices[device_id]['current_state'] > 0
