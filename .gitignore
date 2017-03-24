@@ -3,3 +3,6 @@
 __pycache__/
 *.iml
 .idea*
+files.txt
+.tox
+.coverage

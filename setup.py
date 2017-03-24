@@ -1,4 +1,5 @@
 #!/usr/bin/python
+"""Provides an API to the Lutron Caseta Smartbridge."""
 
 from distutils.core import setup
 
@@ -6,7 +7,7 @@ setup(
     name="pylutron_caseta",
     version="0.2.3",
     license="Apache",
-    description="""Provides an API to the Lutron Smart Bridge""",
+    description="""Provides an API to the Lutron Smartbridge""",
     author="gurumitts",
     author_email="",
     maintainer="guumitts",
@@ -16,4 +17,3 @@ setup(
     download_url="https://github.com/gurumitts/pylutron-caseta",
     packages=["pylutron_caseta"], install_requires=['paramiko']
 )
-

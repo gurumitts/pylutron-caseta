@@ -1,9 +1,9 @@
-__all__ = ['smartbridge']
-"""
-This is the private key for the lutron smartbridge 'leap' user
- https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
-"""
-lutron_ssh_key = """\
+"""This module provides an API to communicate with the Caseta Smartbridge."""
+
+# This is the private key for the lutron smartbridge 'leap' user.
+# https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
+
+_LUTRON_SSH_KEY = """\
 -----BEGIN RSA PRIVATE KEY-----
 MIIEogIBAAKCAQEApX6g2uGLyC8ZDw13Vvn/lgp4pf5BrEy2oZf+yFouGOn+UI+J
 7d9yWWrP8nUJXIzz1YQ3Fs4YgDFus5bu1g/3XuK3J7kk5lVuz3wTgqDGw2jIP3mb
@@ -31,5 +31,3 @@ taGxAoGAQGFYb63lBeGS2vkUyovP2kMwBF0E6Y+3Il+TGjwPalyg+TyNzEAvkOUe
 2iy8Eul9rT6qcByzNXnNAMRHYhXDWQWmRaHM/lzyIkNr/O3UBEQKiSew/YhH6s1W
 iMwh+x+ekyFOxb98aNqlnEH/7PsQonzWThpzcAAojllTt9AIbbc=
 -----END RSA PRIVATE KEY-----"""
-
-
