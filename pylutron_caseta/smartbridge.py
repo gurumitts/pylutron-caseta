@@ -58,6 +58,13 @@ class Smartbridge:
                 devs.append(self.devices[device_id])
         return devs
 
+    def get_devices_by_types(self, _types):
+        """Will return all devices of for a list of given types."""
+        devs = []
+        for _type in _types:
+            devs.append(self.get_devices_by_type(_type))
+        return devs
+
     def get_device_by_id(self, device_id):
         """Will return a device with the given ID."""
         return self.devices[device_id]
