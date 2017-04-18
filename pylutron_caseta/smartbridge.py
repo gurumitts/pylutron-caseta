@@ -137,10 +137,13 @@ class Smartbridge:
             zone = zone[zone.rfind('/')+1:]
             level = body['ZoneStatus']['Level']
             _LOG.debug('zone=%s level=%s', zone, level)
-            for device in self.devices:
+            for _device_id in self.devices:
+                device = self.devices[_device_id]
                 if 'zone' in device:
                     if zone == device['zone']:
                         device['current_state'] = level
+                        if _device_id in self._subscribers:
+                            self._subscribers[_device_id]()
 
     def _login_ssh(self):
         """
