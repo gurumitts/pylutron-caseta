@@ -2,7 +2,6 @@
 
 import json
 import logging
-import telnetlib
 import threading
 import time
 from io import StringIO
@@ -23,23 +22,21 @@ class Smartbridge:
     http://www.lutron.com/TechnicalDocumentLibrary/040249.pdf
     """
 
-    def __init__(self, hostname=None, username='lutron',
-                 password='integration'):
+    def __init__(self, hostname=None):
         """Setup the Smartbridge."""
         self.devices = {}
-        self._telnet = None
         self._hostname = hostname
-        self._username = username
-        self._password = password
         self.logged_in = False
-        self._load_devices_using_ssh(hostname)
-        self._login()
+        self._sshclient = None
+        self._ssh_shell = None
+        self._login_ssh()
+        self._load_devices()
         _LOG.debug(self.devices)
-        for _id in self.devices:
-            self.get_value(_id)
         monitor = threading.Thread(target=self._monitor)
         monitor.setDaemon(True)
         monitor.start()
+        for _id in self.devices:
+            self.get_value(_id)
         self._subscribers = {}
 
     def add_subscriber(self, device_id, _callback):
@@ -72,8 +69,11 @@ class Smartbridge:
 
     def get_value(self, device_id):
         """Will return the current value for the device with the given ID."""
-        cmd = "?OUTPUT,{},1\r\n".format(device_id)
-        return self._exec_telnet_command(cmd)
+        zone_id = self._get_zone_id(device_id)
+        cmd = '{"CommuniqueType":"ReadRequest",' \
+              '"Header":{"Url":"/zone/%s/status"}}\n' % zone_id
+        if zone_id:
+            return self._send_ssh_command(cmd)
 
     def is_connected(self):
         """Will return True if currently connected ot the Smartbridge."""
@@ -85,8 +85,14 @@ class Smartbridge:
 
     def set_value(self, device_id, value):
         """Will set the value for a device with the given ID."""
-        cmd = "#OUTPUT,{},1,{}\r\n".format(device_id, value)
-        return self._exec_telnet_command(cmd)
+        zone_id = self._get_zone_id(device_id)
+        if zone_id:
+            cmd = '{"CommuniqueType":"CreateRequest",' \
+                  '"Header":{"Url":"/zone/%s/commandprocessor"},' \
+                  '"Body":{"Command":{"CommandType":"GoToLevel",' \
+                  '"Parameter":[{"Type":"Level",' \
+                  '"Value":%s}]}}}\n' % (zone_id, value)
+            return self._send_ssh_command(cmd)
 
     def turn_on(self, device_id):
         """Will turn 'on' the device with the given ID."""
@@ -96,50 +102,49 @@ class Smartbridge:
         """Will turn 'off' the device with the given ID."""
         return self.set_value(device_id, 0)
 
-    def _exec_telnet_command(self, cmd):
-        _LOG.debug("exec: " + cmd)
-        self._login()
-        self._telnet.write(bytes(cmd, encoding='ascii'))
+    def _get_zone_id(self, device_id):
+        device = self.devices[device_id]
+        if 'zone' in device:
+            return device['zone']
+        return None
+
+    def _send_ssh_command(self, cmd):
+        self._ssh_shell.send(cmd)
 
     def _monitor(self):
         while True:
             try:
-                self._login()
-                _resp = self._telnet.read_until(b"\r\n")
-                _LOG.debug(_resp)
-                if b'OUTPUT' in _resp:
-                    _resp = _resp[_resp.rfind(b"OUTPUT,"):]
-                    _resp = _resp.split(b"\r")[0].split(b",")
-                    _id = _resp[1].decode("utf-8")
-                    # _action = resp[2].decode("utf-8")
-                    _value = float(_resp[3].decode("utf-8").
-                                   replace("GNET>", ""))
-                    if _value != self.devices[_id]['current_state']:
-                        self.devices[_id]['current_state'] = _value
-                        if _id in self._subscribers:
-                            self._subscribers[_id]()
-                        _LOG.debug(self.devices[_id])
+                self._login_ssh()
+                response = self._ssh_shell.recv(9999)
+                _LOG.debug(response)
+                resp_parts = response.split(b'\r\n')
+                try:
+                    for resp in resp_parts:
+                        if len(resp) > 0:
+                            resp_json = json.loads(resp.decode("UTF-8"))
+                            self._handle_respose(resp_json)
+                except ValueError:
+                    _LOG.error('Invalid response '
+                               'from SmartBridge: ' + response.decode("UTF-8"))
             except ConnectionError:
-                self._telnet = None
                 self.logged_in = False
 
-    def _login(self):
-        # Only log in if needed
-        if not self.logged_in or self._telnet is None:
-            _LOG.debug("logging into smart bridge")
-            self._telnet = telnetlib.Telnet(self._hostname, 23, timeout=2)
-            self._telnet.read_until(b"login:")
-            self._telnet.write(bytes(self._username +
-                                     "\r\n", encoding='ascii'))
-            self._telnet.read_until(b"password:")
-            self._telnet.write(bytes(self._password +
-                                     "\r\n", encoding='ascii'))
-            _LOG.debug("login complete")
-            self.logged_in = True
+    def _handle_respose(self, resp_json):
+        comm_type = resp_json['CommuniqueType']
+        if comm_type == 'ReadResponse':
+            body = resp_json['Body']
+            zone = body['ZoneStatus']['Zone']['href']
+            zone = zone[zone.rfind('/')+1:]
+            level = body['ZoneStatus']['Level']
+            _LOG.debug('zone=%s level=%s' % (zone, level))
+            for device in self.devices:
+                if 'zone' in device:
+                    if zone == device['zone']:
+                        device['current_state'] = level
 
-    def _load_devices_using_ssh(self, hostname):
+    def _login_ssh(self):
         """
-        Will load devices using SSH.
+        Communicate to the smartbridge sing SSH.
 
         This interaction over ssh is not really documented anywhere.
         I was looking for a way to get a list of devices connected to
@@ -148,31 +153,44 @@ class Smartbridge:
         The most complete reference is located here:
         https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
         """
+        if self.logged_in:
+            return
+
         _LOG.debug('Connecting to smartbridge via ssh')
         ssh_user = 'leap'
         ssh_port = 22
         ssh_key = paramiko.RSAKey.from_private_key(StringIO(_LUTRON_SSH_KEY))
 
-        sshclient = paramiko.SSHClient()
-        sshclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        sshclient.connect(hostname=hostname, port=ssh_port,
-                          username=ssh_user, pkey=ssh_key)
-        _LOG.debug('Connected to smartbridge ssh')
+        self._sshclient = paramiko.SSHClient()
+        self._sshclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        shell = sshclient.invoke_shell()
-        shell.send(
+        self._sshclient.connect(hostname=self._hostname, port=ssh_port,
+                                username=ssh_user, pkey=ssh_key)
+
+        self._ssh_shell = self._sshclient.invoke_shell()
+        _LOG.debug('Connected to smartbridge ssh...ready...')
+        self.logged_in = True
+
+    def _load_devices(self):
+        _LOG.debug('Loading devices')
+        self._ssh_shell.send(
             '{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
-        time.sleep(5)
-        shell_output = shell.recv(9999)
+        time.sleep(1)
+        shell_output = self._ssh_shell.recv(9999)
         output_parts = shell_output.split(b"\r\n")
         _LOG.debug(output_parts)
         device_json = json.loads(output_parts[1].decode("UTF-8"))
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = device['href'][device['href'].rfind('/')+1:]
+            device_zone = None
+            if 'LocalZones' in device:
+                device_zone = device['LocalZones'][0]['href']
+                device_zone = device_zone[device_zone.rfind('/')+1:]
             device_name = device['Name']
             device_type = device['DeviceType']
-            self.devices[device_id] = {"device_id": device_id,
-                                       "name": device_name,
-                                       "type": device_type,
-                                       "current_state": -1}
+            self.devices[device_id] = {'device_id': device_id,
+                                       'name': device_name,
+                                       'type': device_type,
+                                       'zone': device_zone,
+                                       'current_state': -1}
