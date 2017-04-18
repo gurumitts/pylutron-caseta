@@ -136,7 +136,7 @@ class Smartbridge:
             zone = body['ZoneStatus']['Zone']['href']
             zone = zone[zone.rfind('/')+1:]
             level = body['ZoneStatus']['Level']
-            _LOG.debug('zone=%s level=%s' % (zone, level))
+            _LOG.debug('zone=%s level=%s', zone, level)
             for device in self.devices:
                 if 'zone' in device:
                     if zone == device['zone']:
