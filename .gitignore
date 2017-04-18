@@ -7,3 +7,6 @@ files.txt
 .tox
 .coverage
 MANIFEST
+run.py
+*.pem
+build/
