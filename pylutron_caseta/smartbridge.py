@@ -232,4 +232,4 @@ class Smartbridge:
                 scene_id = scene['href'][scene['href'].rfind('/')+1:]
                 scene_name = scene['Name']
                 self.scenes[scene_id] = {'scene_id': scene_id,
-                                           'name': scene_name}
+                                         'name': scene_name}
