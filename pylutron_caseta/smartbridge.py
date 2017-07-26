@@ -118,7 +118,8 @@ class Smartbridge:
         if scene_id in self.scenes:
             cmd = '{"CommuniqueType":"CreateRequest",' \
                     '"Header":{"Url":"/virtualbutton/%s/commandprocessor"},' \
-                    '"Body":{"Command":{"CommandType":"PressAndRelease"}}}\n' % (scene_id)
+                    '"Body":{"Command":{"CommandType":"PressAndRelease"}}}' \
+                    '\n' % (scene_id)
             return self._send_ssh_command(cmd)
 
     def _get_zone_id(self, device_id):
@@ -135,7 +136,7 @@ class Smartbridge:
             try:
                 self._login_ssh()
                 response = self._ssh_shell.recv(9999)
-                #_LOG.debug(response)
+                _LOG.debug(response)
                 resp_parts = response.split(b'\r\n')
                 try:
                     for resp in resp_parts:
@@ -220,7 +221,8 @@ class Smartbridge:
     def _load_scenes(self):
         _LOG.debug('Loading scenes')
         self._ssh_shell.send(
-            '{"CommuniqueType":"ReadRequest","Header":{"Url":"/virtualbutton"}}\n')
+            '{"CommuniqueType":"ReadRequest","Header":' \
+            '{"Url":"/virtualbutton"}}\n')
         time.sleep(1)
         shell_output = self._ssh_shell.recv(35000)
         output_parts = shell_output.split(b"\r\n")
