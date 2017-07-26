@@ -221,7 +221,7 @@ class Smartbridge:
     def _load_scenes(self):
         _LOG.debug('Loading scenes')
         self._ssh_shell.send(
-            '{"CommuniqueType":"ReadRequest","Header":' \
+            '{"CommuniqueType":"ReadRequest","Header":'
             '{"Url":"/virtualbutton"}}\n')
         time.sleep(1)
         shell_output = self._ssh_shell.recv(35000)
