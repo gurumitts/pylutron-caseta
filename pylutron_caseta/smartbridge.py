@@ -25,13 +25,16 @@ class Smartbridge:
     def __init__(self, hostname=None):
         """Setup the Smartbridge."""
         self.devices = {}
+        self.scenes = {}
         self._hostname = hostname
         self.logged_in = False
         self._sshclient = None
         self._ssh_shell = None
         self._login_ssh()
         self._load_devices()
+        self._load_scenes()
         _LOG.debug(self.devices)
+        _LOG.debug(self.scenes)
         monitor = threading.Thread(target=self._monitor)
         monitor.setDaemon(True)
         monitor.start()
@@ -67,6 +70,14 @@ class Smartbridge:
         """Will return a device with the given ID."""
         return self.devices[device_id]
 
+    def get_scenes(self):
+        """Will return all known scenes connected to the Smartbridge."""
+        return self.scenes
+
+    def get_scene_by_id(self, scene_id):
+        """Will return a scene with the scene ID."""
+        return self.scenes[scene_id]
+
     def get_value(self, device_id):
         """Will return the current value for the device with the given ID."""
         zone_id = self._get_zone_id(device_id)
@@ -101,6 +112,15 @@ class Smartbridge:
     def turn_off(self, device_id):
         """Will turn 'off' the device with the given ID."""
         return self.set_value(device_id, 0)
+
+    def activate_scene(self, scene_id):
+        """Will activate the scene with the given ID."""
+        if scene_id in self.scenes:
+            cmd = '{"CommuniqueType":"CreateRequest",' \
+                    '"Header":{"Url":"/virtualbutton/%s/commandprocessor"},' \
+                    '"Body":{"Command":{"CommandType":"PressAndRelease"}}}' \
+                    '\n' % (scene_id)
+            return self._send_ssh_command(cmd)
 
     def _get_zone_id(self, device_id):
         device = self.devices[device_id]
@@ -197,3 +217,21 @@ class Smartbridge:
                                        'type': device_type,
                                        'zone': device_zone,
                                        'current_state': -1}
+
+    def _load_scenes(self):
+        _LOG.debug('Loading scenes')
+        self._ssh_shell.send(
+            '{"CommuniqueType":"ReadRequest","Header":'
+            '{"Url":"/virtualbutton"}}\n')
+        time.sleep(1)
+        shell_output = self._ssh_shell.recv(35000)
+        output_parts = shell_output.split(b"\r\n")
+        _LOG.debug(output_parts)
+        scene_json = json.loads(output_parts[1].decode("UTF-8"))
+        for scene in scene_json['Body']['VirtualButtons']:
+            _LOG.debug(scene)
+            if scene['IsProgrammed']:
+                scene_id = scene['href'][scene['href'].rfind('/')+1:]
+                scene_name = scene['Name']
+                self.scenes[scene_id] = {'scene_id': scene_id,
+                                         'name': scene_name}
