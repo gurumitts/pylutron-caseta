@@ -8,7 +8,7 @@ from io import StringIO
 
 import paramiko
 
-from pylutron_caseta import _LUTRON_SSH_KEY
+from pylutron_caseta import _LUTRON_SSH_KEY, _LEAP_DEVICE_TYPES
 
 _LOG = logging.getLogger('smartbridge')
 _LOG.setLevel(logging.DEBUG)
@@ -53,6 +53,26 @@ class Smartbridge:
     def get_devices(self):
         """Will return all known devices connected to the Smart Bridge."""
         return self.devices
+
+    def get_devices_by_domain(self, domain):
+        """
+        Will return a list of devices for the given domain, such as 'light'
+        or 'switch'.
+
+        :param domain: one of 'light', 'switch', 'cover' or 'sensor'
+        :returns list of zero or more of the devices
+        """
+        devs = []
+
+        # return immediately if not a supported domain
+        if domain not in _LEAP_DEVICE_TYPES:
+            return devs
+
+        # loop over all devices and check their type
+        for device_id in self.devices:
+            if self.devices[device_id]['type'] in _LEAP_DEVICE_TYPES[domain]:
+                devs.append(self.devices[device_id])
+        return devs
 
     def get_devices_by_type(self, type_):
         """
