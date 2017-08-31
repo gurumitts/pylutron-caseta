@@ -22,7 +22,7 @@ class Smartbridge:
     """
 
     def __init__(self, hostname=None):
-        """Setup the Smart Bridge."""
+        """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
         self._hostname = hostname
@@ -56,8 +56,7 @@ class Smartbridge:
 
     def get_devices_by_domain(self, domain):
         """
-        Will return a list of devices for the given domain, such as 'light'
-        or 'switch'.
+        Return a list of devices for the given domain.
 
         :param domain: one of 'light', 'switch', 'cover' or 'sensor'
         :returns list of zero or more of the devices
@@ -192,7 +191,7 @@ class Smartbridge:
 
     def _get_zone_id(self, device_id):
         """
-        Returns the zone id for an given device.
+        Return the zone id for an given device.
 
         :param device_id: device id for which to retrieve a zone id
         """
@@ -202,7 +201,7 @@ class Smartbridge:
         return None
 
     def _send_ssh_command(self, cmd):
-        """Sends an SSH command to the SSH shell."""
+        """Send an SSH command to the SSH shell."""
         self._ssh_shell.send(cmd)
 
     def _monitor(self):
@@ -226,7 +225,7 @@ class Smartbridge:
 
     def _handle_response(self, resp_json):
         """
-        Handles an event from the SSH interface.
+        Handle an event from the SSH interface.
 
         If a zone level was changed either by external means such as a Pico
         remote or by a command sent from us, the new level will appear on the

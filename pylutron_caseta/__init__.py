@@ -42,4 +42,4 @@ _LEAP_DEVICE_TYPES = {'light': ['WallDimmer', 'PlugInDimmer'],
                                  'Pico3ButtonRaiseLower', 'Pico4Button',
                                  'Pico4ButtonScene', 'Pico4ButtonZone',
                                  'Pico4Button2Group', 'FourGroupRemote']
-                      }
+                     }
