@@ -1,6 +1,6 @@
-"""This module provides an API to communicate with the Caseta Smartbridge."""
+"""An API to communicate with the Lutron Caseta Smart Bridge."""
 
-# This is the private key for the lutron smartbridge 'leap' user.
+# This is the private key for the Lutron Smart Bridge 'leap' user.
 # https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
 
 _LUTRON_SSH_KEY = """\
@@ -31,3 +31,14 @@ taGxAoGAQGFYb63lBeGS2vkUyovP2kMwBF0E6Y+3Il+TGjwPalyg+TyNzEAvkOUe
 2iy8Eul9rT6qcByzNXnNAMRHYhXDWQWmRaHM/lzyIkNr/O3UBEQKiSew/YhH6s1W
 iMwh+x+ekyFOxb98aNqlnEH/7PsQonzWThpzcAAojllTt9AIbbc=
 -----END RSA PRIVATE KEY-----"""
+
+_LEAP_DEVICE_TYPES = {'light': ['WallDimmer', 'PlugInDimmer'],
+                      'switch': ['WallSwitch'],
+                      'cover': ['SerenaHoneycombShade', 'SerenaRollerShade',
+                                'TriathlonHoneycombShade',
+                                'TriathlonRollerShade', 'QsWirelessShade'],
+                      'sensor': ['Pico1Button', 'Pico2Button',
+                                 'Pico2ButtonRaiseLower', 'Pico3Button',
+                                 'Pico3ButtonRaiseLower', 'Pico4Button',
+                                 'Pico4ButtonScene', 'Pico4ButtonZone',
+                                 'Pico4Button2Group', 'FourGroupRemote']}
