@@ -3,12 +3,10 @@
 import json
 import logging
 import threading
-import time
-from io import StringIO
+import ssl
+import socket
 
-import paramiko
-
-from pylutron_caseta import _LUTRON_SSH_KEY, _LEAP_DEVICE_TYPES
+from pylutron_caseta import _LEAP_DEVICE_TYPES
 
 _LOG = logging.getLogger('smartbridge')
 _LOG.setLevel(logging.DEBUG)
@@ -21,15 +19,17 @@ class Smartbridge:
     It uses an SSH interface known as the LEAP server.
     """
 
-    def __init__(self, hostname=None):
+    def __init__(self, hostname, keyfile, certfile, ca_certs):
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
         self._hostname = hostname
+        self._keyfile = keyfile
+        self._certfile = certfile
+        self._ca_certs = ca_certs
         self.logged_in = False
-        self._sshclient = None
-        self._ssh_shell = None
-        self._login_ssh()
+        self._ssl_sock = None
+        self._login()
         self._load_devices()
         self._load_scenes()
         _LOG.debug(self.devices)
@@ -39,6 +39,7 @@ class Smartbridge:
         monitor.start()
         for _id in self.devices:
             self.get_value(_id)
+
         self._subscribers = {}
 
     def add_subscriber(self, device_id, callback_):
@@ -129,7 +130,7 @@ class Smartbridge:
         cmd = '{"CommuniqueType":"ReadRequest",' \
               '"Header":{"Url":"/zone/%s/status"}}\n' % zone_id
         if zone_id:
-            return self._send_ssh_command(cmd)
+            return self._send_command(cmd)
 
     def is_connected(self):
         """Will return True if currently connected to the Smart Bridge."""
@@ -158,7 +159,7 @@ class Smartbridge:
                   '"Body":{"Command":{"CommandType":"GoToLevel",' \
                   '"Parameter":[{"Type":"Level",' \
                   '"Value":%s}]}}}\n' % (zone_id, value)
-            return self._send_ssh_command(cmd)
+            return self._send_command(cmd)
 
     def turn_on(self, device_id):
         """
@@ -187,7 +188,7 @@ class Smartbridge:
                   '"Header":{"Url":"/virtualbutton/%s/commandprocessor"},' \
                   '"Body":{"Command":{"CommandType":"PressAndRelease"}}}' \
                   '\n' % scene_id
-            return self._send_ssh_command(cmd)
+            return self._send_command(cmd)
 
     def _get_zone_id(self, device_id):
         """
@@ -200,16 +201,21 @@ class Smartbridge:
             return device['zone']
         return None
 
-    def _send_ssh_command(self, cmd):
-        """Send an SSH command to the SSH shell."""
-        self._ssh_shell.send(cmd)
+    def _send_command(self, cmd):
+        """Send a command to the bridge."""
+        self._ssl_sock.send(cmd)
 
     def _monitor(self):
-        """Event monitoring loop for the SSH shell."""
+        """Event monitoring loop."""
         while True:
             try:
-                self._login_ssh()
-                response = self._ssh_shell.recv(9999)
+                # require a certificate from the server
+                ssl_output = self._ssl_sock.recv(1)
+                response = ssl_output
+                while ssl_output != "\n":
+                    ssl_output = self._ssl_sock.recv(1)
+                    response += ssl_output
+
                 _LOG.debug(response)
                 resp_parts = response.split(b'\r\n')
                 try:
@@ -225,7 +231,7 @@ class Smartbridge:
 
     def _handle_response(self, resp_json):
         """
-        Handle an event from the SSH interface.
+        Handle an event from the ssl interface.
 
         If a zone level was changed either by external means such as a Pico
         remote or by a command sent from us, the new level will appear on the
@@ -248,46 +254,38 @@ class Smartbridge:
                         if _device_id in self._subscribers:
                             self._subscribers[_device_id]()
 
-    def _login_ssh(self):
-        """
-        Connect and login to the Smart Bridge LEAP server using SSH.
-
-        This interaction over SSH is not really documented anywhere.
-        I was looking for a way to get a list of devices connected to
-        the Smart Bridge. I found several references indicating
-        this was possible over SSH.
-        The most complete reference is located here:
-        https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
-        """
+    def _login(self):
+        """Connect and login to the Smart Bridge LEAP server using SSL."""
         if self.logged_in:
             return
 
-        _LOG.debug("Connecting to Smart Bridge via SSH")
-        ssh_user = 'leap'
-        ssh_port = 22
-        ssh_key = paramiko.RSAKey.from_private_key(StringIO(_LUTRON_SSH_KEY))
+        _LOG.debug("Connecting to Smart Bridge via SSL")
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self._sshclient = paramiko.SSHClient()
-        self._sshclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # require a certificate from the server
+        self._ssl_sock = ssl.wrap_socket(connection,
+                                         keyfile=self._keyfile,
+                                         certfile=self._certfile,
+                                         ca_certs=self._ca_certs,
+                                         cert_reqs=ssl.CERT_NONE,
+                                         ssl_version=ssl.PROTOCOL_TLSv1_2)
 
-        self._sshclient.connect(hostname=self._hostname, port=ssh_port,
-                                username=ssh_user, pkey=ssh_key)
-
-        self._ssh_shell = self._sshclient.invoke_shell()
-        _LOG.debug("Successfully connected to Smart Bridge "
-                   "using SSH. Ready...")
+        self._ssl_sock.connect((self._hostname, 8081))
+        _LOG.debug("Successfully connected to Smart Bridge.")
         self.logged_in = True
 
     def _load_devices(self):
-        """Load the device list from the SSH LEAP server interface."""
+        """Load the device list from the SSL LEAP server interface."""
         _LOG.debug("Loading devices")
-        self._ssh_shell.send(
+        self._ssl_sock.send(
             '{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
-        time.sleep(1)
-        shell_output = self._ssh_shell.recv(9999)
-        output_parts = shell_output.split(b"\r\n")
-        _LOG.debug(output_parts)
-        device_json = json.loads(output_parts[1].decode("UTF-8"))
+        ssl_output = self._ssl_sock.recv(1)
+        response = ssl_output
+        while ssl_output != "\n":
+            ssl_output = self._ssl_sock.recv(1)
+            response += ssl_output
+        _LOG.debug(response)
+        device_json = json.loads(response.decode("UTF-8"))
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = device['href'][device['href'].rfind('/') + 1:]
@@ -307,17 +305,19 @@ class Smartbridge:
         """
         Load the scenes from the Smart Bridge.
 
-        Scenes are known as virtual buttons in the SSH LEAP interface.
+        Scenes are known as virtual buttons in the SSL LEAP interface.
         """
         _LOG.debug("Loading scenes from the Smart Bridge")
-        self._ssh_shell.send(
+        self._ssl_sock.send(
             '{"CommuniqueType":"ReadRequest","Header":'
             '{"Url":"/virtualbutton"}}\n')
-        time.sleep(1)
-        shell_output = self._ssh_shell.recv(35000)
-        output_parts = shell_output.split(b"\r\n")
-        _LOG.debug(output_parts)
-        scene_json = json.loads(output_parts[1].decode("UTF-8"))
+        ssl_output = self._ssl_sock.recv(1)
+        response = ssl_output
+        while ssl_output != "\n":
+            ssl_output = self._ssl_sock.recv(1)
+            response += ssl_output
+        _LOG.debug(response)
+        scene_json = json.loads(response.decode("UTF-8"))
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
             if scene['IsProgrammed']:

@@ -15,5 +15,5 @@ setup(
     platforms=["Linux"],
     url="https://github.com/gurumitts/pylutron-caseta",
     download_url="https://github.com/gurumitts/pylutron-caseta",
-    packages=["pylutron_caseta"], install_requires=['paramiko']
+    packages=["pylutron_caseta"], install_requires=[]
 )
