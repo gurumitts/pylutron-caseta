@@ -203,7 +203,7 @@ class Smartbridge:
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
-        self._ssl_sock.send(cmd)
+        self._ssl_sock.send(bytes(cmd, 'UTF-8'))
 
     def _monitor(self):
         """Event monitoring loop."""
@@ -212,7 +212,7 @@ class Smartbridge:
                 # require a certificate from the server
                 ssl_output = self._ssl_sock.recv(1)
                 response = ssl_output
-                while ssl_output != "\n":
+                while ssl_output != b'\n':
                     ssl_output = self._ssl_sock.recv(1)
                     response += ssl_output
 
@@ -278,10 +278,10 @@ class Smartbridge:
         """Load the device list from the SSL LEAP server interface."""
         _LOG.debug("Loading devices")
         self._ssl_sock.send(
-            '{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
+            b'{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
         ssl_output = self._ssl_sock.recv(1)
         response = ssl_output
-        while ssl_output != "\n":
+        while ssl_output != b"\n":
             ssl_output = self._ssl_sock.recv(1)
             response += ssl_output
         _LOG.debug(response)
@@ -309,11 +309,11 @@ class Smartbridge:
         """
         _LOG.debug("Loading scenes from the Smart Bridge")
         self._ssl_sock.send(
-            '{"CommuniqueType":"ReadRequest","Header":'
-            '{"Url":"/virtualbutton"}}\n')
+            b'{"CommuniqueType":"ReadRequest","Header":'
+            b'{"Url":"/virtualbutton"}}\n')
         ssl_output = self._ssl_sock.recv(1)
         response = ssl_output
-        while ssl_output != "\n":
+        while ssl_output != b"\n":
             ssl_output = self._ssl_sock.recv(1)
             response += ssl_output
         _LOG.debug(response)
