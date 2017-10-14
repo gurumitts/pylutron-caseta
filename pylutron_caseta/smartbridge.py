@@ -5,6 +5,7 @@ import logging
 import threading
 import ssl
 import socket
+from threading import Lock
 
 from pylutron_caseta import _LEAP_DEVICE_TYPES
 
@@ -29,6 +30,7 @@ class Smartbridge:
         self._ca_certs = ca_certs
         self.logged_in = False
         self._ssl_sock = None
+        self._lock = Lock()
         self._login()
         self._load_devices()
         self._load_scenes()
@@ -203,7 +205,8 @@ class Smartbridge:
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
-        self._ssl_sock.send(bytes(cmd, 'UTF-8'))
+        with self._lock:
+            self._ssl_sock.send(bytes(cmd, 'UTF-8'))
 
     def _monitor(self):
         """Event monitoring loop."""
