@@ -209,6 +209,7 @@ class Smartbridge:
         """Event monitoring loop."""
         while True:
             try:
+                self._login()
                 # require a certificate from the server
                 ssl_output = self._ssl_sock.recv(1)
                 response = ssl_output
