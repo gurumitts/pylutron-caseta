@@ -1,48 +1,48 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge."""
 
+import asyncio
 import json
 import logging
 import threading
 import ssl
-import socket
-from threading import Lock
 
 from pylutron_caseta import _LEAP_DEVICE_TYPES
 
 _LOG = logging.getLogger('smartbridge')
 _LOG.setLevel(logging.DEBUG)
 
+LEAP_PORT = 8081
+
 
 class Smartbridge:
     """
     A representation of the Lutron Caseta Smart Bridge.
 
-    It uses an SSH interface known as the LEAP server.
+    It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, hostname, keyfile, certfile, ca_certs):
+    def __init__(self, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
-        self._hostname = hostname
-        self._keyfile = keyfile
-        self._certfile = certfile
-        self._ca_certs = ca_certs
         self.logged_in = False
-        self._ssl_sock = None
-        self._lock = Lock()
-        self._login()
-        self._load_devices()
-        self._load_scenes()
-        _LOG.debug(self.devices)
-        _LOG.debug(self.scenes)
-        monitor = threading.Thread(target=self._monitor)
-        monitor.setDaemon(True)
-        monitor.start()
-        for _id in self.devices:
-            self.get_value(_id)
-
         self._subscribers = {}
+        self._loop = asyncio.new_event_loop()
+        self._hostname = hostname
+        self._port = port
+        self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self._ssl_context.load_verify_locations(ca_certs)
+        self._ssl_context.load_cert_chain(certfile, keyfile)
+        self._ssl_context.verify_mode = ssl.CERT_NONE
+        self._login_lock = asyncio.Lock(loop=self._loop)
+        self._reader = None
+        self._writer = None
+
+        self._loop.run_until_complete(self._login())
+
+        loop_thread = threading.Thread(target=lambda:self._loop.run_until_complete(self._monitor()))
+        loop_thread.setDaemon(True)
+        loop_thread.start()
 
     def add_subscriber(self, device_id, callback_):
         """
@@ -129,9 +129,10 @@ class Smartbridge:
         :rtype int
         """
         zone_id = self._get_zone_id(device_id)
-        cmd = '{"CommuniqueType":"ReadRequest",' \
-              '"Header":{"Url":"/zone/%s/status"}}\n' % zone_id
         if zone_id:
+            cmd = {
+                "CommuniqueType": "ReadRequest",
+                "Header": {"Url": "/zone/%s/status" % zone_id}}
             return self._send_command(cmd)
 
     def is_connected(self):
@@ -156,11 +157,13 @@ class Smartbridge:
         """
         zone_id = self._get_zone_id(device_id)
         if zone_id:
-            cmd = '{"CommuniqueType":"CreateRequest",' \
-                  '"Header":{"Url":"/zone/%s/commandprocessor"},' \
-                  '"Body":{"Command":{"CommandType":"GoToLevel",' \
-                  '"Parameter":[{"Type":"Level",' \
-                  '"Value":%s}]}}}\n' % (zone_id, value)
+            cmd = {
+                "CommuniqueType": "CreateRequest",
+                "Header": {"Url": "/zone/%s/commandprocessor" % zone_id},
+                "Body": {
+                    "Command": {
+                        "CommandType": "GoToLevel",
+                        "Parameter": [{"Type": "Level", "Value": value}]}}}
             return self._send_command(cmd)
 
     def turn_on(self, device_id):
@@ -186,10 +189,11 @@ class Smartbridge:
         :param scene_id: scene id, e.g. 23
         """
         if scene_id in self.scenes:
-            cmd = '{"CommuniqueType":"CreateRequest",' \
-                  '"Header":{"Url":"/virtualbutton/%s/commandprocessor"},' \
-                  '"Body":{"Command":{"CommandType":"PressAndRelease"}}}' \
-                  '\n' % scene_id
+            cmd = {
+                "CommuniqueType": "CreateRequest",
+                "Header": {
+                    "Url": "/virtualbutton/%s/commandprocessor" % scene_id},
+                "Body": {"Command": {"CommandType": "PressAndRelease"}}}
             return self._send_command(cmd)
 
     def _get_zone_id(self, device_id):
@@ -205,33 +209,42 @@ class Smartbridge:
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
-        with self._lock:
-            self._ssl_sock.send(bytes(cmd, 'UTF-8'))
+        asyncio.run_coroutine_threadsafe(self._send_command_from_loop(cmd),
+                                         self._loop).result()
 
-    def _monitor(self):
+    async def _send_command_from_loop(self, cmd):
+        await self._write_object(cmd)
+
+    async def _read_object(self):
+        """Read a single object from the bridge."""
+        received = await self._reader.readline()
+        if received == b'':
+            return None
+        _LOG.debug('received %s', received)
+        try:
+            return json.loads(received, encoding='UTF-8')
+        except ValueError:
+            _LOG.error("Invalid response "
+                       "from SmartBridge: " + received.decode("UTF-8"))
+            raise
+
+    async def _write_object(self, obj):
+        """Write a single object to the bridge."""
+        text = json.dumps(obj).encode('UTF-8')
+        self._writer.write(text + b'\r\n')
+        _LOG.debug('sending %s', text)
+        await self._writer.drain()
+
+    async def _monitor(self):
         """Event monitoring loop."""
         while True:
             try:
-                self._login()
-                # require a certificate from the server
-                ssl_output = self._ssl_sock.recv(1)
-                response = ssl_output
-                while ssl_output != b'\n':
-                    ssl_output = self._ssl_sock.recv(1)
-                    response += ssl_output
-
-                _LOG.debug(response)
-                resp_parts = response.split(b'\r\n')
-                try:
-                    for resp in resp_parts:
-                        if resp:
-                            resp_json = json.loads(resp.decode("UTF-8"))
-                            self._handle_response(resp_json)
-                except ValueError:
-                    _LOG.error("Invalid response "
-                               "from SmartBridge: " + response.decode("UTF-8"))
-            except ConnectionError:
-                self.logged_in = False
+                await self._login()
+                received = await self._read_object()
+                if received is not None:
+                    self._handle_response(received)
+            except ValueError:
+                pass
 
     def _handle_response(self, resp_json):
         """
@@ -258,38 +271,41 @@ class Smartbridge:
                         if _device_id in self._subscribers:
                             self._subscribers[_device_id]()
 
-    def _login(self):
+    async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
-        if self.logged_in:
-            return
+        with (await self._login_lock):
+            if self._reader is not None:
+                if (self._reader.exception() is None and
+                        not self._reader.at_eof()):
+                    return
+                self._writer.close()
+                self._reader = self._writer = None
 
-        _LOG.debug("Connecting to Smart Bridge via SSL")
-        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.logged_in = False
+            _LOG.debug("Connecting to Smart Bridge via SSL")
+            socket = await asyncio.open_connection(self._hostname,
+                                                   LEAP_PORT,
+                                                   ssl=self._ssl_context,
+                                                   loop=self._loop)
+            self._reader, self._writer = socket
+            _LOG.debug("Successfully connected to Smart Bridge.")
 
-        # require a certificate from the server
-        self._ssl_sock = ssl.wrap_socket(connection,
-                                         keyfile=self._keyfile,
-                                         certfile=self._certfile,
-                                         ca_certs=self._ca_certs,
-                                         cert_reqs=ssl.CERT_NONE,
-                                         ssl_version=ssl.PROTOCOL_TLSv1_2)
+            await self._load_devices()
+            await self._load_scenes()
+            for device in self.devices.values():
+                if 'zone' in device and device['zone'] is not None:
+                    cmd = {
+                        "CommuniqueType": "ReadRequest",
+                        "Header": {"Url": "/zone/%s/status" % device['zone']}}
+                    await self._write_object(cmd)
+            self.logged_in = True
 
-        self._ssl_sock.connect((self._hostname, 8081))
-        _LOG.debug("Successfully connected to Smart Bridge.")
-        self.logged_in = True
-
-    def _load_devices(self):
+    async def _load_devices(self):
         """Load the device list from the SSL LEAP server interface."""
         _LOG.debug("Loading devices")
-        self._ssl_sock.send(
-            b'{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
-        ssl_output = self._ssl_sock.recv(1)
-        response = ssl_output
-        while ssl_output != b"\n":
-            ssl_output = self._ssl_sock.recv(1)
-            response += ssl_output
-        _LOG.debug(response)
-        device_json = json.loads(response.decode("UTF-8"))
+        await self._write_object({
+            "CommuniqueType": "ReadRequest", "Header": {"Url": "/device"}})
+        device_json = await self._read_object()
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = device['href'][device['href'].rfind('/') + 1:]
@@ -305,23 +321,17 @@ class Smartbridge:
                                        'zone': device_zone,
                                        'current_state': -1}
 
-    def _load_scenes(self):
+    async def _load_scenes(self):
         """
         Load the scenes from the Smart Bridge.
 
         Scenes are known as virtual buttons in the SSL LEAP interface.
         """
         _LOG.debug("Loading scenes from the Smart Bridge")
-        self._ssl_sock.send(
-            b'{"CommuniqueType":"ReadRequest","Header":'
-            b'{"Url":"/virtualbutton"}}\n')
-        ssl_output = self._ssl_sock.recv(1)
-        response = ssl_output
-        while ssl_output != b"\n":
-            ssl_output = self._ssl_sock.recv(1)
-            response += ssl_output
-        _LOG.debug(response)
-        scene_json = json.loads(response.decode("UTF-8"))
+        await self._write_object({
+            "CommuniqueType": "ReadRequest",
+            "Header": {"Url": "/virtualbutton"}})
+        scene_json = await self._read_object()
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
             if scene['IsProgrammed']:
