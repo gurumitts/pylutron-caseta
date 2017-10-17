@@ -33,7 +33,7 @@ class Smartbridge:
         self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         self._ssl_context.load_verify_locations(ca_certs)
         self._ssl_context.load_cert_chain(certfile, keyfile)
-        self._ssl_context.verify_mode = ssl.CERT_NONE
+        self._ssl_context.verify_mode = ssl.CERT_REQUIRED
         self._login_lock = asyncio.Lock(loop=self._loop)
         self._reader = None
         self._writer = None
