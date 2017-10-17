@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import threading
+import socket
 import ssl
 
 from pylutron_caseta import _LEAP_DEVICE_TYPES
@@ -285,11 +286,12 @@ class Smartbridge:
 
             self.logged_in = False
             _LOG.debug("Connecting to Smart Bridge via SSL")
-            socket = await asyncio.open_connection(self._hostname,
-                                                   LEAP_PORT,
-                                                   ssl=self._ssl_context,
-                                                   loop=self._loop)
-            self._reader, self._writer = socket
+            connection = await asyncio.open_connection(self._hostname,
+                                                       LEAP_PORT,
+                                                       ssl=self._ssl_context,
+                                                       loop=self._loop,
+                                                       family=socket.AF_INET)
+            self._reader, self._writer = connection
             _LOG.debug("Successfully connected to Smart Bridge.")
 
             await self._load_devices()
