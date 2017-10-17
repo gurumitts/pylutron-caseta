@@ -258,18 +258,20 @@ class Smartbridge:
         """
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
-            body = resp_json['Body']
-            zone = body['ZoneStatus']['Zone']['href']
-            zone = zone[zone.rfind('/') + 1:]
-            level = body['ZoneStatus']['Level']
-            _LOG.debug('zone=%s level=%s', zone, level)
-            for _device_id in self.devices:
-                device = self.devices[_device_id]
-                if 'zone' in device:
-                    if zone == device['zone']:
-                        device['current_state'] = level
-                        if _device_id in self._subscribers:
-                            self._subscribers[_device_id]()
+            body_type = resp_json['Header']['MessageBodyType']
+            if body_type == 'OneZoneStatus':
+                body = resp_json['Body']
+                zone = body['ZoneStatus']['Zone']['href']
+                zone = zone[zone.rfind('/') + 1:]
+                level = body['ZoneStatus']['Level']
+                _LOG.debug('zone=%s level=%s', zone, level)
+                for _device_id in self.devices:
+                    device = self.devices[_device_id]
+                    if 'zone' in device:
+                        if zone == device['zone']:
+                            device['current_state'] = level
+                            if _device_id in self._subscribers:
+                                self._subscribers[_device_id]()
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
@@ -298,7 +300,22 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     await self._write_object(cmd)
+            asyncio.ensure_future(self._ping(), loop=self._loop)
             self.logged_in = True
+
+    async def _ping(self):
+        """
+        Periodically ping the LEAP server to keep the connection open
+        and detect disconnects.
+        """
+        try:
+            while True:
+                await asyncio.sleep(60.0, loop=self._loop)
+                await self._write_object({
+                    "CommuniqueType": "ReadRequest",
+                    "Header": {"Url": "/server/1/status/ping"}})
+        except ConnectionError:
+            pass
 
     async def _load_devices(self):
         """Load the device list from the SSL LEAP server interface."""
