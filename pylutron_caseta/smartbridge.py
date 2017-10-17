@@ -243,7 +243,7 @@ class Smartbridge:
                 received = await self._read_object()
                 if received is not None:
                     self._handle_response(received)
-            except ValueError:
+            except (ValueError, ConnectionResetError):
                 pass
 
     def _handle_response(self, resp_json):
