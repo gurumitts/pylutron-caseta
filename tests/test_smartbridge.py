@@ -10,7 +10,7 @@ Bridge = namedtuple('Bridge', ('target', 'reader', 'writer'))
 
 class _FakeLeapWriter:
     def __init__(self, loop):
-        self.queue = asyncio.Queue(loop=loop)
+        self.queue = asyncio.JoinableQueue(loop=loop)
         self.closed = False
 
     def write(self, obj):
@@ -27,7 +27,7 @@ class _FakeLeapWriter:
 class _FakeLeapReader:
     def __init__(self, loop):
         self._loop = loop
-        self.queue = asyncio.Queue(loop=loop)
+        self.queue = asyncio.JoinableQueue(loop=loop)
 
     def exception(self):
         return None
