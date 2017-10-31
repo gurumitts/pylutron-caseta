@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import threading
 import socket
 import ssl
 
@@ -22,45 +21,43 @@ class Smartbridge:
     It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, connect):
+    def __init__(self, connect, loop=None):
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
         self.logged_in = False
         self._connect = connect
         self._subscribers = {}
-        self._loop = asyncio.new_event_loop()
+        self._loop = loop or asyncio.get_event_loop()
         self._login_lock = asyncio.Lock(loop=self._loop)
-
         self._reader = None
         self._writer = None
+        self._monitor_task = None
 
-        self._loop.run_until_complete(self._login())
-
-        loop_thread = threading.Thread(target=self._loop_thread)
-        loop_thread.setDaemon(True)
-        loop_thread.start()
-
-    def _loop_thread(self):
-        self._loop.run_until_complete(self._monitor())
+    @asyncio.coroutine
+    def connect(self):
+        """Connect to the bridge."""
+        yield from self._login()
+        self._monitor_task = self._loop.create_task(self._monitor())
 
     @classmethod
-    def connect(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
-        """Initialize the Smart Bridge."""
+    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT,
+                   loop=None):
+        """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
 
         @asyncio.coroutine
-        def _connect(loop):
+        def _connect():
             res = yield from open_connection(hostname,
                                              port,
                                              ssl=ssl_context,
                                              loop=loop,
                                              family=socket.AF_INET)
             return res
-        return cls(_connect)
+        return cls(_connect, loop=loop)
 
     def add_subscriber(self, device_id, callback_):
         """
@@ -151,7 +148,7 @@ class Smartbridge:
             cmd = {
                 "CommuniqueType": "ReadRequest",
                 "Header": {"Url": "/zone/%s/status" % zone_id}}
-            return self._send_command(cmd)
+            return self._writer.write(cmd)
 
     def is_connected(self):
         """Will return True if currently connected to the Smart Bridge."""
@@ -182,7 +179,7 @@ class Smartbridge:
                     "Command": {
                         "CommandType": "GoToLevel",
                         "Parameter": [{"Type": "Level", "Value": value}]}}}
-            return self._send_command(cmd)
+            return self._writer.write(cmd)
 
     def turn_on(self, device_id):
         """
@@ -212,7 +209,7 @@ class Smartbridge:
                 "Header": {
                     "Url": "/virtualbutton/%s/commandprocessor" % scene_id},
                 "Body": {"Command": {"CommandType": "PressAndRelease"}}}
-            return self._send_command(cmd)
+            return self._writer.write(cmd)
 
     def _get_zone_id(self, device_id):
         """
@@ -227,7 +224,7 @@ class Smartbridge:
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
-        self._loop.call_soon_threadsafe(lambda: self._writer.write(cmd))
+        self._writer.write(cmd)
 
     @asyncio.coroutine
     def _monitor(self):
@@ -281,7 +278,7 @@ class Smartbridge:
 
             self.logged_in = False
             _LOG.debug("Connecting to Smart Bridge via SSL")
-            self._reader, self._writer = yield from self._connect(self._loop)
+            self._reader, self._writer = yield from self._connect()
             _LOG.debug("Successfully connected to Smart Bridge.")
 
             yield from self._load_devices()
@@ -292,7 +289,7 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            asyncio.ensure_future(self._ping(), loop=self._loop)
+            self._loop.create_task(self._ping())
             self.logged_in = True
 
     @asyncio.coroutine
@@ -348,3 +345,13 @@ class Smartbridge:
                 scene_name = scene['Name']
                 self.scenes[scene_id] = {'scene_id': scene_id,
                                          'name': scene_name}
+
+    @asyncio.coroutine
+    def close(self):
+        """Disconnect from the bridge."""
+        # make sure the monitor loop isn't going to immediately reconnect
+        if (self._monitor_task is not None and
+                not self._monitor_task.cancelled()):
+            self._monitor_task.cancel()
+        yield from self._writer.drain()
+        self._writer.close()

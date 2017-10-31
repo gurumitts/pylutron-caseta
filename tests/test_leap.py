@@ -1,12 +1,13 @@
 """Tests to validate ssl interactions."""
 import asyncio
+import json
 import pytest
 from collections import namedtuple
 
 import pylutron_caseta.leap
 
-Pipe = namedtuple('Pipe', ['leap_reader', 'leap_writer',
-                           'test_reader', 'test_writer'])
+Pipe = namedtuple('Pipe', ('leap_reader', 'leap_writer',
+                           'test_reader', 'test_writer'))
 
 
 class _PipeTransport(asyncio.Transport):
@@ -18,7 +19,7 @@ class _PipeTransport(asyncio.Transport):
 
     def close(self):
         self._closing = True
-        self.other.get_protocol().connection_lost()
+        self.other.get_protocol().connection_lost(None)
 
     def is_closing(self):
         return self._closing
@@ -61,7 +62,7 @@ class _PipeTransport(asyncio.Transport):
         return self._protocol
 
 
-@pytest.fixture()
+@pytest.fixture
 def pipe(event_loop):
     """Create linked readers and writers for tests."""
     test_reader = asyncio.StreamReader(loop=event_loop)
@@ -91,6 +92,23 @@ def test_read(pipe):
     pipe.test_writer.write(b'{"test": true}\r\n')
     result = yield from pipe.leap_reader.read()
     assert result == {'test': True}
+
+
+@pytest.mark.asyncio
+def test_read_eof(pipe):
+    """Test reading when EOF is encountered."""
+    pipe.test_writer.close()
+    result = yield from pipe.leap_reader.read()
+    assert result is None
+
+
+@pytest.mark.asyncio
+def test_read_invalid(pipe):
+    """Test reading when invalid data is received."""
+    pipe.test_writer.write(b'?')
+    pipe.test_writer.close()
+    with pytest.raises(json.JSONDecodeError):
+        yield from pipe.leap_reader.read()
 
 
 @pytest.mark.asyncio
