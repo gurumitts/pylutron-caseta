@@ -35,7 +35,7 @@ class LeapReader(object):
 
         If EOF is received, return `None`.
 
-        If invaid data is received, raise json.JSONDecodeError.
+        If invaid data is received, raise ValueError.
         """
         received = yield from self._reader.readline()
         if received == b'':
@@ -43,7 +43,7 @@ class LeapReader(object):
         _LOG.debug('received %s', received)
         try:
             return json.loads(received.decode('UTF-8'))
-        except json.JSONDecodeError as err:
+        except ValueError as err:
             _LOG.error("Invalid LEAP response: %s", received)
             self._reader.set_exception(err)
             raise err

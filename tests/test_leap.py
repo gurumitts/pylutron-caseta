@@ -1,6 +1,5 @@
 """Tests to validate ssl interactions."""
 import asyncio
-import json
 import pytest
 from collections import namedtuple
 
@@ -107,7 +106,7 @@ def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
     pipe.test_writer.write(b'?')
     pipe.test_writer.close()
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(ValueError):
         yield from pipe.leap_reader.read()
 
 
