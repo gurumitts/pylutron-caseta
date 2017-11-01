@@ -1,45 +1,63 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge."""
 
-import json
+import asyncio
 import logging
-import threading
-import time
-from io import StringIO
+import socket
+import ssl
 
-import paramiko
+from . import _LEAP_DEVICE_TYPES
+from .leap import open_connection
 
-from pylutron_caseta import _LUTRON_SSH_KEY, _LEAP_DEVICE_TYPES
-
-_LOG = logging.getLogger('smartbridge')
+_LOG = logging.getLogger(__name__)
 _LOG.setLevel(logging.DEBUG)
+
+LEAP_PORT = 8081
 
 
 class Smartbridge:
     """
     A representation of the Lutron Caseta Smart Bridge.
 
-    It uses an SSH interface known as the LEAP server.
+    It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, hostname=None):
+    def __init__(self, connect, loop=None):
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
-        self._hostname = hostname
         self.logged_in = False
-        self._sshclient = None
-        self._ssh_shell = None
-        self._login_ssh()
-        self._load_devices()
-        self._load_scenes()
-        _LOG.debug(self.devices)
-        _LOG.debug(self.scenes)
-        monitor = threading.Thread(target=self._monitor)
-        monitor.setDaemon(True)
-        monitor.start()
-        for _id in self.devices:
-            self.get_value(_id)
+        self._connect = connect
         self._subscribers = {}
+        self._loop = loop or asyncio.get_event_loop()
+        self._login_lock = asyncio.Lock(loop=self._loop)
+        self._reader = None
+        self._writer = None
+        self._monitor_task = None
+
+    @asyncio.coroutine
+    def connect(self):
+        """Connect to the bridge."""
+        yield from self._login()
+        self._monitor_task = self._loop.create_task(self._monitor())
+
+    @classmethod
+    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT,
+                   loop=None):
+        """Initialize the Smart Bridge using TLS over IPv4."""
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        ssl_context.load_verify_locations(ca_certs)
+        ssl_context.load_cert_chain(certfile, keyfile)
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+        @asyncio.coroutine
+        def _connect():
+            res = yield from open_connection(hostname,
+                                             port,
+                                             ssl=ssl_context,
+                                             loop=loop,
+                                             family=socket.AF_INET)
+            return res
+        return cls(_connect, loop=loop)
 
     def add_subscriber(self, device_id, callback_):
         """
@@ -126,10 +144,11 @@ class Smartbridge:
         :rtype int
         """
         zone_id = self._get_zone_id(device_id)
-        cmd = '{"CommuniqueType":"ReadRequest",' \
-              '"Header":{"Url":"/zone/%s/status"}}\n' % zone_id
         if zone_id:
-            return self._send_ssh_command(cmd)
+            cmd = {
+                "CommuniqueType": "ReadRequest",
+                "Header": {"Url": "/zone/%s/status" % zone_id}}
+            return self._writer.write(cmd)
 
     def is_connected(self):
         """Will return True if currently connected to the Smart Bridge."""
@@ -153,12 +172,14 @@ class Smartbridge:
         """
         zone_id = self._get_zone_id(device_id)
         if zone_id:
-            cmd = '{"CommuniqueType":"CreateRequest",' \
-                  '"Header":{"Url":"/zone/%s/commandprocessor"},' \
-                  '"Body":{"Command":{"CommandType":"GoToLevel",' \
-                  '"Parameter":[{"Type":"Level",' \
-                  '"Value":%s}]}}}\n' % (zone_id, value)
-            return self._send_ssh_command(cmd)
+            cmd = {
+                "CommuniqueType": "CreateRequest",
+                "Header": {"Url": "/zone/%s/commandprocessor" % zone_id},
+                "Body": {
+                    "Command": {
+                        "CommandType": "GoToLevel",
+                        "Parameter": [{"Type": "Level", "Value": value}]}}}
+            return self._writer.write(cmd)
 
     def turn_on(self, device_id):
         """
@@ -183,11 +204,12 @@ class Smartbridge:
         :param scene_id: scene id, e.g. 23
         """
         if scene_id in self.scenes:
-            cmd = '{"CommuniqueType":"CreateRequest",' \
-                  '"Header":{"Url":"/virtualbutton/%s/commandprocessor"},' \
-                  '"Body":{"Command":{"CommandType":"PressAndRelease"}}}' \
-                  '\n' % scene_id
-            return self._send_ssh_command(cmd)
+            cmd = {
+                "CommuniqueType": "CreateRequest",
+                "Header": {
+                    "Url": "/virtualbutton/%s/commandprocessor" % scene_id},
+                "Body": {"Command": {"CommandType": "PressAndRelease"}}}
+            return self._writer.write(cmd)
 
     def _get_zone_id(self, device_id):
         """
@@ -200,94 +222,95 @@ class Smartbridge:
             return device['zone']
         return None
 
-    def _send_ssh_command(self, cmd):
-        """Send an SSH command to the SSH shell."""
-        self._ssh_shell.send(cmd)
+    def _send_command(self, cmd):
+        """Send a command to the bridge."""
+        self._writer.write(cmd)
 
+    @asyncio.coroutine
     def _monitor(self):
-        """Event monitoring loop for the SSH shell."""
+        """Event monitoring loop."""
         while True:
             try:
-                self._login_ssh()
-                response = self._ssh_shell.recv(9999)
-                _LOG.debug(response)
-                resp_parts = response.split(b'\r\n')
-                try:
-                    for resp in resp_parts:
-                        if resp:
-                            resp_json = json.loads(resp.decode("UTF-8"))
-                            self._handle_response(resp_json)
-                except ValueError:
-                    _LOG.error("Invalid response "
-                               "from SmartBridge: " + response.decode("UTF-8"))
-            except ConnectionError:
-                self.logged_in = False
+                yield from self._login()
+                received = yield from self._reader.read()
+                if received is not None:
+                    self._handle_response(received)
+            except (ValueError, ConnectionResetError):
+                pass
 
     def _handle_response(self, resp_json):
         """
-        Handle an event from the SSH interface.
+        Handle an event from the ssl interface.
 
         If a zone level was changed either by external means such as a Pico
         remote or by a command sent from us, the new level will appear on the
-        SSH shell and the response is handled by this function.
+        reader and the response is handled by this function.
 
-        :param resp_json: full JSON response from the SSH shell
+        :param resp_json: full JSON response from the LEAP connection
         """
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
-            body = resp_json['Body']
-            zone = body['ZoneStatus']['Zone']['href']
-            zone = zone[zone.rfind('/') + 1:]
-            level = body['ZoneStatus']['Level']
-            _LOG.debug('zone=%s level=%s', zone, level)
-            for _device_id in self.devices:
-                device = self.devices[_device_id]
-                if 'zone' in device:
-                    if zone == device['zone']:
-                        device['current_state'] = level
-                        if _device_id in self._subscribers:
-                            self._subscribers[_device_id]()
+            body_type = resp_json['Header']['MessageBodyType']
+            if body_type == 'OneZoneStatus':
+                body = resp_json['Body']
+                zone = body['ZoneStatus']['Zone']['href']
+                zone = zone[zone.rfind('/') + 1:]
+                level = body['ZoneStatus']['Level']
+                _LOG.debug('zone=%s level=%s', zone, level)
+                for _device_id in self.devices:
+                    device = self.devices[_device_id]
+                    if 'zone' in device:
+                        if zone == device['zone']:
+                            device['current_state'] = level
+                            if _device_id in self._subscribers:
+                                self._subscribers[_device_id]()
 
-    def _login_ssh(self):
-        """
-        Connect and login to the Smart Bridge LEAP server using SSH.
+    @asyncio.coroutine
+    def _login(self):
+        """Connect and login to the Smart Bridge LEAP server using SSL."""
+        with (yield from self._login_lock):
+            if self._reader is not None:
+                if (self._reader.exception() is None and
+                        not self._reader.at_eof()):
+                    return
+                self._writer.close()
+                self._reader = self._writer = None
 
-        This interaction over SSH is not really documented anywhere.
-        I was looking for a way to get a list of devices connected to
-        the Smart Bridge. I found several references indicating
-        this was possible over SSH.
-        The most complete reference is located here:
-        https://github.com/njschwartz/Lutron-Smart-Pi/blob/master/RaspberryPi/LutronPi.py
-        """
-        if self.logged_in:
-            return
+            self.logged_in = False
+            _LOG.debug("Connecting to Smart Bridge via SSL")
+            self._reader, self._writer = yield from self._connect()
+            _LOG.debug("Successfully connected to Smart Bridge.")
 
-        _LOG.debug("Connecting to Smart Bridge via SSH")
-        ssh_user = 'leap'
-        ssh_port = 22
-        ssh_key = paramiko.RSAKey.from_private_key(StringIO(_LUTRON_SSH_KEY))
+            yield from self._load_devices()
+            yield from self._load_scenes()
+            for device in self.devices.values():
+                if 'zone' in device and device['zone'] is not None:
+                    cmd = {
+                        "CommuniqueType": "ReadRequest",
+                        "Header": {"Url": "/zone/%s/status" % device['zone']}}
+                    self._writer.write(cmd)
+            self._loop.create_task(self._ping())
+            self.logged_in = True
 
-        self._sshclient = paramiko.SSHClient()
-        self._sshclient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    @asyncio.coroutine
+    def _ping(self):
+        """Periodically ping the LEAP server to keep the connection open."""
+        try:
+            while True:
+                yield from asyncio.sleep(60.0, loop=self._loop)
+                self._writer.write({
+                    "CommuniqueType": "ReadRequest",
+                    "Header": {"Url": "/server/1/status/ping"}})
+        except ConnectionError:
+            pass
 
-        self._sshclient.connect(hostname=self._hostname, port=ssh_port,
-                                username=ssh_user, pkey=ssh_key)
-
-        self._ssh_shell = self._sshclient.invoke_shell()
-        _LOG.debug("Successfully connected to Smart Bridge "
-                   "using SSH. Ready...")
-        self.logged_in = True
-
+    @asyncio.coroutine
     def _load_devices(self):
-        """Load the device list from the SSH LEAP server interface."""
+        """Load the device list from the SSL LEAP server interface."""
         _LOG.debug("Loading devices")
-        self._ssh_shell.send(
-            '{"CommuniqueType":"ReadRequest","Header":{"Url":"/device"}}\n')
-        time.sleep(1)
-        shell_output = self._ssh_shell.recv(9999)
-        output_parts = shell_output.split(b"\r\n")
-        _LOG.debug(output_parts)
-        device_json = json.loads(output_parts[1].decode("UTF-8"))
+        self._writer.write({
+            "CommuniqueType": "ReadRequest", "Header": {"Url": "/device"}})
+        device_json = yield from self._reader.read()
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = device['href'][device['href'].rfind('/') + 1:]
@@ -303,21 +326,18 @@ class Smartbridge:
                                        'zone': device_zone,
                                        'current_state': -1}
 
+    @asyncio.coroutine
     def _load_scenes(self):
         """
         Load the scenes from the Smart Bridge.
 
-        Scenes are known as virtual buttons in the SSH LEAP interface.
+        Scenes are known as virtual buttons in the SSL LEAP interface.
         """
         _LOG.debug("Loading scenes from the Smart Bridge")
-        self._ssh_shell.send(
-            '{"CommuniqueType":"ReadRequest","Header":'
-            '{"Url":"/virtualbutton"}}\n')
-        time.sleep(1)
-        shell_output = self._ssh_shell.recv(35000)
-        output_parts = shell_output.split(b"\r\n")
-        _LOG.debug(output_parts)
-        scene_json = json.loads(output_parts[1].decode("UTF-8"))
+        self._writer.write({
+            "CommuniqueType": "ReadRequest",
+            "Header": {"Url": "/virtualbutton"}})
+        scene_json = yield from self._reader.read()
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
             if scene['IsProgrammed']:
@@ -325,3 +345,13 @@ class Smartbridge:
                 scene_name = scene['Name']
                 self.scenes[scene_id] = {'scene_id': scene_id,
                                          'name': scene_name}
+
+    @asyncio.coroutine
+    def close(self):
+        """Disconnect from the bridge."""
+        # make sure the monitor loop isn't going to immediately reconnect
+        if (self._monitor_task is not None and
+                not self._monitor_task.cancelled()):
+            self._monitor_task.cancel()
+        yield from self._writer.drain()
+        self._writer.close()
