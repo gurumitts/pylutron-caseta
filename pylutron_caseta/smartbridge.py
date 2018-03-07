@@ -318,7 +318,7 @@ class Smartbridge:
             if 'LocalZones' in device:
                 device_zone = device['LocalZones'][0]['href']
                 device_zone = device_zone[device_zone.rfind('/') + 1:]
-            device_name = device['Name']
+            device_name = '_'.join(device['FullyQualifiedName'])
             device_type = device['DeviceType']
             self.devices[device_id] = {'device_id': device_id,
                                        'name': device_name,
