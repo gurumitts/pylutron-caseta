@@ -188,7 +188,7 @@ def test_device_list(event_loop, bridge):
             "current_state": -1},
         "2": {
             "device_id": "2",
-            "name": "Lights",
+            "name": "Hallway_Lights",
             "type": "WallDimmer",
             "zone": "1",
             "current_state": -1}}
