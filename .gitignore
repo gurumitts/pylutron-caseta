@@ -10,3 +10,6 @@ MANIFEST
 run.py
 *.pem
 build/
+/caseta-bridge.crt
+/caseta.crt
+/caseta.key
