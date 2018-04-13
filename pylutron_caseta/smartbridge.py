@@ -310,7 +310,10 @@ class Smartbridge:
         _LOG.debug("Loading devices")
         self._writer.write({
             "CommuniqueType": "ReadRequest", "Header": {"Url": "/device"}})
-        device_json = yield from self._reader.read()
+        while True:
+            device_json = yield from self._reader.read()
+            if device_json['CommuniqueType'] == 'ReadResponse':
+                break
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = device['href'][device['href'].rfind('/') + 1:]
@@ -337,7 +340,10 @@ class Smartbridge:
         self._writer.write({
             "CommuniqueType": "ReadRequest",
             "Header": {"Url": "/virtualbutton"}})
-        scene_json = yield from self._reader.read()
+        while True:
+            scene_json = yield from self._reader.read()
+            if scene_json['CommuniqueType'] == 'ReadResponse':
+                break
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
             if scene['IsProgrammed']:
