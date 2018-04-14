@@ -1,6 +1,6 @@
 """Guide the user through pairing and save the necessary files."""
 
-# based on https://gist.github.com/mdonoughe/21c7ffa5a3fa23cc11747e852cd32daa/652886334ff5854501a734cacacfe07c73490626
+# based on https://git.io/vxjpt
 # original script by Mathieu Hofman
 
 # `python -m venv env`
