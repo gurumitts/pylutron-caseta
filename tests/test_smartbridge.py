@@ -185,12 +185,16 @@ def test_device_list(event_loop, bridge):
             "name": "Smart Bridge",
             "type": "SmartBridge",
             "zone": None,
-            "current_state": -1},
+            "current_state": -1,
+            "model": "L-BDG2-WH",
+            "serial": 1234},
         "2": {
             "device_id": "2",
             "name": "Hallway_Lights",
             "type": "WallDimmer",
             "zone": "1",
+            "model": "PD-6WCL-XX",
+            "serial": 2345,
             "current_state": -1}}
 
     yield from bridge.reader.queue.put({
