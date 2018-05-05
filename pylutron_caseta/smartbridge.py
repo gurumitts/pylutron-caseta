@@ -323,10 +323,14 @@ class Smartbridge:
                 device_zone = device_zone[device_zone.rfind('/') + 1:]
             device_name = '_'.join(device['FullyQualifiedName'])
             device_type = device['DeviceType']
+            device_model = device['ModelNumber']
+            device_serial = device['SerialNumber']
             self.devices[device_id] = {'device_id': device_id,
                                        'name': device_name,
                                        'type': device_type,
                                        'zone': device_zone,
+                                       'model': device_model,
+                                       'serial': device_serial,
                                        'current_state': -1}
 
     @asyncio.coroutine
