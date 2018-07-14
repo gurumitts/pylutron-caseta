@@ -130,32 +130,30 @@ except FileNotFoundError:
 
 server_addr = input("Enter the address of your Caseta bridge device: ")
 
-raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-ssl_socket = ssl.wrap_socket(raw_socket, keyfile='caseta.key',
-                             certfile='caseta.crt',
-                             ssl_version=ssl.PROTOCOL_TLSv1_2)
-ssl_socket.connect((server_addr, 8081))
+ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+ssl_context.load_cert_chain('caseta.crt', 'caseta.key')
+ssl_context.verify_mode = ssl.CERT_NONE
 
-ca_der = ssl_socket.getpeercert(True)
-ca_cert = x509.load_der_x509_certificate(ca_der, default_backend())
-with open('caseta-bridge.crt', 'wb') as f:
-    f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
+with socket.create_connection((server_addr, 8081)) as raw_socket:
+    with ssl_context.wrap_socket(raw_socket, server_hostname=server_addr) as ssl_socket:
+        ca_der = ssl_socket.getpeercert(True)
+        ca_cert = x509.load_der_x509_certificate(ca_der, default_backend())
+        with open('caseta-bridge.crt', 'wb') as f:
+            f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
 
-ssl_socket.send(("%s\r\n" % json.dumps({
-    "CommuniqueType": "ReadRequest",
-    "Header": {"Url": "/server/1/status/ping"}
-})).encode('UTF-8'))
+        ssl_socket.send(("%s\r\n" % json.dumps({
+            "CommuniqueType": "ReadRequest",
+            "Header": {"Url": "/server/1/status/ping"}
+        })).encode('UTF-8'))
 
-while True:
-    buffer = b''
-    while not buffer.endswith(b'\r\n'):
-        buffer += ssl_socket.read()
+        while True:
+            buffer = b''
+            while not buffer.endswith(b'\r\n'):
+                buffer += ssl_socket.read()
 
-    leap_response = json.loads(buffer.decode('UTF-8'))
-    if leap_response['CommuniqueType'] == 'ReadResponse':
-        break
-
-ssl_socket.close()
+            leap_response = json.loads(buffer.decode('UTF-8'))
+            if leap_response['CommuniqueType'] == 'ReadResponse':
+                break
 
 print("Successfully connected to bridge, running LEAP Server version %s" %
       leap_response['Body']['PingResponse']['LEAPVersion'])
