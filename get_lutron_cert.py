@@ -135,7 +135,7 @@ ssl_context.load_cert_chain('caseta.crt', 'caseta.key')
 ssl_context.verify_mode = ssl.CERT_NONE
 
 with socket.create_connection((server_addr, 8081)) as raw_socket:
-    with ssl_context.wrap_socket(raw_socket, server_hostname=server_addr) as ssl_socket:
+    with ssl_context.wrap_socket(raw_socket) as ssl_socket:
         ca_der = ssl_socket.getpeercert(True)
         ca_cert = x509.load_der_x509_certificate(ca_der, default_backend())
         with open('caseta-bridge.crt', 'wb') as f:

@@ -53,6 +53,7 @@ class Smartbridge:
         def _connect():
             res = yield from open_connection(hostname,
                                              port,
+                                             server_hostname='',
                                              ssl=ssl_context,
                                              loop=loop,
                                              family=socket.AF_INET)
