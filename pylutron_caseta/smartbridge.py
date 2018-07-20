@@ -12,6 +12,10 @@ _LOG = logging.getLogger(__name__)
 _LOG.setLevel(logging.DEBUG)
 
 LEAP_PORT = 8081
+PING_INTERVAL = 60.0
+PING_DELAY = 5.0
+CONNECT_TIMEOUT = 5.0
+RECONNECT_DELAY = 2.0
 
 
 class Smartbridge:
@@ -33,6 +37,8 @@ class Smartbridge:
         self._reader = None
         self._writer = None
         self._monitor_task = None
+        self._ping_task = None
+        self._got_ping = asyncio.Event(loop=self._loop)
 
     @asyncio.coroutine
     def connect(self):
@@ -229,14 +235,41 @@ class Smartbridge:
     @asyncio.coroutine
     def _monitor(self):
         """Event monitoring loop."""
-        while True:
-            try:
-                yield from self._login()
-                received = yield from self._reader.read()
-                if received is not None:
-                    self._handle_response(received)
-            except (ValueError, ConnectionResetError):
-                pass
+        try:
+            while True:
+                try:
+                    yield from asyncio.wait_for(self._login(),
+                                                timeout=CONNECT_TIMEOUT,
+                                                loop=self._loop)
+                    received = yield from self._reader.read()
+                    if received is not None:
+                        self._handle_response(received)
+                except (ValueError, ConnectionError, asyncio.TimeoutError):
+                    _LOG.warning("reconnecting", exc_info=1)
+                    yield from asyncio.sleep(RECONNECT_DELAY,
+                                             loop=self._loop)
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            _LOG.critical('monitor loop has exited', exc_info=1)
+            raise
+
+    def _handle_read_response(self, resp_json):
+        body_type = resp_json['Header']['MessageBodyType']
+        if body_type == 'OneZoneStatus':
+            body = resp_json['Body']
+            zone = body['ZoneStatus']['Zone']['href']
+            zone = zone[zone.rfind('/') + 1:]
+            level = body['ZoneStatus']['Level']
+            _LOG.debug('zone=%s level=%s', zone, level)
+            for _device_id in self.devices:
+                device = self.devices[_device_id]
+                if 'zone' in device and zone == device['zone']:
+                    device['current_state'] = level
+                    if _device_id in self._subscribers:
+                        self._subscribers[_device_id]()
+        elif body_type == "OnePingResponse":
+            self._got_ping.set()
 
     def _handle_response(self, resp_json):
         """
@@ -250,30 +283,18 @@ class Smartbridge:
         """
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
-            body_type = resp_json['Header']['MessageBodyType']
-            if body_type == 'OneZoneStatus':
-                body = resp_json['Body']
-                zone = body['ZoneStatus']['Zone']['href']
-                zone = zone[zone.rfind('/') + 1:]
-                level = body['ZoneStatus']['Level']
-                _LOG.debug('zone=%s level=%s', zone, level)
-                for _device_id in self.devices:
-                    device = self.devices[_device_id]
-                    if 'zone' in device:
-                        if zone == device['zone']:
-                            device['current_state'] = level
-                            if _device_id in self._subscribers:
-                                self._subscribers[_device_id]()
+            self._handle_read_response(resp_json)
 
     @asyncio.coroutine
     def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         with (yield from self._login_lock):
-            if self._reader is not None:
-                if (self._reader.exception() is None and
+            if self._reader is not None and self._writer is not None:
+                if (self.logged_in and
+                        self._reader.exception() is None and
                         not self._reader.at_eof()):
                     return
-                self._writer.close()
+                self._writer.abort()
                 self._reader = self._writer = None
 
             self.logged_in = False
@@ -289,20 +310,35 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            self._loop.create_task(self._ping())
+            self._ping_task = self._loop.create_task(self._ping())
             self.logged_in = True
 
     @asyncio.coroutine
     def _ping(self):
         """Periodically ping the LEAP server to keep the connection open."""
+        writer = self._writer
         try:
-            while True:
-                yield from asyncio.sleep(60.0, loop=self._loop)
-                self._writer.write({
-                    "CommuniqueType": "ReadRequest",
-                    "Header": {"Url": "/server/1/status/ping"}})
-        except ConnectionError:
+            try:
+                while True:
+                    yield from asyncio.sleep(PING_INTERVAL, loop=self._loop)
+                    self._got_ping.clear()
+                    writer.write({
+                        "CommuniqueType": "ReadRequest",
+                        "Header": {"Url": "/server/1/status/ping"}})
+                    yield from asyncio.wait_for(self._got_ping.wait(),
+                                                PING_DELAY, loop=self._loop)
+            except asyncio.TimeoutError:
+                _LOG.warning("ping was not answered. closing connection.")
+                writer.abort()
+            except ConnectionError:
+                _LOG.warning("ping failed. closing connection.")
+                writer.abort()
+        except asyncio.CancelledError:
             pass
+        except Exception:
+            _LOG.error("ping failed. closing connection.", exc_info=1)
+            writer.abort()
+            raise
 
     @asyncio.coroutine
     def _load_devices(self):
@@ -322,16 +358,16 @@ class Smartbridge:
                 device_zone = device['LocalZones'][0]['href']
                 device_zone = device_zone[device_zone.rfind('/') + 1:]
             device_name = '_'.join(device['FullyQualifiedName'])
-            device_type = device['DeviceType']
-            device_model = device['ModelNumber']
-            device_serial = device['SerialNumber']
-            self.devices[device_id] = {'device_id': device_id,
-                                       'name': device_name,
-                                       'type': device_type,
-                                       'zone': device_zone,
-                                       'model': device_model,
-                                       'serial': device_serial,
-                                       'current_state': -1}
+            self.devices.setdefault(device_id, {
+                'device_id': device_id,
+                'current_state': -1
+                }).update(
+                    zone=device_zone,
+                    name=device_name,
+                    type=device['DeviceType'],
+                    model=device['ModelNumber'],
+                    serial=device['SerialNumber']
+                )
 
     @asyncio.coroutine
     def _load_scenes(self):
@@ -359,9 +395,11 @@ class Smartbridge:
     @asyncio.coroutine
     def close(self):
         """Disconnect from the bridge."""
-        # make sure the monitor loop isn't going to immediately reconnect
         if (self._monitor_task is not None and
                 not self._monitor_task.cancelled()):
             self._monitor_task.cancel()
+        if (self._ping_task is not None and
+                not self._ping_task.cancelled()):
+            self._ping_task.cancel()
         yield from self._writer.drain()
-        self._writer.close()
+        self._writer.abort()

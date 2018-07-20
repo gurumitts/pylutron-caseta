@@ -60,9 +60,9 @@ class LeapWriter(object):
         """Initialize the writer."""
         self._writer = writer
 
-    def close(self):
-        """Close the underlying stream."""
-        self._writer.close()
+    def abort(self):
+        """Abort the underlying stream."""
+        self._writer.transport.abort()
 
     @asyncio.coroutine
     def drain(self):
