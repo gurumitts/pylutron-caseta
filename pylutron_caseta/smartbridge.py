@@ -9,7 +9,6 @@ from . import _LEAP_DEVICE_TYPES
 from .leap import open_connection
 
 _LOG = logging.getLogger(__name__)
-_LOG.setLevel(logging.DEBUG)
 
 LEAP_PORT = 8081
 PING_INTERVAL = 60.0
