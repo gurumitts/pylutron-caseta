@@ -2,6 +2,7 @@
 
 _LEAP_DEVICE_TYPES = {'light': ['WallDimmer', 'PlugInDimmer'],
                       'switch': ['WallSwitch'],
+                      'fan': ['CasetaFanSpeedController'],
                       'cover': ['SerenaHoneycombShade', 'SerenaRollerShade',
                                 'TriathlonHoneycombShade',
                                 'TriathlonRollerShade', 'QsWirelessShade'],
