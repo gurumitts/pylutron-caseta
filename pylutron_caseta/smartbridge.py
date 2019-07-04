@@ -41,8 +41,8 @@ class Smartbridge:
         self._monitor_task = self._loop.create_task(self._monitor())
 
     @classmethod
-    def create_tls(cls, hostname, keyfile, certfile, ca_certs, cert_required=True,
-                   port=LEAP_PORT, loop=None):
+    def create_tls(cls, hostname, keyfile, certfile, ca_certs,
+                   cert_required=True, port=LEAP_PORT, loop=None):
         """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
