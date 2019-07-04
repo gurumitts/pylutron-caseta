@@ -4,7 +4,6 @@ import asyncio
 import logging
 import socket
 import ssl
-import json
 
 from . import _LEAP_DEVICE_TYPES
 from .leap import open_connection
@@ -42,13 +41,17 @@ class Smartbridge:
         self._monitor_task = self._loop.create_task(self._monitor())
 
     @classmethod
-    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT,
-                   loop=None):
+    def create_tls(cls, hostname, keyfile, certfile, ca_certs, cert_required=True,
+                   port=LEAP_PORT, loop=None):
         """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+        if cert_required:
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+        else:
+            ssl_context.verify_mode = ssl.CERT_NONE
 
         @asyncio.coroutine
         def _connect():
@@ -162,7 +165,8 @@ class Smartbridge:
         :param device_id: device id, e.g. 5
         :returns True if level is greater than 0 level, False otherwise
         """
-        return self.devices[device_id]['current_state'] > 0 or self.devices[device_id]['fan_speed'] != "Off"
+        return (self.devices[device_id]['current_state'] > 0 or
+                self.devices[device_id]['fan_speed'] != "Off")
 
     def set_value(self, device_id, value):
         """
@@ -187,11 +191,10 @@ class Smartbridge:
         Will set the value for a fan device with the given device ID.
 
         :param device_id: device id to set the value on
-        :param value: string value to set the fan to: Low, Medium, MediumHigh, High
+        :param value: string value to set the fan to:
+        Low, Medium, MediumHigh, High
         """
-
         zone_id = self._get_zone_id(device_id)
-
         if zone_id:
             cmd = {
                 "CommuniqueType": "CreateRequest",
@@ -269,35 +272,34 @@ class Smartbridge:
 
         :param resp_json: full JSON response from the LEAP connection
         """
-
         level = 0
-        fanSpeed = "Off"
+        fan_speed = "Off"
 
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
             body_type = resp_json['Header']['MessageBodyType']
             if body_type == 'OneZoneStatus':
                 body = resp_json['Body']
-                zoneStat = body['ZoneStatus']
+                zone_stat = body['ZoneStatus']
                 zone = body['ZoneStatus']['Zone']['href']
                 zone = zone[zone.rfind('/') + 1:]
-                if 'Level' in zoneStat:
-                    level = zoneStat['Level']
-                elif 'FanSpeed' in zoneStat:
-                    fanSpeed = zoneStat['FanSpeed']
-                    if fanSpeed == "Off":
+                if 'Level' in zone_stat:
+                    level = zone_stat['Level']
+                elif 'FanSpeed' in zone_stat:
+                    fan_speed = zone_stat['FanSpeed']
+                    if fan_speed == "Off":
                         level = 0
                     else:
                         level = 100
                 else:
-                    _LOG.debug("Unknown Lutron Caseta Device Found. Dev Work Likely needed.")
+                    _LOG.debug("Unknown Lutron Caseta Device Found.")
                 _LOG.debug('zone=%s level=%s', zone, level)
                 for _device_id in self.devices:
                     device = self.devices[_device_id]
                     if 'zone' in device:
                         if zone == device['zone']:
                             device['current_state'] = level
-                            device['fan_speed'] = fanSpeed
+                            device['fan_speed'] = fan_speed
                             if _device_id in self._subscribers:
                                 self._subscribers[_device_id]()
 
@@ -366,7 +368,7 @@ class Smartbridge:
                                        'type': device_type,
                                        'zone': device_zone,
                                        'model': device_model,
-                                       'serial': device_serial,                                       
+                                       'serial': device_serial,
                                        'current_state': -1,
                                        'fan_speed': "Off"}
 
