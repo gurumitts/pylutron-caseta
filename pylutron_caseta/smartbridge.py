@@ -42,16 +42,12 @@ class Smartbridge:
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
-                   cert_required=True, port=LEAP_PORT, loop=None):
+                   port=LEAP_PORT, loop=None):
         """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
-
-        if cert_required:
-            ssl_context.verify_mode = ssl.CERT_REQUIRED
-        else:
-            ssl_context.verify_mode = ssl.CERT_NONE
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
 
         @asyncio.coroutine
         def _connect():
