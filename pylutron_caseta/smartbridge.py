@@ -268,8 +268,9 @@ class Smartbridge:
 
         :param resp_json: full JSON response from the LEAP connection
         """
-        level = 0
-        fan_speed = "Off"
+
+        level = -1
+        fan_speed = None
 
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
@@ -283,10 +284,6 @@ class Smartbridge:
                     level = zone_stat['Level']
                 elif 'FanSpeed' in zone_stat:
                     fan_speed = zone_stat['FanSpeed']
-                    if fan_speed == "Off":
-                        level = 0
-                    else:
-                        level = 100
                 else:
                     _LOG.debug("Unknown Lutron Caseta Device Found.")
                 _LOG.debug('zone=%s level=%s', zone, level)
@@ -366,7 +363,7 @@ class Smartbridge:
                                        'model': device_model,
                                        'serial': device_serial,
                                        'current_state': -1,
-                                       'fan_speed': "Off"}
+                                       'fan_speed': None}
 
     @asyncio.coroutine
     def _load_scenes(self):
