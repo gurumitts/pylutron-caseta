@@ -5,7 +5,7 @@ import logging
 import socket
 import ssl
 
-from . import _LEAP_DEVICE_TYPES
+from . import _LEAP_DEVICE_TYPES, FAN_OFF
 from .leap import open_connection
 
 _LOG = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class Smartbridge:
         :returns True if level is greater than 0 level, False otherwise
         """
         return (self.devices[device_id]['current_state'] > 0 or
-                self.devices[device_id]['fan_speed'] != "Off")
+                self.devices[device_id]['fan_speed'] != FAN_OFF)
 
     def set_value(self, device_id, value):
         """
