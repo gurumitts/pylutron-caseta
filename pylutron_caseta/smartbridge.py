@@ -195,7 +195,7 @@ class Smartbridge:
 
         :param device_id: device id to set the value on
         :param value: string value to set the fan to:
-        Low, Medium, MediumHigh, High
+        Off, Low, Medium, MediumHigh, High
         """
         zone_id = self._get_zone_id(device_id)
         if zone_id:
