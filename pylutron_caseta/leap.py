@@ -38,9 +38,11 @@ class LeapReader(object):
         If invaid data is received, raise ValueError.
         """
         received = yield from self._reader.readline()
+
         if received == b'':
             return None
         _LOG.debug('received %s', received)
+
         try:
             return json.loads(received.decode('UTF-8'))
         except ValueError as err:

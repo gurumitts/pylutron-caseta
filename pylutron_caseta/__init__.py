@@ -2,6 +2,7 @@
 
 _LEAP_DEVICE_TYPES = {'light': ['WallDimmer', 'PlugInDimmer'],
                       'switch': ['WallSwitch'],
+                      'fan': ['CasetaFanSpeedController'],
                       'cover': ['SerenaHoneycombShade', 'SerenaRollerShade',
                                 'TriathlonHoneycombShade',
                                 'TriathlonRollerShade', 'QsWirelessShade'],
@@ -10,3 +11,9 @@ _LEAP_DEVICE_TYPES = {'light': ['WallDimmer', 'PlugInDimmer'],
                                  'Pico3ButtonRaiseLower', 'Pico4Button',
                                  'Pico4ButtonScene', 'Pico4ButtonZone',
                                  'Pico4Button2Group', 'FourGroupRemote']}
+
+FAN_OFF = 'Off'
+FAN_LOW = 'Low'
+FAN_MEDIUM = 'Medium'
+FAN_MEDIUM_HIGH = 'MediumHigh'
+FAN_HIGH = 'High'

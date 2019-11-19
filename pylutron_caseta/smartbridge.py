@@ -5,7 +5,7 @@ import logging
 import socket
 import ssl
 
-from . import _LEAP_DEVICE_TYPES
+from . import _LEAP_DEVICE_TYPES, FAN_OFF
 from .leap import open_connection
 
 _LOG = logging.getLogger(__name__)
@@ -46,8 +46,8 @@ class Smartbridge:
         self._monitor_task = self._loop.create_task(self._monitor())
 
     @classmethod
-    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT,
-                   loop=None):
+    def create_tls(cls, hostname, keyfile, certfile, ca_certs,
+                   port=LEAP_PORT, loop=None):
         """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
@@ -82,7 +82,7 @@ class Smartbridge:
         """
         Return a list of devices for the given domain.
 
-        :param domain: one of 'light', 'switch', 'cover' or 'sensor'
+        :param domain: one of 'light', 'switch', 'cover', 'fan' or 'sensor'
         :returns list of zero or more of the devices
         """
         devs = []
@@ -167,7 +167,8 @@ class Smartbridge:
         :param device_id: device id, e.g. 5
         :returns True if level is greater than 0 level, False otherwise
         """
-        return self.devices[device_id]['current_state'] > 0
+        return (self.devices[device_id]['current_state'] > 0 or
+                (self.devices[device_id]['fan_speed'] or FAN_OFF) != FAN_OFF)
 
     def set_value(self, device_id, value):
         """
@@ -185,6 +186,25 @@ class Smartbridge:
                     "Command": {
                         "CommandType": "GoToLevel",
                         "Parameter": [{"Type": "Level", "Value": value}]}}}
+            return self._writer.write(cmd)
+
+    def set_fan(self, device_id, value):
+        """
+        Will set the value for a fan device with the given device ID.
+
+        :param device_id: device id to set the value on
+        :param value: string value to set the fan to:
+        Off, Low, Medium, MediumHigh, High
+        """
+        zone_id = self._get_zone_id(device_id)
+        if zone_id:
+            cmd = {
+                "CommuniqueType": "CreateRequest",
+                "Header": {"Url": "/zone/%s/commandprocessor" % zone_id},
+                "Body": {
+                    "Command": {
+                        "CommandType": "GoToFanSpeed",
+                        "FanSpeedParameters": {"FanSpeed": value}}}}
             return self._writer.write(cmd)
 
     def turn_on(self, device_id):
@@ -223,10 +243,7 @@ class Smartbridge:
 
         :param device_id: device id for which to retrieve a zone id
         """
-        device = self.devices[device_id]
-        if 'zone' in device:
-            return device['zone']
-        return None
+        return self.devices[device_id].get('zone')
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
@@ -258,14 +275,17 @@ class Smartbridge:
         body_type = resp_json['Header']['MessageBodyType']
         if body_type == 'OneZoneStatus':
             body = resp_json['Body']
-            zone = body['ZoneStatus']['Zone']['href']
+            status = body['ZoneStatus']
+            zone = status['Zone']['href']
             zone = zone[zone.rfind('/') + 1:]
-            level = body['ZoneStatus']['Level']
+            level = status.get('Level', -1)
+            fan_speed = status.get('FanSpeed')
             _LOG.debug('zone=%s level=%s', zone, level)
             for _device_id in self.devices:
                 device = self.devices[_device_id]
-                if 'zone' in device and zone == device['zone']:
+                if zone == device.get('zone'):
                     device['current_state'] = level
+                    device['fan_speed'] = fan_speed
                     if _device_id in self._subscribers:
                         self._subscribers[_device_id]()
         elif body_type == "OnePingResponse":
@@ -305,7 +325,7 @@ class Smartbridge:
             yield from self._load_devices()
             yield from self._load_scenes()
             for device in self.devices.values():
-                if 'zone' in device and device['zone'] is not None:
+                if device.get('zone') is not None:
                     cmd = {
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
@@ -360,7 +380,8 @@ class Smartbridge:
             device_name = '_'.join(device['FullyQualifiedName'])
             self.devices.setdefault(device_id, {
                 'device_id': device_id,
-                'current_state': -1
+                'current_state': -1,
+                'fan_speed': None
                 }).update(
                     zone=device_zone,
                     name=device_name,
