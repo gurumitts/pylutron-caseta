@@ -244,10 +244,7 @@ class Smartbridge:
 
         :param device_id: device id for which to retrieve a zone id
         """
-        device = self.devices[device_id]
-        if 'zone' in device:
-            return device['zone']
-        return None
+        return self.devices[device_id].get('zone')
 
     def _send_command(self, cmd):
         """Send a command to the bridge."""
@@ -276,25 +273,18 @@ class Smartbridge:
             raise
 
     def _handle_read_response(self, resp_json):
-        level = -1
-        fan_speed = None
-
         body_type = resp_json['Header']['MessageBodyType']
         if body_type == 'OneZoneStatus':
             body = resp_json['Body']
-            zone_stat = body['ZoneStatus']
-            zone = body['ZoneStatus']['Zone']['href']
+            status = body['ZoneStatus']
+            zone = status['Zone']['href']
             zone = zone[zone.rfind('/') + 1:]
-            if 'Level' in zone_stat:
-                level = zone_stat['Level']
-            elif 'FanSpeed' in zone_stat:
-                fan_speed = zone_stat['FanSpeed']
-            else:
-                _LOG.debug("Unknown Lutron Caseta Device Found.")
+            level = status.get('Level', -1)
+            fan_speed = status.get('FanSpeed')
             _LOG.debug('zone=%s level=%s', zone, level)
             for _device_id in self.devices:
                 device = self.devices[_device_id]
-                if 'zone' in device and zone == device['zone']:
+                if zone == device.get('zone'):
                     device['current_state'] = level
                     device['fan_speed'] = fan_speed
                     if _device_id in self._subscribers:
@@ -337,7 +327,7 @@ class Smartbridge:
             yield from self._load_devices()
             yield from self._load_scenes()
             for device in self.devices.values():
-                if 'zone' in device and device['zone'] is not None:
+                if device.get('zone') is not None:
                     cmd = {
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
