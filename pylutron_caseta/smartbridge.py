@@ -169,7 +169,7 @@ class Smartbridge:
         :returns True if level is greater than 0 level, False otherwise
         """
         return (self.devices[device_id]['current_state'] > 0 or
-                self.devices[device_id]['fan_speed'] != FAN_OFF)
+                (self.devices[device_id]['fan_speed'] or FAN_OFF) != FAN_OFF)
 
     def set_value(self, device_id, value):
         """

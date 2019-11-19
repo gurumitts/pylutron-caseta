@@ -4,6 +4,7 @@ import logging
 import pytest
 
 import pylutron_caseta.smartbridge as smartbridge
+from pylutron_caseta import FAN_OFF, FAN_MEDIUM
 
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
@@ -99,6 +100,16 @@ class Bridge:
                     "ModelNumber": "PD-6WCL-XX",
                     "DeviceType": "WallDimmer",
                     "LocalZones": [{"href": "/zone/1"}],
+                    "AssociatedArea": {"href": "/area/1"}
+                }, {
+                    "href": "/device/3",
+                    "Name": "Fan",
+                    "FullyQualifiedName": ["Hallway", "Fan"],
+                    "Parent": {"href": "/project"},
+                    "SerialNumber": 3456,
+                    "ModelNumber": "PD-FSQN-XX",
+                    "DeviceType": "CasetaFanSpeedController",
+                    "LocalZones": [{"href": "/zone/2"}],
                     "AssociatedArea": {"href": "/area/1"}}]}})
         value = yield from wait(writer.queue.get())
         assert value == {
@@ -126,11 +137,14 @@ class Bridge:
                     "ProgrammingModel": {"href": "/programmingmodel/2"},
                     "Parent": {"href": "/project"},
                     "IsProgrammed": False}]}})
-        value = yield from wait(writer.queue.get())
-        assert value == {
-            "CommuniqueType": "ReadRequest",
-            "Header": {"Url": "/zone/1/status"}}
-        writer.queue.task_done()
+        requested_zones = []
+        for _ in range(0, 2):
+            value = yield from wait(writer.queue.get())
+            assert value["CommuniqueType"] == "ReadRequest"
+            requested_zones.append(value["Header"]["Url"])
+            writer.queue.task_done()
+        requested_zones.sort()
+        assert requested_zones == ["/zone/1/status", "/zone/2/status"]
 
     @asyncio.coroutine
     def disconnect(self, exception=None):
@@ -283,6 +297,7 @@ def test_device_list(event_loop, bridge):
             "type": "SmartBridge",
             "zone": None,
             "current_state": -1,
+            "fan_speed": None,
             "model": "L-BDG2-WH",
             "serial": 1234},
         "2": {
@@ -292,7 +307,17 @@ def test_device_list(event_loop, bridge):
             "zone": "1",
             "model": "PD-6WCL-XX",
             "serial": 2345,
-            "current_state": -1}}
+            "current_state": -1,
+            "fan_speed": None},
+        "3": {
+            "device_id": "3",
+            "name": "Hallway_Fan",
+            "type": "CasetaFanSpeedController",
+            "zone": "2",
+            "model": "PD-FSQN-XX",
+            "serial": 3456,
+            "current_state": -1,
+            "fan_speed": None}}
 
     yield from bridge.reader.write({
         "CommuniqueType": "ReadResponse",
@@ -304,10 +329,23 @@ def test_device_list(event_loop, bridge):
             "ZoneStatus": {
                 "Level": 100,
                 "Zone": {"href": "/zone/1"}}}})
+    yield from bridge.reader.write({
+        "CommuniqueType": "ReadResponse",
+        "Header": {
+            "MessageBodyType": "OneZoneStatus",
+            "StatusCode": "200 OK",
+            "Url": "/zone/2/status"},
+        "Body": {
+            "ZoneStatus": {
+                "FanSpeed": "Medium",
+                "Zone": {"href": "/zone/2"}}}})
     yield from asyncio.wait_for(bridge.reader.queue.join(),
                                 10, loop=event_loop)
     devices = bridge.target.get_devices()
     assert devices['2']['current_state'] == 100
+    assert devices['2']['fan_speed'] == None
+    assert devices['3']['current_state'] == -1
+    assert devices['3']['fan_speed'] == FAN_MEDIUM
 
     devices = bridge.target.get_devices_by_domain('light')
     assert len(devices) == 1
@@ -323,6 +361,14 @@ def test_device_list(event_loop, bridge):
 
     device = bridge.target.get_device_by_id('2')
     assert device['device_id'] == '2'
+
+    devices = bridge.target.get_devices_by_domain('fan')
+    assert len(devices) == 1
+    assert devices[0]['device_id'] == '3'
+
+    devices = bridge.target.get_devices_by_type('CasetaFanSpeedController')
+    assert len(devices) == 1
+    assert devices[0]['device_id'] == '3'
 
 
 def test_scene_list(bridge):
@@ -380,6 +426,38 @@ def test_is_on(event_loop, bridge):
 
 
 @pytest.mark.asyncio
+def test_is_on_fan(event_loop, bridge):
+    """Test the is_on method returns device state for fans."""
+    yield from bridge.reader.write({
+        "CommuniqueType": "ReadResponse",
+        "Header": {
+            "MessageBodyType": "OneZoneStatus",
+            "StatusCode": "200 OK",
+            "Url": "/zone/1/status"},
+        "Body": {
+            "ZoneStatus": {
+                "FanSpeed": "Medium",
+                "Zone": {"href": "/zone/1"}}}})
+    yield from asyncio.wait_for(bridge.reader.queue.join(),
+                                10, loop=event_loop)
+    assert bridge.target.is_on('2') is True
+
+    yield from bridge.reader.write({
+        "CommuniqueType": "ReadResponse",
+        "Header": {
+            "MessageBodyType": "OneZoneStatus",
+            "StatusCode": "200 OK",
+            "Url": "/zone/1/status"},
+        "Body": {
+            "ZoneStatus": {
+                "FanSpeed": "Off",
+                "Zone": {"href": "/zone/1"}}}})
+    yield from asyncio.wait_for(bridge.reader.queue.join(),
+                                10, loop=event_loop)
+    assert bridge.target.is_on('2') is False
+
+
+@pytest.mark.asyncio
 def test_set_value(event_loop, bridge):
     """Test that setting values produces the right commands."""
     bridge.target.set_value('2', 50)
@@ -417,6 +495,22 @@ def test_set_value(event_loop, bridge):
             "Command": {
                 "CommandType": "GoToLevel",
                 "Parameter": [{"Type": "Level", "Value": 0}]}}}
+
+
+@pytest.mark.asyncio
+def test_set_fan(event_loop, bridge):
+    """Test that setting fan speed produces the right commands."""
+    bridge.target.set_fan('2', FAN_MEDIUM)
+    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
+                                          10, loop=event_loop)
+    bridge.writer.queue.task_done()
+    assert command == {
+        "CommuniqueType": "CreateRequest",
+        "Header": {"Url": "/zone/1/commandprocessor"},
+        "Body": {
+            "Command": {
+                "CommandType": "GoToFanSpeed",
+                "FanSpeedParameters": {"FanSpeed": "Medium"}}}}
 
 
 @pytest.mark.asyncio
