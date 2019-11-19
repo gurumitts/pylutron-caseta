@@ -302,7 +302,6 @@ class Smartbridge:
 
         :param resp_json: full JSON response from the LEAP connection
         """
-
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
             self._handle_read_response(resp_json)
