@@ -4,7 +4,7 @@ import logging
 import pytest
 
 import pylutron_caseta.smartbridge as smartbridge
-from pylutron_caseta import FAN_OFF, FAN_MEDIUM
+from pylutron_caseta import FAN_MEDIUM
 
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
@@ -343,7 +343,7 @@ def test_device_list(event_loop, bridge):
                                 10, loop=event_loop)
     devices = bridge.target.get_devices()
     assert devices['2']['current_state'] == 100
-    assert devices['2']['fan_speed'] == None
+    assert devices['2']['fan_speed'] is None
     assert devices['3']['current_state'] == -1
     assert devices['3']['fan_speed'] == FAN_MEDIUM
 
