@@ -407,7 +407,7 @@ class Smartbridge:
                 break
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
-            if scene['IsProgrammed']:
+            if scene['IsProgrammed'] and 'Name' in scene:
                 scene_id = scene['href'][scene['href'].rfind('/') + 1:]
                 scene_name = scene['Name']
                 self.scenes[scene_id] = {'scene_id': scene_id,
