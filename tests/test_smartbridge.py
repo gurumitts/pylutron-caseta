@@ -143,7 +143,8 @@ class Bridge:
                     'ProgrammingModel': {'href': '/programmingmodel/200'},
                     'Parent': {'href': '/area/9'},
                     'IsProgrammed': True,
-                    'Category': {'Type': 'LivingRoom', 'SubType': 'Bright'}}]}})
+                    'Category': {'Type': 'LivingRoom', 'SubType': 'Bright'}
+                }]}})
         requested_zones = []
         for _ in range(0, 2):
             value = yield from wait(writer.queue.get())
