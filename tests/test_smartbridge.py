@@ -97,7 +97,43 @@ class Bridge:
                     "ModelNumber": "PD-FSQN-XX",
                     "DeviceType": "CasetaFanSpeedController",
                     "LocalZones": [{"href": "/zone/2"}],
-                    "AssociatedArea": {"href": "/area/1"}}]}})
+                    "AssociatedArea": {"href": "/area/1"}
+                }, {'href': '/device/4',
+                    'Name': 'Occupancy Sensor',
+                    'FullyQualifiedName': ['Basement Storage Area',
+                                           'Occupancy Sensor'],
+                    'Parent': {'href': '/project'},
+                    'SerialNumber': 4567,
+                    'ModelNumber': 'LRF2-XXXXB-P-XX',
+                    'DeviceType': 'RPSOccupancySensor',
+                    'AssociatedArea': {'href': '/area/21'},
+                    'OccupancySensors': [{'href': '/occupancysensor/2'}],
+                    'LinkNodes': [{'href': '/device/4/linknode/53'}],
+                    'DeviceRules': [{'href': '/devicerule/11'}]
+                }, {'href': '/device/5',
+                    'Name': 'Occupancy Sensor Door',
+                    'FullyQualifiedName': ['Master Bathroom',
+                                           'Occupancy Sensor Door'],
+                    'Parent': {'href': '/project'},
+                    'SerialNumber': 5678,
+                    'ModelNumber': 'PD-VSENS-XX',
+                    'DeviceType': 'RPSOccupancySensor',
+                    'AssociatedArea': {'href': '/area/26'},
+                    'OccupancySensors': [{'href': '/occupancysensor/3'}],
+                    'LinkNodes': [{'href': '/device/5/linknode/55'}],
+                    'DeviceRules': [{'href': '/devicerule/123'}]
+                }, {'href': '/device/6',
+                    'Name': 'Occupancy Sensor Tub',
+                    'FullyQualifiedName': ['Master Bathroom',
+                                           'Occupancy Sensor Tub'],
+                    'Parent': {'href': '/project'},
+                    'SerialNumber': 6789,
+                    'ModelNumber': 'PD-OSENS-XX',
+                    'DeviceType': 'RPSOccupancySensor',
+                    'AssociatedArea': {'href': '/area/26'},
+                    'OccupancySensors': [{'href': '/occupancysensor/4'}],
+                    'LinkNodes': [{'href': '/device/6/linknode/56'}],
+                    'DeviceRules': [{'href': '/devicerule/122'}]}]}})
         value = await wait(writer.queue.get())
         assert value == {
                 "CommuniqueType": "ReadRequest",
@@ -275,7 +311,7 @@ async def test_notifications(event_loop, bridge):
 async def test_device_list(event_loop, bridge):
     """Test methods getting devices."""
     devices = bridge.target.get_devices()
-    assert devices == {
+    expected_devices = {
         "1": {
             "device_id": "1",
             "name": "Smart Bridge",
@@ -302,7 +338,37 @@ async def test_device_list(event_loop, bridge):
             "model": "PD-FSQN-XX",
             "serial": 3456,
             "current_state": -1,
-            "fan_speed": None}}
+            "fan_speed": None},
+        "4": {
+            "device_id": "4",
+            "name": "Basement Storage Area_Occupancy Sensor",
+            "type": "RPSOccupancySensor",
+            "model": "LRF2-XXXXB-P-XX",
+            "serial": 4567,
+            "current_state": -1,
+            "fan_speed": None,
+            "zone": None},
+        "5": {
+            "device_id": "5",
+            "name": "Master Bathroom_Occupancy Sensor Door",
+            "type": "RPSOccupancySensor",
+            "model": "PD-VSENS-XX",
+            "serial": 5678,
+            "current_state": -1,
+            "fan_speed": None,
+            "zone": None},
+        "6": {
+            "device_id": "6",
+            "name": "Master Bathroom_Occupancy Sensor Tub",
+            "type": "RPSOccupancySensor",
+            "model": "PD-OSENS-XX",
+            "serial": 6789,
+            "current_state": -1,
+            "fan_speed": None,
+            "zone": None},
+    }
+
+    assert devices == expected_devices
 
     await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
