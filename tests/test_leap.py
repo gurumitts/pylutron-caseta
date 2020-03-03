@@ -86,33 +86,33 @@ def pipe(event_loop):
 
 
 @pytest.mark.asyncio
-def test_read(pipe):
+async def test_read(pipe):
     """Test basic object reading."""
     pipe.test_writer.write(b'{"test": true}\r\n')
-    result = yield from pipe.leap_reader.read()
+    result = await pipe.leap_reader.read()
     assert result == {'test': True}
 
 
 @pytest.mark.asyncio
-def test_read_eof(pipe):
+async def test_read_eof(pipe):
     """Test reading when EOF is encountered."""
     pipe.test_writer.close()
-    result = yield from pipe.leap_reader.read()
+    result = await pipe.leap_reader.read()
     assert result is None
 
 
 @pytest.mark.asyncio
-def test_read_invalid(pipe):
+async def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
     pipe.test_writer.write(b'?')
     pipe.test_writer.close()
     with pytest.raises(ValueError):
-        yield from pipe.leap_reader.read()
+        await pipe.leap_reader.read()
 
 
 @pytest.mark.asyncio
-def test_write(pipe):
+async def test_write(pipe):
     """Test basic object writing."""
     pipe.leap_writer.write({'test': True})
-    result = yield from pipe.test_reader.readline()
+    result = await pipe.test_reader.readline()
     assert result == b'{"test": true}\r\n'

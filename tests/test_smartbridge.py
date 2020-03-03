@@ -27,56 +27,52 @@ class Bridge:
         self.connections = JoinableQueue(loop=event_loop)
         self.reader = self.writer = None
 
-        @asyncio.coroutine
-        def fake_connect():
+        async def fake_connect():
             """Used by SmartBridge to connect to the test."""
             closed = asyncio.Event(loop=event_loop)
             reader = _FakeLeapReader(closed, event_loop)
             writer = _FakeLeapWriter(closed, event_loop)
-            yield from self.connections.put((reader, writer))
+            await self.connections.put((reader, writer))
             return (reader, writer)
 
         self.target = smartbridge.Smartbridge(fake_connect,
                                               loop=event_loop)
 
-    @asyncio.coroutine
-    def initialize(self):
+    async def initialize(self):
         """Perform the initial connection with SmartBridge."""
         connect_task = self.event_loop.create_task(self.target.connect())
-        reader, writer = yield from self.connections.get()
+        reader, writer = await self.connections.get()
 
-        @asyncio.coroutine
-        def wait(coro):
+        async def wait(coro):
             # abort if SmartBridge reports it has finished connecting early
             task = self.event_loop.create_task(coro)
-            r = yield from asyncio.wait((connect_task, task),
-                                        loop=self.event_loop,
-                                        timeout=10,
-                                        return_when=asyncio.FIRST_COMPLETED)
+            r = await asyncio.wait((connect_task, task),
+                                    loop=self.event_loop,
+                                    timeout=10,
+                                    return_when=asyncio.FIRST_COMPLETED)
             done, pending = r
             assert len(done) > 0, "operation timed out"
             if len(done) == 1 and connect_task in done:
                 print("SmartBridge returned before end of connection routine")
                 raise connect_task.exception()
-            result = yield from task
+            result = await task
             return result
 
-        yield from self._accept_connection(reader, writer, wait)
-        yield from connect_task
+        await self._accept_connection(reader, writer, wait)
+        await connect_task
 
         self.reader = reader
         self.writer = writer
         self.connections.task_done()
 
-    @asyncio.coroutine
-    def _accept_connection(self, reader, writer, wait):
+    async def _accept_connection(self, reader, writer, wait):
         """Accept a connection from SmartBridge (implementation)."""
-        value = yield from wait(writer.queue.get())
+        value = await wait(writer.queue.get())
         assert value == {
                 "CommuniqueType": "ReadRequest",
                 "Header": {"Url": "/device"}}
         writer.queue.task_done()
-        yield from reader.write({
+        await reader.write({
             "CommuniqueType": "ReadResponse", "Header": {
                 "MessageBodyType": "MultipleDeviceDefinition",
                 "StatusCode": "200 OK",
@@ -111,12 +107,12 @@ class Bridge:
                     "DeviceType": "CasetaFanSpeedController",
                     "LocalZones": [{"href": "/zone/2"}],
                     "AssociatedArea": {"href": "/area/1"}}]}})
-        value = yield from wait(writer.queue.get())
+        value = await wait(writer.queue.get())
         assert value == {
                 "CommuniqueType": "ReadRequest",
                 "Header": {"Url": "/virtualbutton"}}
         writer.queue.task_done()
-        yield from reader.write({
+        await reader.write({
             "CommuniqueType": "ReadResponse",
             "Header": {
                 "MessageBodyType": "MultipleVirtualButtonDefinition",
@@ -147,30 +143,27 @@ class Bridge:
                 }]}})
         requested_zones = []
         for _ in range(0, 2):
-            value = yield from wait(writer.queue.get())
+            value = await wait(writer.queue.get())
             assert value["CommuniqueType"] == "ReadRequest"
             requested_zones.append(value["Header"]["Url"])
             writer.queue.task_done()
         requested_zones.sort()
         assert requested_zones == ["/zone/1/status", "/zone/2/status"]
 
-    @asyncio.coroutine
-    def disconnect(self, exception=None):
+    async def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
-        yield from self.reader.end(exception)
+        await self.reader.end(exception)
 
-    @asyncio.coroutine
-    def accept_connection(self):
+    async def accept_connection(self):
         """Wait for SmartBridge to reconnect."""
-        reader, writer = yield from self.connections.get()
+        reader, writer = await self.connections.get()
 
-        @asyncio.coroutine
-        def wait(coro):
+        async def wait(coro):
             # nothing special
-            result = yield from coro
+            result = await coro
             return result
 
-        yield from self._accept_connection(reader, writer, wait)
+        await self._accept_connection(reader, writer, wait)
 
         self.reader = reader
         self.writer = writer
@@ -189,12 +182,11 @@ class _FakeLeapWriter:
         print("SmartBridge sent", obj)
         self.queue.put_nowait(obj)
 
-    @asyncio.coroutine
-    def drain(self):
+    async def drain(self):
         task = self._loop.create_task(self.queue.join())
-        yield from asyncio.wait((self.closed.wait(), task),
-                                loop=self._loop,
-                                return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait((self.closed.wait(), task),
+                           loop=self._loop,
+                           return_when=asyncio.FIRST_COMPLETED)
 
     def abort(self):
         self.closed.set()
@@ -213,17 +205,16 @@ class _FakeLeapReader:
     def exception(self):
         return self.exception_value
 
-    @asyncio.coroutine
-    def read(self):
+    async def read(self):
         task = self._loop.create_task(self.queue.get())
-        r = yield from asyncio.wait((self.closed.wait(), task),
-                                    loop=self._loop,
-                                    return_when=asyncio.FIRST_COMPLETED)
+        r = await asyncio.wait((self.closed.wait(), task),
+                               loop=self._loop,
+                               return_when=asyncio.FIRST_COMPLETED)
         done, pending = r
         if task not in done:
             return None
 
-        action = yield from task
+        action = await task
         self._loop.call_soon(self.queue.task_done)
         try:
             value = action()
@@ -238,23 +229,21 @@ class _FakeLeapReader:
             print("SmartBridge received", value)
             return value
 
-    @asyncio.coroutine
-    def write(self, item):
+    async def write(self, item):
         def action():
             return item
-        yield from self.queue.put(action)
+        await self.queue.put(action)
 
     def at_eof(self):
         return self.closed.is_set() or self.eof
 
-    @asyncio.coroutine
-    def end(self, exception=None):
+    async def end(self, exception=None):
         if exception is None:
-            yield from self.write(None)
+            await self.write(None)
         else:
             def action():
                 raise exception
-            yield from self.queue.put(action)
+            await self.queue.put(action)
 
 
 @pytest.yield_fixture
@@ -270,7 +259,7 @@ def bridge(event_loop):
 
 
 @pytest.mark.asyncio
-def test_notifications(event_loop, bridge):
+async def test_notifications(event_loop, bridge):
     """Test notifications are sent to subscribers."""
     notified = False
 
@@ -279,7 +268,7 @@ def test_notifications(event_loop, bridge):
         notified = True
 
     bridge.target.add_subscriber('2', callback)
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -289,13 +278,13 @@ def test_notifications(event_loop, bridge):
             "ZoneStatus": {
                 "Level": 100,
                 "Zone": {"href": "/zone/1"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+    await asyncio.wait_for(bridge.reader.queue.join(),
+                           10, loop=event_loop)
     assert notified
 
 
 @pytest.mark.asyncio
-def test_device_list(event_loop, bridge):
+async def test_device_list(event_loop, bridge):
     """Test methods getting devices."""
     devices = bridge.target.get_devices()
     assert devices == {
@@ -327,7 +316,7 @@ def test_device_list(event_loop, bridge):
             "current_state": -1,
             "fan_speed": None}}
 
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -337,7 +326,7 @@ def test_device_list(event_loop, bridge):
             "ZoneStatus": {
                 "Level": 100,
                 "Zone": {"href": "/zone/1"}}}})
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -347,8 +336,8 @@ def test_device_list(event_loop, bridge):
             "ZoneStatus": {
                 "FanSpeed": "Medium",
                 "Zone": {"href": "/zone/2"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+    await asyncio.wait_for(bridge.reader.queue.join(),
+                           10, loop=event_loop)
     devices = bridge.target.get_devices()
     assert devices['2']['current_state'] == 100
     assert devices['2']['fan_speed'] is None
@@ -396,15 +385,14 @@ def test_is_connected(event_loop, bridge):
     """Test the is_connected method returns connection state."""
     assert bridge.target.is_connected() is True
 
-    other = smartbridge.Smartbridge(None,
-                                    loop=event_loop)
+    other = smartbridge.Smartbridge(None, loop=event_loop)
     assert other.is_connected() is False
 
 
 @pytest.mark.asyncio
-def test_is_on(event_loop, bridge):
+async def test_is_on(event_loop, bridge):
     """Test the is_on method returns device state."""
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -414,11 +402,11 @@ def test_is_on(event_loop, bridge):
             "ZoneStatus": {
                 "Level": 50,
                 "Zone": {"href": "/zone/1"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
+    await asyncio.wait_for(bridge.reader.queue.join(),
                                 10, loop=event_loop)
     assert bridge.target.is_on('2') is True
 
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -428,15 +416,14 @@ def test_is_on(event_loop, bridge):
             "ZoneStatus": {
                 "Level": 0,
                 "Zone": {"href": "/zone/1"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+    await asyncio.wait_for(bridge.reader.queue.join(), 10, loop=event_loop)
     assert bridge.target.is_on('2') is False
 
 
 @pytest.mark.asyncio
-def test_is_on_fan(event_loop, bridge):
+async def test_is_on_fan(event_loop, bridge):
     """Test the is_on method returns device state for fans."""
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -446,11 +433,11 @@ def test_is_on_fan(event_loop, bridge):
             "ZoneStatus": {
                 "FanSpeed": "Medium",
                 "Zone": {"href": "/zone/1"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+    await asyncio.wait_for(bridge.reader.queue.join(),
+                           10, loop=event_loop)
     assert bridge.target.is_on('2') is True
 
-    yield from bridge.reader.write({
+    await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
         "Header": {
             "MessageBodyType": "OneZoneStatus",
@@ -460,17 +447,17 @@ def test_is_on_fan(event_loop, bridge):
             "ZoneStatus": {
                 "FanSpeed": "Off",
                 "Zone": {"href": "/zone/1"}}}})
-    yield from asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+    await asyncio.wait_for(bridge.reader.queue.join(),
+                           10, loop=event_loop)
     assert bridge.target.is_on('2') is False
 
 
 @pytest.mark.asyncio
-def test_set_value(event_loop, bridge):
+async def test_set_value(event_loop, bridge):
     """Test that setting values produces the right commands."""
     bridge.target.set_value('2', 50)
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command == {
         "CommuniqueType": "CreateRequest",
@@ -481,8 +468,8 @@ def test_set_value(event_loop, bridge):
                 "Parameter": [{"Type": "Level", "Value": 50}]}}}
 
     bridge.target.turn_on('2')
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command == {
         "CommuniqueType": "CreateRequest",
@@ -493,8 +480,8 @@ def test_set_value(event_loop, bridge):
                 "Parameter": [{"Type": "Level", "Value": 100}]}}}
 
     bridge.target.turn_off('2')
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command == {
         "CommuniqueType": "CreateRequest",
@@ -506,11 +493,11 @@ def test_set_value(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-def test_set_fan(event_loop, bridge):
+async def test_set_fan(event_loop, bridge):
     """Test that setting fan speed produces the right commands."""
     bridge.target.set_fan('2', FAN_MEDIUM)
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command == {
         "CommuniqueType": "CreateRequest",
@@ -522,11 +509,11 @@ def test_set_fan(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-def test_activate_scene(event_loop, bridge):
+async def test_activate_scene(event_loop, bridge):
     """Test that activating scenes produces the right commands."""
     bridge.target.activate_scene('1')
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command == {
         "CommuniqueType": "CreateRequest",
@@ -536,31 +523,31 @@ def test_activate_scene(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-def test_reconnect_eof(event_loop, bridge):
+async def test_reconnect_eof(event_loop, bridge):
     """Test that SmartBridge can reconnect on disconnect."""
-    yield from bridge.disconnect()
-    yield from bridge.accept_connection()
+    await bridge.disconnect()
+    await bridge.accept_connection()
     bridge.target.set_value('2', 50)
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command is not None
 
 
 @pytest.mark.asyncio
-def test_reconnect_error(event_loop, bridge):
+async def test_reconnect_error(event_loop, bridge):
     """Test that SmartBridge can reconnect on error."""
-    yield from bridge.disconnect()
-    yield from bridge.accept_connection()
+    await bridge.disconnect()
+    await bridge.accept_connection()
     bridge.target.set_value('2', 50)
-    command = yield from asyncio.wait_for(bridge.writer.queue.get(),
-                                          10, loop=event_loop)
+    command = await asyncio.wait_for(bridge.writer.queue.get(),
+                                     10, loop=event_loop)
     bridge.writer.queue.task_done()
     assert command is not None
 
 
 @pytest.mark.asyncio
-def test_reconnect_timeout(event_loop):
+async def test_reconnect_timeout(event_loop):
     """Test that SmartBridge can reconnect if the remote does not respond."""
     bridge = Bridge(event_loop)
 
@@ -570,22 +557,21 @@ def test_reconnect_timeout(event_loop):
         return time
     event_loop.time = time_func
 
-    yield from bridge.initialize()
+    await bridge.initialize()
 
     time = smartbridge.PING_INTERVAL
-    ping = yield from bridge.writer.queue.get()
+    ping = await bridge.writer.queue.get()
     assert ping == {
         "CommuniqueType": "ReadRequest",
         "Header": {"Url": "/server/1/status/ping"}}
     print('got ping')
-    yield
 
     time += smartbridge.PING_DELAY
-    yield from bridge.accept_connection()
+    await bridge.accept_connection()
 
     bridge.target.set_value('2', 50)
-    command = yield from bridge.writer.queue.get()
+    command = await bridge.writer.queue.get()
     bridge.writer.queue.task_done()
     assert command is not None
 
-    yield from bridge.target.close()
+    await bridge.target.close()
