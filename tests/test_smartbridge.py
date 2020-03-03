@@ -47,9 +47,9 @@ class Bridge:
             # abort if SmartBridge reports it has finished connecting early
             task = self.event_loop.create_task(coro)
             r = await asyncio.wait((connect_task, task),
-                                    loop=self.event_loop,
-                                    timeout=10,
-                                    return_when=asyncio.FIRST_COMPLETED)
+                                   loop=self.event_loop,
+                                   timeout=10,
+                                   return_when=asyncio.FIRST_COMPLETED)
             done, pending = r
             assert len(done) > 0, "operation timed out"
             if len(done) == 1 and connect_task in done:
@@ -403,7 +403,7 @@ async def test_is_on(event_loop, bridge):
                 "Level": 50,
                 "Zone": {"href": "/zone/1"}}}})
     await asyncio.wait_for(bridge.reader.queue.join(),
-                                10, loop=event_loop)
+                           10, loop=event_loop)
     assert bridge.target.is_on('2') is True
 
     await bridge.reader.write({

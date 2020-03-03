@@ -393,7 +393,6 @@ class Smartbridge:
                 self.scenes[scene_id] = {'scene_id': scene_id,
                                          'name': scene_name}
 
-
     async def close(self):
         """Disconnect from the bridge."""
         print('Received close() on bridge')
