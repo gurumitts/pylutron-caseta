@@ -28,7 +28,7 @@ class Bridge:
         self.reader = self.writer = None
 
         async def fake_connect():
-            """Used by SmartBridge to connect to the test."""
+            """Use by SmartBridge to connect to the test."""
             closed = asyncio.Event(loop=event_loop)
             reader = _FakeLeapReader(closed, event_loop)
             writer = _FakeLeapWriter(closed, event_loop)

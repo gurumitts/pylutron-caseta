@@ -385,8 +385,8 @@ class Smartbridge:
                 break
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
-            # If 'Name' is not a key in scene, then it is likely a scene pico vbutton.
-            # For now, simply ignore these scenes.
+            # If 'Name' is not a key in scene, then it is likely a scene pico
+            # vbutton. For now, simply ignore these scenes.
             if scene['IsProgrammed'] and 'Name' in scene:
                 scene_id = scene['href'][scene['href'].rfind('/') + 1:]
                 scene_name = scene['Name']
