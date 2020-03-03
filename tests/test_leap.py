@@ -11,6 +11,7 @@ Pipe = namedtuple('Pipe', ('leap_reader', 'leap_writer',
 
 class _PipeTransport(asyncio.Transport):
     def __init__(self):
+        super().__init__()
         self._closing = False
         self._extra = {}
         self.other = None

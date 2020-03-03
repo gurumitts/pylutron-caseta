@@ -395,7 +395,6 @@ class Smartbridge:
 
     async def close(self):
         """Disconnect from the bridge."""
-        print('Received close() on bridge')
         if (self._monitor_task is not None and
                 not self._monitor_task.cancelled()):
             self._monitor_task.cancel()

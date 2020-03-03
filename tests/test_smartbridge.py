@@ -10,21 +10,13 @@ logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
 
-def JoinableQueue(loop):
-    """Create a JoinableQueue, even in new Python where it is called Queue."""
-    try:
-        return asyncio.JoinableQueue(loop=loop)
-    except AttributeError:
-        return asyncio.Queue(loop=loop)
-
-
 class Bridge:
     """A test harness around SmartBridge."""
 
     def __init__(self, event_loop):
         """Create a new Bridge in a disconnected state."""
         self.event_loop = event_loop
-        self.connections = JoinableQueue(loop=event_loop)
+        self.connections = asyncio.Queue(loop=event_loop)
         self.reader = self.writer = None
 
         async def fake_connect():
@@ -53,7 +45,6 @@ class Bridge:
             done, pending = r
             assert len(done) > 0, "operation timed out"
             if len(done) == 1 and connect_task in done:
-                print("SmartBridge returned before end of connection routine")
                 raise connect_task.exception()
             result = await task
             return result
@@ -174,12 +165,11 @@ class _FakeLeapWriter:
     """A "Writer" which just puts messages onto a queue."""
 
     def __init__(self, closed, loop):
-        self.queue = JoinableQueue(loop=loop)
+        self.queue = asyncio.Queue(loop=loop)
         self.closed = closed
         self._loop = loop
 
     def write(self, obj):
-        print("SmartBridge sent", obj)
         self.queue.put_nowait(obj)
 
     async def drain(self):
@@ -198,7 +188,7 @@ class _FakeLeapReader:
     def __init__(self, closed, loop):
         self._loop = loop
         self.closed = closed
-        self.queue = JoinableQueue(loop=loop)
+        self.queue = asyncio.Queue(loop=loop)
         self.exception_value = None
         self.eof = False
 
@@ -219,14 +209,12 @@ class _FakeLeapReader:
         try:
             value = action()
         except Exception as exception:
-            print("SmartBridge received exception", exception)
             self.exception_value = exception
             self.eof = True
             raise
         else:
             if value is None:
                 self.eof = True
-            print("SmartBridge received", value)
             return value
 
     async def write(self, item):
@@ -564,7 +552,6 @@ async def test_reconnect_timeout(event_loop):
     assert ping == {
         "CommuniqueType": "ReadRequest",
         "Header": {"Url": "/server/1/status/ping"}}
-    print('got ping')
 
     time += smartbridge.PING_DELAY
     await bridge.accept_connection()
