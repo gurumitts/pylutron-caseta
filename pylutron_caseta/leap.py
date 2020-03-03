@@ -9,14 +9,14 @@ _DEFAULT_LIMIT = 2 ** 16
 
 
 async def open_connection(host=None, port=None, *,
-                    loop=None, limit=_DEFAULT_LIMIT, **kwds):
+                          loop=None, limit=_DEFAULT_LIMIT, **kwds):
     """Open a stream and wrap it with LEAP."""
     connection = await asyncio.open_connection(host, port, loop=loop,
                                                limit=limit, **kwds)
     return LeapReader(connection[0]), LeapWriter(connection[1])
 
 
-class LeapReader(object):
+class LeapReader:
     """A wrapper for reading the LEAP protocol."""
 
     def __init__(self, reader):
@@ -53,7 +53,7 @@ class LeapReader(object):
         return self._reader.at_eof()
 
 
-class LeapWriter(object):
+class LeapWriter:
     """A wrapper for writing the LEAP protocol."""
 
     def __init__(self, writer):

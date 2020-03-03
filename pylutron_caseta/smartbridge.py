@@ -139,21 +139,6 @@ class Smartbridge:
         """
         return self.scenes[scene_id]
 
-    def get_value(self, device_id):
-        """
-        Will return the current level value for the device with the given ID.
-
-        :param device_id: device id, e.g. 5
-        :returns level value from 0 to 100
-        :rtype int
-        """
-        zone_id = self._get_zone_id(device_id)
-        if zone_id:
-            cmd = {
-                "CommuniqueType": "ReadRequest",
-                "Header": {"Url": "/zone/%s/status" % zone_id}}
-            return self._writer.write(cmd)
-
     def is_connected(self):
         """Will return True if currently connected to the Smart Bridge."""
         return self.logged_in
@@ -184,7 +169,7 @@ class Smartbridge:
                     "Command": {
                         "CommandType": "GoToLevel",
                         "Parameter": [{"Type": "Level", "Value": value}]}}}
-            return self._writer.write(cmd)
+            self._writer.write(cmd)
 
     def set_fan(self, device_id, value):
         """
@@ -203,7 +188,7 @@ class Smartbridge:
                     "Command": {
                         "CommandType": "GoToFanSpeed",
                         "FanSpeedParameters": {"FanSpeed": value}}}}
-            return self._writer.write(cmd)
+            self._writer.write(cmd)
 
     def turn_on(self, device_id):
         """
@@ -233,7 +218,7 @@ class Smartbridge:
                 "Header": {
                     "Url": "/virtualbutton/%s/commandprocessor" % scene_id},
                 "Body": {"Command": {"CommandType": "PressAndRelease"}}}
-            return self._writer.write(cmd)
+            self._writer.write(cmd)
 
     def _get_zone_id(self, device_id):
         """
