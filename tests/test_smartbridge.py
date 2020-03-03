@@ -98,7 +98,8 @@ class Bridge:
                     "DeviceType": "CasetaFanSpeedController",
                     "LocalZones": [{"href": "/zone/2"}],
                     "AssociatedArea": {"href": "/area/1"}
-                }, {'href': '/device/4',
+                }, {
+                    'href': '/device/4',
                     'Name': 'Occupancy Sensor',
                     'FullyQualifiedName': ['Basement Storage Area',
                                            'Occupancy Sensor'],
@@ -110,7 +111,8 @@ class Bridge:
                     'OccupancySensors': [{'href': '/occupancysensor/2'}],
                     'LinkNodes': [{'href': '/device/4/linknode/53'}],
                     'DeviceRules': [{'href': '/devicerule/11'}]
-                }, {'href': '/device/5',
+                }, {
+                    'href': '/device/5',
                     'Name': 'Occupancy Sensor Door',
                     'FullyQualifiedName': ['Master Bathroom',
                                            'Occupancy Sensor Door'],
@@ -122,7 +124,8 @@ class Bridge:
                     'OccupancySensors': [{'href': '/occupancysensor/3'}],
                     'LinkNodes': [{'href': '/device/5/linknode/55'}],
                     'DeviceRules': [{'href': '/devicerule/123'}]
-                }, {'href': '/device/6',
+                }, {
+                    'href': '/device/6',
                     'Name': 'Occupancy Sensor Tub',
                     'FullyQualifiedName': ['Master Bathroom',
                                            'Occupancy Sensor Tub'],
