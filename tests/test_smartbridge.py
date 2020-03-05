@@ -1,6 +1,8 @@
 """Tests to validate ssl interactions."""
 import asyncio
+import json
 import logging
+import os
 import pytest
 
 import pylutron_caseta.smartbridge as smartbridge
@@ -9,6 +11,10 @@ from pylutron_caseta import FAN_MEDIUM
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
+def response_from_json_file(filename):
+    responsedir = os.path.join(os.path.split(__file__)[0], 'responses')
+    with open(os.path.join(responsedir, filename), 'r') as ifh:
+        return json.load(ifh)
 
 class Bridge:
     """A test harness around SmartBridge."""
@@ -63,114 +69,13 @@ class Bridge:
                 "CommuniqueType": "ReadRequest",
                 "Header": {"Url": "/device"}}
         writer.queue.task_done()
-        await reader.write({
-            "CommuniqueType": "ReadResponse", "Header": {
-                "MessageBodyType": "MultipleDeviceDefinition",
-                "StatusCode": "200 OK",
-                "Url": "/device"},
-            "Body": {
-                "Devices": [{
-                    "href": "/device/1",
-                    "Name": "Smart Bridge",
-                    "FullyQualifiedName": ["Smart Bridge"],
-                    "Parent": {"href": "/project"},
-                    "SerialNumber": 1234,
-                    "ModelNumber": "L-BDG2-WH",
-                    "DeviceType": "SmartBridge",
-                    "RepeaterProperties": {"IsRepeater": True}
-                }, {
-                    "href": "/device/2",
-                    "Name": "Lights",
-                    "FullyQualifiedName": ["Hallway", "Lights"],
-                    "Parent": {"href": "/project"},
-                    "SerialNumber": 2345,
-                    "ModelNumber": "PD-6WCL-XX",
-                    "DeviceType": "WallDimmer",
-                    "LocalZones": [{"href": "/zone/1"}],
-                    "AssociatedArea": {"href": "/area/1"}
-                }, {
-                    "href": "/device/3",
-                    "Name": "Fan",
-                    "FullyQualifiedName": ["Hallway", "Fan"],
-                    "Parent": {"href": "/project"},
-                    "SerialNumber": 3456,
-                    "ModelNumber": "PD-FSQN-XX",
-                    "DeviceType": "CasetaFanSpeedController",
-                    "LocalZones": [{"href": "/zone/2"}],
-                    "AssociatedArea": {"href": "/area/1"}
-                }, {
-                    'href': '/device/4',
-                    'Name': 'Occupancy Sensor',
-                    'FullyQualifiedName': ['Basement Storage Area',
-                                           'Occupancy Sensor'],
-                    'Parent': {'href': '/project'},
-                    'SerialNumber': 4567,
-                    'ModelNumber': 'LRF2-XXXXB-P-XX',
-                    'DeviceType': 'RPSOccupancySensor',
-                    'AssociatedArea': {'href': '/area/21'},
-                    'OccupancySensors': [{'href': '/occupancysensor/2'}],
-                    'LinkNodes': [{'href': '/device/4/linknode/53'}],
-                    'DeviceRules': [{'href': '/devicerule/11'}]
-                }, {
-                    'href': '/device/5',
-                    'Name': 'Occupancy Sensor Door',
-                    'FullyQualifiedName': ['Master Bathroom',
-                                           'Occupancy Sensor Door'],
-                    'Parent': {'href': '/project'},
-                    'SerialNumber': 5678,
-                    'ModelNumber': 'PD-VSENS-XX',
-                    'DeviceType': 'RPSOccupancySensor',
-                    'AssociatedArea': {'href': '/area/26'},
-                    'OccupancySensors': [{'href': '/occupancysensor/3'}],
-                    'LinkNodes': [{'href': '/device/5/linknode/55'}],
-                    'DeviceRules': [{'href': '/devicerule/123'}]
-                }, {
-                    'href': '/device/6',
-                    'Name': 'Occupancy Sensor Tub',
-                    'FullyQualifiedName': ['Master Bathroom',
-                                           'Occupancy Sensor Tub'],
-                    'Parent': {'href': '/project'},
-                    'SerialNumber': 6789,
-                    'ModelNumber': 'PD-OSENS-XX',
-                    'DeviceType': 'RPSOccupancySensor',
-                    'AssociatedArea': {'href': '/area/26'},
-                    'OccupancySensors': [{'href': '/occupancysensor/4'}],
-                    'LinkNodes': [{'href': '/device/6/linknode/56'}],
-                    'DeviceRules': [{'href': '/devicerule/122'}]}]}})
+        await reader.write(response_from_json_file('devices.json'))
         value = await wait(writer.queue.get())
         assert value == {
                 "CommuniqueType": "ReadRequest",
                 "Header": {"Url": "/virtualbutton"}}
         writer.queue.task_done()
-        await reader.write({
-            "CommuniqueType": "ReadResponse",
-            "Header": {
-                "MessageBodyType": "MultipleVirtualButtonDefinition",
-                "StatusCode": "200 OK",
-                "Url": "/virtualbutton"},
-            "Body": {
-                "VirtualButtons": [{
-                    "href": "/virtualbutton/1",
-                    "Name": "scene 1",
-                    "ButtonNumber": 0,
-                    "ProgrammingModel": {"href": "/programmingmodel/1"},
-                    "Parent": {"href": "/project"},
-                    "IsProgrammed": True
-                }, {
-                    "href": "/virtualbutton/2",
-                    "Name": "Button 2",
-                    "ButtonNumber": 1,
-                    "ProgrammingModel": {"href": "/programmingmodel/2"},
-                    "Parent": {"href": "/project"},
-                    "IsProgrammed": False
-                }, {
-                    'href': '/vbutton/1',
-                    'ButtonNumber': 1,
-                    'ProgrammingModel': {'href': '/programmingmodel/200'},
-                    'Parent': {'href': '/area/9'},
-                    'IsProgrammed': True,
-                    'Category': {'Type': 'LivingRoom', 'SubType': 'Bright'}
-                }]}})
+        await reader.write(response_from_json_file('scenes.json'))
         requested_zones = []
         for _ in range(0, 2):
             value = await wait(writer.queue.get())

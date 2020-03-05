@@ -1,0 +1,51 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleVirtualButtonDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/virtualbutton"
+    },
+    "Body": {
+        "VirtualButtons": [
+            {
+                "href": "/virtualbutton/1",
+                "Name": "scene 1",
+                "ButtonNumber": 0,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/1"
+                },
+                "Parent": {
+                    "href": "/project"
+                },
+                "IsProgrammed": true
+            },
+            {
+                "href": "/virtualbutton/2",
+                "Name": "Button 2",
+                "ButtonNumber": 1,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/2"
+                },
+                "Parent": {
+                    "href": "/project"
+                },
+                "IsProgrammed": false
+            },
+            {
+                "href": "/vbutton/1",
+                "ButtonNumber": 1,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/200"
+                },
+                "Parent": {
+                    "href": "/area/9"
+                },
+                "IsProgrammed": true,
+                "Category": {
+                    "Type": "LivingRoom",
+                    "SubType": "Bright"
+                }
+            }
+        ]
+    }
+}
