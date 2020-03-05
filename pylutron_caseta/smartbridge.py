@@ -6,7 +6,7 @@ import socket
 import ssl
 
 from . import _LEAP_DEVICE_TYPES, FAN_OFF
-from .leap import open_connection
+from .leap import open_connection, id_from_href
 
 _LOG = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ class Smartbridge:
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
+        self.occupancy_groups = {}
         self.logged_in = False
         self._connect = connect
         self._subscribers = {}
@@ -106,6 +107,19 @@ class Smartbridge:
             if self.devices[device_id]['type'] == type_:
                 devs.append(self.devices[device_id])
         return devs
+
+    def get_device_by_zone_id(self, zone_id):
+        """
+        Will return the first device associated with a given zone. Currently
+        each device is mapped to exactly 1 zone
+
+        :param zone_id: the zone id to search for
+        :raises KeyError: if the zone id is not present
+        """
+        for device in self.devices.values():
+            if zone_id == device.get('zone'):
+                return device
+        raise KeyError("No device associated with zone {}".format(zone_id))
 
     def get_devices_by_types(self, types):
         """
@@ -253,26 +267,6 @@ class Smartbridge:
             _LOG.critical('monitor loop has exited', exc_info=1)
             raise
 
-    def _handle_read_response(self, resp_json):
-        body_type = resp_json['Header']['MessageBodyType']
-        if body_type == 'OneZoneStatus':
-            body = resp_json['Body']
-            status = body['ZoneStatus']
-            zone = status['Zone']['href']
-            zone = zone[zone.rfind('/') + 1:]
-            level = status.get('Level', -1)
-            fan_speed = status.get('FanSpeed')
-            _LOG.debug('zone=%s level=%s', zone, level)
-            for _device_id in self.devices:
-                device = self.devices[_device_id]
-                if zone == device.get('zone'):
-                    device['current_state'] = level
-                    device['fan_speed'] = fan_speed
-                    if _device_id in self._subscribers:
-                        self._subscribers[_device_id]()
-        elif body_type == "OnePingResponse":
-            self._got_ping.set()
-
     def _handle_response(self, resp_json):
         """
         Handle an event from the ssl interface.
@@ -286,6 +280,32 @@ class Smartbridge:
         comm_type = resp_json['CommuniqueType']
         if comm_type == 'ReadResponse':
             self._handle_read_response(resp_json)
+
+    def _handle_one_zone_status(self, resp_json):
+        body = resp_json['Body']
+        status = body['ZoneStatus']
+        zone = id_from_href(status['Zone']['href'])
+        level = status.get('Level', -1)
+        fan_speed = status.get('FanSpeed', None)
+        _LOG.debug('zone=%s level=%s', zone, level)
+        device = self.get_device_by_zone_id(zone)
+        device['current_state'] = level
+        device['fan_speed'] = fan_speed
+        if device['device_id'] in self._subscribers:
+            self._subscribers[device['device_id']]()
+
+    def _handle_one_ping_response(self, resp_json):
+        self._got_ping.set()
+
+    _read_response_handler_callbacks = dict(
+        OneZoneStatus=_handle_one_zone_status,
+        OnePingResponse=_handle_one_ping_response
+    )
+
+    def _handle_read_response(self, resp_json):
+        body_type = resp_json['Header']['MessageBodyType']
+        if body_type in self._read_response_handler_callbacks:
+            self._read_response_handler_callbacks[body_type](self, resp_json)
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
@@ -305,8 +325,10 @@ class Smartbridge:
 
             await self._load_devices()
             await self._load_scenes()
+            await self._subscribe_to_occupancy_groups()
             for device in self.devices.values():
                 if device.get('zone') is not None:
+                    _LOG.debug("Requesting zone information from %s", device)
                     cmd = {
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
@@ -351,11 +373,10 @@ class Smartbridge:
                 break
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
-            device_id = device['href'][device['href'].rfind('/') + 1:]
+            device_id = id_from_href(device['href'])
             device_zone = None
             if 'LocalZones' in device:
-                device_zone = device['LocalZones'][0]['href']
-                device_zone = device_zone[device_zone.rfind('/') + 1:]
+                device_zone = id_from_href(device['LocalZones'][0]['href'])
             device_name = '_'.join(device['FullyQualifiedName'])
             self.devices.setdefault(device_id, {
                 'device_id': device_id,
@@ -388,10 +409,49 @@ class Smartbridge:
             # If 'Name' is not a key in scene, then it is likely a scene pico
             # vbutton. For now, simply ignore these scenes.
             if scene['IsProgrammed'] and 'Name' in scene:
-                scene_id = scene['href'][scene['href'].rfind('/') + 1:]
+                scene_id = id_from_href(scene['href'])
                 scene_name = scene['Name']
                 self.scenes[scene_id] = {'scene_id': scene_id,
                                          'name': scene_name}
+
+    async def _subscribe_to_occupancy_groups(self):
+        """ Subscribe to occupancy group status updates """
+        _LOG.debug("Subscribing to occupancy group status updates")
+        self._writer.write(
+            dict(CommuniqueType="ReadRequest",
+                 Header=dict(Url="/area"))
+        )
+        self._writer.write(
+            dict(CommuniqueType="SubscribeRequest",
+                 Header=dict(Url="/occupancygroup/status"))
+        )
+        while True:
+            response = await self._reader.read()
+            if response["CommuniqueType"] == "SubscribeResponse":
+                if response["Header"]["StatusCode"].startswith("20"):
+                    _LOG.debug("Subscription to occupancygroup status successful")
+                else:
+                    _LOG.warning("Subscription to occupancygroup status failed: %s",
+                                 response)
+                break
+        used_groups = [group for group in response['Body']['OccupancyGroupStatuses']
+                       if group['OccupancyStatus'] != 'Unknown']
+        _LOG.debug("Found %d occupancy groups with sensors", len(used_groups))
+        for used_group in used_groups:
+            await self._get_occupancy_group_details(used_group)
+
+    async def _get_occupancy_group_details(self, group):
+        """ Read occupancy group details """
+        _LOG.debug("Getting occupancy group details for %s", group)
+        href = group["OccupancyGroup"]["href"]
+        self._writer.write(
+            dict(CommuniqueType="ReadRequest",
+                 Header=dict(Url=href))
+        )
+        while True:
+            response = await self._reader.read()
+            if response["CommuniqueType"] == "ReadResponse":
+                break
 
     async def close(self):
         """Disconnect from the bridge."""

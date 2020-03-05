@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 
 _LOG = logging.getLogger(__name__)
 _DEFAULT_LIMIT = 2 ** 16
@@ -77,3 +78,15 @@ class LeapWriter:
     def write_eof(self):
         """Write EOF to the underlying stream."""
         self._writer.write_eof()
+
+_HREFRE = re.compile(r'/(?:\D+)/(\d+)(?:\/\D+)?')
+
+def id_from_href(href):
+    """
+    Get an id from any kind of href. Raises ValueError if id cannot be
+    determined from the format
+    """
+    try:
+        return _HREFRE.match(href).group(1)
+    except IndexError:
+        raise ValueError("Cannot find ID from href {}".format(href))
