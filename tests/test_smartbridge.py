@@ -20,9 +20,9 @@ def response_from_json_file(filename):
 class Bridge:
     """A test harness around SmartBridge."""
 
-    def __init__(self, event_loop):
+    def __init__(self):
         """Create a new Bridge in a disconnected state."""
-        self.connections = asyncio.Queue(loop=event_loop)
+        self._connections = None
         self.reader = self.writer = None
 
         async def fake_connect():
@@ -34,6 +34,12 @@ class Bridge:
             return (reader, writer)
 
         self.target = smartbridge.Smartbridge(fake_connect)
+
+    @property
+    def connections(self):
+        if self._connections is None:
+            self._connections = asyncio.Queue()
+        return self._connections
 
     async def initialize(self):
         """Perform the initial connection with SmartBridge."""
@@ -189,7 +195,7 @@ class _FakeLeapReader:
 @pytest.yield_fixture
 def bridge(event_loop):
     """Create a bridge attached to a fake reader and writer."""
-    harness = Bridge(event_loop)
+    harness = Bridge()
 
     event_loop.run_until_complete(harness.initialize())
 
@@ -516,13 +522,13 @@ async def test_reconnect_error(bridge):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_timeout(event_loop):
+async def test_reconnect_timeout():
     """Test that SmartBridge can reconnect if the remote does not respond."""
-    bridge = Bridge(event_loop)
+    bridge = Bridge()
 
     time = 0.0
 
-    event_loop.time = lambda: time
+    running_loop().time = lambda: time
 
     await bridge.initialize()
 
