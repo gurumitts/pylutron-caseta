@@ -10,9 +10,9 @@ _DEFAULT_LIMIT = 2 ** 16
 
 
 async def open_connection(host=None, port=None, *,
-                          loop=None, limit=_DEFAULT_LIMIT, **kwds):
+                          limit=_DEFAULT_LIMIT, **kwds):
     """Open a stream and wrap it with LEAP."""
-    connection = await asyncio.open_connection(host, port, loop=loop,
+    connection = await asyncio.open_connection(host, port,
                                                limit=limit, **kwds)
     return LeapReader(connection[0]), LeapWriter(connection[1])
 

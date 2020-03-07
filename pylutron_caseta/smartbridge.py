@@ -49,7 +49,7 @@ class Smartbridge:
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
-                   port=LEAP_PORT, loop=None):
+                   port=LEAP_PORT):
         """Initialize the Smart Bridge using TLS over IPv4."""
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ssl_context.load_verify_locations(ca_certs)
@@ -61,10 +61,9 @@ class Smartbridge:
                                         port,
                                         server_hostname='',
                                         ssl=ssl_context,
-                                        loop=loop,
                                         family=socket.AF_INET)
             return res
-        return cls(_connect, loop=loop)
+        return cls(_connect)
 
     def add_subscriber(self, device_id, callback_):
         """
@@ -296,7 +295,7 @@ class Smartbridge:
         if device['device_id'] in self._subscribers:
             self._subscribers[device['device_id']]()
 
-    def _handle_one_ping_response(self, resp_json):
+    def _handle_one_ping_response(self, _):
         self._got_ping.set()
 
     _read_response_handler_callbacks = dict(
