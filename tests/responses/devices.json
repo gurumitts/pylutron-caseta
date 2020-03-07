@@ -42,7 +42,7 @@
                     }
                 ],
                 "AssociatedArea": {
-                    "href": "/area/1"
+                    "href": "/area/2"
                 }
             },
             {
@@ -64,14 +64,14 @@
                     }
                 ],
                 "AssociatedArea": {
-                    "href": "/area/1"
+                    "href": "/area/2"
                 }
             },
             {
                 "href": "/device/4",
                 "Name": "Occupancy Sensor",
                 "FullyQualifiedName": [
-                    "Basement Storage Area",
+                    "Living Room",
                     "Occupancy Sensor"
                 ],
                 "Parent": {
@@ -81,7 +81,7 @@
                 "ModelNumber": "LRF2-XXXXB-P-XX",
                 "DeviceType": "RPSOccupancySensor",
                 "AssociatedArea": {
-                    "href": "/area/21"
+                    "href": "/area/3"
                 },
                 "OccupancySensors": [
                     {
@@ -113,7 +113,7 @@
                 "ModelNumber": "PD-VSENS-XX",
                 "DeviceType": "RPSOccupancySensor",
                 "AssociatedArea": {
-                    "href": "/area/26"
+                    "href": "/area/4"
                 },
                 "OccupancySensors": [
                     {
@@ -145,7 +145,7 @@
                 "ModelNumber": "PD-OSENS-XX",
                 "DeviceType": "RPSOccupancySensor",
                 "AssociatedArea": {
-                    "href": "/area/26"
+                    "href": "/area/4"
                 },
                 "OccupancySensors": [
                     {

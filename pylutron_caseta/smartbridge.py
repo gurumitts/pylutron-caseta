@@ -24,26 +24,27 @@ class Smartbridge:
     It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, connect, loop=None):
+    def __init__(self, connect):
         """Initialize the Smart Bridge."""
         self.devices = {}
         self.scenes = {}
         self.occupancy_groups = {}
+        self.areas = {}
         self.logged_in = False
         self._connect = connect
         self._subscribers = {}
-        self._loop = loop or asyncio.get_event_loop()
-        self._login_lock = asyncio.Lock(loop=self._loop)
+        self._login_lock = asyncio.Lock()
         self._reader = None
         self._writer = None
         self._monitor_task = None
         self._ping_task = None
-        self._got_ping = asyncio.Event(loop=self._loop)
+        self._got_ping = asyncio.Event()
+        self._closing = asyncio.Event()
 
     async def connect(self):
         """Connect to the bridge."""
         await self._login()
-        self._monitor_task = self._loop.create_task(self._monitor())
+        self._monitor_task = asyncio.get_running_loop().create_task(self._monitor())
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
@@ -252,15 +253,14 @@ class Smartbridge:
             while True:
                 try:
                     await asyncio.wait_for(self._login(),
-                                           timeout=CONNECT_TIMEOUT,
-                                           loop=self._loop)
+                                           timeout=CONNECT_TIMEOUT)
                     received = await self._reader.read()
                     _LOG.debug('received LEAP: %s', received)
                     if received is not None:
                         self._handle_response(received)
                 except (ValueError, ConnectionError, asyncio.TimeoutError):
                     _LOG.warning("reconnecting", exc_info=1)
-                    await asyncio.sleep(RECONNECT_DELAY, loop=self._loop)
+                    await asyncio.sleep(RECONNECT_DELAY)
         except asyncio.CancelledError:
             pass
         except Exception:
@@ -325,7 +325,8 @@ class Smartbridge:
 
             await self._load_devices()
             await self._load_scenes()
-            await self._subscribe_to_occupancy_groups()
+            await self._load_areas()
+            #await self._subscribe_to_occupancy_groups()
             for device in self.devices.values():
                 if device.get('zone') is not None:
                     _LOG.debug("Requesting zone information from %s", device)
@@ -333,7 +334,7 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            self._ping_task = self._loop.create_task(self._ping())
+            self._ping_task = asyncio.get_running_loop().create_task(self._ping())
             self.logged_in = True
 
     async def _ping(self):
@@ -342,13 +343,12 @@ class Smartbridge:
         try:
             try:
                 while True:
-                    await asyncio.sleep(PING_INTERVAL, loop=self._loop)
+                    await asyncio.sleep(PING_INTERVAL)
                     self._got_ping.clear()
                     writer.write({
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/server/1/status/ping"}})
-                    await asyncio.wait_for(self._got_ping.wait(),
-                                           PING_DELAY, loop=self._loop)
+                    await asyncio.wait_for(self._got_ping.wait(), PING_DELAY)
             except asyncio.TimeoutError:
                 _LOG.warning("ping was not answered. closing connection.")
                 writer.abort()
@@ -414,13 +414,27 @@ class Smartbridge:
                 self.scenes[scene_id] = {'scene_id': scene_id,
                                          'name': scene_name}
 
-    async def _subscribe_to_occupancy_groups(self):
-        """ Subscribe to occupancy group status updates """
-        _LOG.debug("Subscribing to occupancy group status updates")
+    async def _load_areas(self):
+        """
+        Load the areas from the Smart Bridge
+        """
+        _LOG.debug("Loading areas from the Smart Bridge")
         self._writer.write(
             dict(CommuniqueType="ReadRequest",
                  Header=dict(Url="/area"))
         )
+        while True:
+            area_json = await self._reader.read()
+            if area_json["CommuniqueType"] == "ReadResponse":
+                break
+        for area in area_json["Body"]["Areas"]:
+            area_id = id_from_href(area['href'])
+            # We currently only need the name, so just load that
+            self.areas[area_id] = dict(name=area['Name'])
+
+    async def _subscribe_to_occupancy_groups(self):
+        """ Subscribe to occupancy group status updates """
+        _LOG.debug("Subscribing to occupancy group status updates")
         self._writer.write(
             dict(CommuniqueType="SubscribeRequest",
                  Header=dict(Url="/occupancygroup/status"))
@@ -455,6 +469,7 @@ class Smartbridge:
 
     async def close(self):
         """Disconnect from the bridge."""
+        _LOG.info('Processing Smartbridge.close() call')
         if (self._monitor_task is not None and
                 not self._monitor_task.cancelled()):
             self._monitor_task.cancel()
