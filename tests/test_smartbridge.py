@@ -22,7 +22,6 @@ class Bridge:
 
     def __init__(self, event_loop):
         """Create a new Bridge in a disconnected state."""
-        self.event_loop = event_loop
         self.connections = asyncio.Queue(loop=event_loop)
         self.reader = self.writer = None
 
@@ -200,7 +199,7 @@ def bridge(event_loop):
 
 
 @pytest.mark.asyncio
-async def test_notifications(event_loop, bridge):
+async def test_notifications(bridge):
     """Test notifications are sent to subscribers."""
     notified = False
 
@@ -224,7 +223,7 @@ async def test_notifications(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_device_list(event_loop, bridge):
+async def test_device_list(bridge):
     """Test methods getting devices."""
     devices = bridge.target.get_devices()
     expected_devices = {
@@ -350,7 +349,7 @@ def test_scene_list(bridge):
         "name": "scene 1"}
 
 
-def test_is_connected(event_loop, bridge):
+def test_is_connected(bridge):
     """Test the is_connected method returns connection state."""
     assert bridge.target.is_connected() is True
 
@@ -358,7 +357,7 @@ def test_is_connected(event_loop, bridge):
     assert other.is_connected() is False
 
 @pytest.mark.asyncio
-async def test_area_list(event_loop, bridge):
+async def test_area_list(bridge):
     """ Test the list of areas loaded by the bridge """
     expected_areas = {
         "1": {"name": "root"},
@@ -370,7 +369,7 @@ async def test_area_list(event_loop, bridge):
     assert bridge.target.areas == expected_areas
 
 @pytest.mark.asyncio
-async def test_is_on(event_loop, bridge):
+async def test_is_on(bridge):
     """Test the is_on method returns device state."""
     await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
@@ -400,7 +399,7 @@ async def test_is_on(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_is_on_fan(event_loop, bridge):
+async def test_is_on_fan(bridge):
     """Test the is_on method returns device state for fans."""
     await bridge.reader.write({
         "CommuniqueType": "ReadResponse",
@@ -430,7 +429,7 @@ async def test_is_on_fan(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_value(event_loop, bridge):
+async def test_set_value(bridge):
     """Test that setting values produces the right commands."""
     bridge.target.set_value('2', 50)
     command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
@@ -467,7 +466,7 @@ async def test_set_value(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_fan(event_loop, bridge):
+async def test_set_fan(bridge):
     """Test that setting fan speed produces the right commands."""
     bridge.target.set_fan('2', FAN_MEDIUM)
     command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
@@ -482,7 +481,7 @@ async def test_set_fan(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_activate_scene(event_loop, bridge):
+async def test_activate_scene(bridge):
     """Test that activating scenes produces the right commands."""
     bridge.target.activate_scene('1')
     command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
@@ -495,7 +494,7 @@ async def test_activate_scene(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_eof(event_loop, bridge):
+async def test_reconnect_eof(bridge):
     """Test that SmartBridge can reconnect on disconnect."""
     await bridge.disconnect()
     await bridge.accept_connection()
@@ -506,7 +505,7 @@ async def test_reconnect_eof(event_loop, bridge):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_error(event_loop, bridge):
+async def test_reconnect_error(bridge):
     """Test that SmartBridge can reconnect on error."""
     await bridge.disconnect()
     await bridge.accept_connection()
@@ -523,9 +522,7 @@ async def test_reconnect_timeout(event_loop):
 
     time = 0.0
 
-    def time_func():
-        return time
-    event_loop.time = time_func
+    event_loop.time = lambda: time
 
     await bridge.initialize()
 
