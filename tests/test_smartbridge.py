@@ -4,7 +4,11 @@ import json
 import logging
 import os
 import pytest
-from asyncio import get_running_loop as running_loop
+try:
+    from asyncio import get_running_loop as running_loop
+except ImportError:
+    # get_running_loop is better, but it was introduced in Python 3.7
+    from asyncio import get_event_loop as running_loop
 
 import pylutron_caseta.smartbridge as smartbridge
 from pylutron_caseta import FAN_MEDIUM

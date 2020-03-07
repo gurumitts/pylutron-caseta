@@ -4,7 +4,11 @@ import asyncio
 import logging
 import socket
 import ssl
-from asyncio import get_running_loop as running_loop
+try:
+    from asyncio import get_running_loop as event_loop
+except ImportError:
+    # For Python 3.6 and earlier, we have to use get_event_loop instead
+    from asyncio import get_event_loop as event_loop
 
 from . import _LEAP_DEVICE_TYPES, FAN_OFF
 from .leap import open_connection, id_from_href
@@ -45,7 +49,7 @@ class Smartbridge:
     async def connect(self):
         """Connect to the bridge."""
         await self._login()
-        self._monitor_task = running_loop().create_task(self._monitor())
+        self._monitor_task = event_loop().create_task(self._monitor())
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
@@ -335,7 +339,7 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            self._ping_task = running_loop().create_task(self._ping())
+            self._ping_task = event_loop().create_task(self._ping())
             self.logged_in = True
 
     async def _ping(self):
