@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pytest
+from asyncio import get_running_loop as running_loop
 
 import pylutron_caseta.smartbridge as smartbridge
 from pylutron_caseta import FAN_MEDIUM
@@ -28,8 +29,8 @@ class Bridge:
         async def fake_connect():
             """Use by SmartBridge to connect to the test."""
             closed = asyncio.Event()
-            reader = _FakeLeapReader(closed, event_loop)
-            writer = _FakeLeapWriter(closed, event_loop)
+            reader = _FakeLeapReader(closed, running_loop())
+            writer = _FakeLeapWriter(closed, running_loop())
             await self.connections.put((reader, writer))
             return (reader, writer)
 
@@ -37,12 +38,12 @@ class Bridge:
 
     async def initialize(self):
         """Perform the initial connection with SmartBridge."""
-        connect_task = self.event_loop.create_task(self.target.connect())
+        connect_task = running_loop().create_task(self.target.connect())
         reader, writer = await self.connections.get()
 
         async def wait(coro):
             # abort if SmartBridge reports it has finished connecting early
-            task = self.event_loop.create_task(coro)
+            task = running_loop().create_task(coro)
             r = await asyncio.wait((connect_task, task),
                                    timeout=10,
                                    return_when=asyncio.FIRST_COMPLETED)
