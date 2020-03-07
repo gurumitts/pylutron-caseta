@@ -4,6 +4,7 @@ import asyncio
 import logging
 import socket
 import ssl
+from asyncio import get_running_loop as running_loop
 
 from . import _LEAP_DEVICE_TYPES, FAN_OFF
 from .leap import open_connection, id_from_href
@@ -44,7 +45,7 @@ class Smartbridge:
     async def connect(self):
         """Connect to the bridge."""
         await self._login()
-        self._monitor_task = asyncio.get_running_loop().create_task(self._monitor())
+        self._monitor_task = running_loop().create_task(self._monitor())
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
@@ -111,8 +112,9 @@ class Smartbridge:
 
     def get_device_by_zone_id(self, zone_id):
         """
-        Will return the first device associated with a given zone. Currently
-        each device is mapped to exactly 1 zone
+        Return the first device associated with a given zone.
+
+        Currently each device is mapped to exactly 1 zone
 
         :param zone_id: the zone id to search for
         :raises KeyError: if the zone id is not present
@@ -326,7 +328,7 @@ class Smartbridge:
             await self._load_devices()
             await self._load_scenes()
             await self._load_areas()
-            #await self._subscribe_to_occupancy_groups()
+            # await self._subscribe_to_occupancy_groups()
             for device in self.devices.values():
                 if device.get('zone') is not None:
                     _LOG.debug("Requesting zone information from %s", device)
@@ -334,7 +336,7 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            self._ping_task = asyncio.get_running_loop().create_task(self._ping())
+            self._ping_task = running_loop().create_task(self._ping())
             self.logged_in = True
 
     async def _ping(self):
@@ -415,9 +417,7 @@ class Smartbridge:
                                          'name': scene_name}
 
     async def _load_areas(self):
-        """
-        Load the areas from the Smart Bridge
-        """
+        """Load the areas from the Smart Bridge."""
         _LOG.debug("Loading areas from the Smart Bridge")
         self._writer.write(
             dict(CommuniqueType="ReadRequest",
@@ -433,7 +433,7 @@ class Smartbridge:
             self.areas[area_id] = dict(name=area['Name'])
 
     async def _subscribe_to_occupancy_groups(self):
-        """ Subscribe to occupancy group status updates """
+        """Subscribe to occupancy group status updates."""
         _LOG.debug("Subscribing to occupancy group status updates")
         self._writer.write(
             dict(CommuniqueType="SubscribeRequest",
@@ -443,19 +443,20 @@ class Smartbridge:
             response = await self._reader.read()
             if response["CommuniqueType"] == "SubscribeResponse":
                 if response["Header"]["StatusCode"].startswith("20"):
-                    _LOG.debug("Subscription to occupancygroup status successful")
+                    _LOG.debug("Subscribed to occupancygroup status")
                 else:
-                    _LOG.warning("Subscription to occupancygroup status failed: %s",
+                    _LOG.warning("Failed occupancy subscription: %s",
                                  response)
                 break
-        used_groups = [group for group in response['Body']['OccupancyGroupStatuses']
+        statuses = response['Body']['OccupancyGroupStatuses']
+        used_groups = [group for group in statuses
                        if group['OccupancyStatus'] != 'Unknown']
         _LOG.debug("Found %d occupancy groups with sensors", len(used_groups))
         for used_group in used_groups:
             await self._get_occupancy_group_details(used_group)
 
     async def _get_occupancy_group_details(self, group):
-        """ Read occupancy group details """
+        """Read occupancy group details."""
         _LOG.debug("Getting occupancy group details for %s", group)
         href = group["OccupancyGroup"]["href"]
         self._writer.write(

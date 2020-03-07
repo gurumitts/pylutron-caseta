@@ -79,12 +79,14 @@ class LeapWriter:
         """Write EOF to the underlying stream."""
         self._writer.write_eof()
 
+
 _HREFRE = re.compile(r'/(?:\D+)/(\d+)(?:\/\D+)?')
 
+
 def id_from_href(href):
-    """
-    Get an id from any kind of href. Raises ValueError if id cannot be
-    determined from the format
+    """Get an id from any kind of href.
+
+    Raises ValueError if id cannot be determined from the format
     """
     try:
         return _HREFRE.match(href).group(1)

@@ -12,10 +12,13 @@ from pylutron_caseta import FAN_MEDIUM
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
+
 def response_from_json_file(filename):
+    """Fetch a response from a saved JSON file."""
     responsedir = os.path.join(os.path.split(__file__)[0], 'responses')
     with open(os.path.join(responsedir, filename), 'r') as ifh:
         return json.load(ifh)
+
 
 class Bridge:
     """A test harness around SmartBridge."""
@@ -37,6 +40,7 @@ class Bridge:
 
     @property
     def connections(self):
+        """Defer creating the connection queue until we are in a loop."""
         if self._connections is None:
             self._connections = asyncio.Queue()
         return self._connections
@@ -362,9 +366,10 @@ def test_is_connected(bridge):
     other = smartbridge.Smartbridge(None)
     assert other.is_connected() is False
 
+
 @pytest.mark.asyncio
 async def test_area_list(bridge):
-    """ Test the list of areas loaded by the bridge """
+    """Test the list of areas loaded by the bridge."""
     expected_areas = {
         "1": {"name": "root"},
         "2": {"name": "Hallway"},
@@ -373,6 +378,7 @@ async def test_area_list(bridge):
     }
 
     assert bridge.target.areas == expected_areas
+
 
 @pytest.mark.asyncio
 async def test_is_on(bridge):
