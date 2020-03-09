@@ -440,6 +440,7 @@ async def test_occupancy_group_status_change(bridge):
     new_status = bridge.target.occupancy_groups['2']['status']
     assert new_status == OCCUPANCY_GROUP_UNOCCUPIED
 
+
 @pytest.mark.asyncio
 async def test_is_on(bridge):
     """Test the is_on method returns device state."""
