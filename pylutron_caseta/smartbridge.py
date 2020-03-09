@@ -301,9 +301,25 @@ class Smartbridge:
     def _handle_one_ping_response(self, _):
         self._got_ping.set()
 
+    def _handle_occupancy_group_status(self, resp_json):
+        statuses = resp_json['Body']['OccupancyGroupStatuses']
+        for status in statuses:
+            occgroup_id = id_from_href(status['OccupancyGroup']['href'])
+            ostat = status['OccupancyStatus']
+            if occgroup_id not in self.occupancy_groups:
+                if ostat != OCCUPANCY_GROUP_UNKNOWN:
+                    _LOG.warning("Occupancy group %s has a status but no "
+                                 "sensors", occgroup_id)
+                continue
+            if ostat == OCCUPANCY_GROUP_UNKNOWN:
+                _LOG.warning("Occupancy group %s has sensors but no status",
+                             occgroup_id)
+            self.occupancy_groups[occgroup_id]['status'] = ostat
+
     _read_response_handler_callbacks = dict(
         OneZoneStatus=_handle_one_zone_status,
-        OnePingResponse=_handle_one_ping_response
+        OnePingResponse=_handle_one_ping_response,
+        MultipleOccupancyGroupStatus=_handle_occupancy_group_status,
     )
 
     def _handle_read_response(self, resp_json):
@@ -490,19 +506,7 @@ class Smartbridge:
                     _LOG.error("Failed occupancy subscription: %s", response)
                     return
                 break
-        statuses = response['Body']['OccupancyGroupStatuses']
-        for status in statuses:
-            occgroup_id = id_from_href(status['OccupancyGroup']['href'])
-            ostat = status['OccupancyStatus']
-            if occgroup_id not in self.occupancy_groups:
-                if ostat != OCCUPANCY_GROUP_UNKNOWN:
-                    _LOG.warning("Occupancy group %s has a status but no "
-                                 "sensors", occgroup_id)
-                continue
-            if ostat == OCCUPANCY_GROUP_UNKNOWN:
-                _LOG.warning("Occupancy group %s has sensors but no status",
-                             occgroup_id)
-            self.occupancy_groups[occgroup_id]['status'] = ostat
+        self._handle_occupancy_group_status(response)
 
     async def close(self):
         """Disconnect from the bridge."""

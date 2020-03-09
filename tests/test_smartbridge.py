@@ -416,6 +416,30 @@ async def test_occupancy_group_list(bridge):
 
     assert bridge.target.occupancy_groups == expected_groups
 
+
+@pytest.mark.asyncio
+async def test_occupancy_group_status_change(bridge):
+    """Test that the status is updated when occupancy changes."""
+    await bridge.reader.write({
+        'CommuniqueType': 'ReadResponse',
+        'Header': {
+            'MessageBodyType': 'MultipleOccupancyGroupStatus',
+            'StatusCode': '200 OK', 'Url': '/occupancygroup/status'
+        },
+        'Body': {
+            'OccupancyGroupStatuses': [
+                {
+                    'href': '/occupancygroup/20/status',
+                    'OccupancyGroup': {'href': '/occupancygroup/2'},
+                    'OccupancyStatus': 'Unoccupied'
+                }
+            ]
+        }
+    })
+    await asyncio.wait_for(bridge.reader.queue.join(), 10)
+    new_status = bridge.target.occupancy_groups['2']['status']
+    assert new_status == OCCUPANCY_GROUP_UNOCCUPIED
+
 @pytest.mark.asyncio
 async def test_is_on(bridge):
     """Test the is_on method returns device state."""
