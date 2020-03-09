@@ -5,12 +5,12 @@ import logging
 import socket
 import ssl
 try:
-    from asyncio import get_running_loop as event_loop
+    from asyncio import get_running_loop as get_loop
 except ImportError:
     # For Python 3.6 and earlier, we have to use get_event_loop instead
-    from asyncio import get_event_loop as event_loop
+    from asyncio import get_event_loop as get_loop
 
-from . import _LEAP_DEVICE_TYPES, FAN_OFF
+from . import _LEAP_DEVICE_TYPES, FAN_OFF, OCCUPANCY_GROUP_UNKNOWN
 from .leap import open_connection, id_from_href
 
 _LOG = logging.getLogger(__name__)
@@ -44,12 +44,11 @@ class Smartbridge:
         self._monitor_task = None
         self._ping_task = None
         self._got_ping = asyncio.Event()
-        self._closing = asyncio.Event()
 
     async def connect(self):
         """Connect to the bridge."""
         await self._login()
-        self._monitor_task = event_loop().create_task(self._monitor())
+        self._monitor_task = get_loop().create_task(self._monitor())
 
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs,
@@ -331,7 +330,8 @@ class Smartbridge:
             await self._load_devices()
             await self._load_scenes()
             await self._load_areas()
-            # await self._subscribe_to_occupancy_groups()
+            await self._load_occupancy_groups()
+            await self._subscribe_to_occupancy_groups()
             for device in self.devices.values():
                 if device.get('zone') is not None:
                     _LOG.debug("Requesting zone information from %s", device)
@@ -339,7 +339,7 @@ class Smartbridge:
                         "CommuniqueType": "ReadRequest",
                         "Header": {"Url": "/zone/%s/status" % device['zone']}}
                     self._writer.write(cmd)
-            self._ping_task = event_loop().create_task(self._ping())
+            self._ping_task = get_loop().create_task(self._ping())
             self.logged_in = True
 
     async def _ping(self):
@@ -435,6 +435,45 @@ class Smartbridge:
             # We currently only need the name, so just load that
             self.areas[area_id] = dict(name=area['Name'])
 
+    async def _load_occupancy_groups(self):
+        """Load the occupancy groups from the Smart Bridge."""
+        _LOG.debug("Loading occupancy groups from the Smart Bridge")
+        self._writer.write(
+            dict(CommuniqueType="ReadRequest",
+                 Header=dict(Url="/occupancygroup"))
+        )
+        while True:
+            occgroup_json = await self._reader.read()
+            if occgroup_json['CommuniqueType'] == 'ReadResponse':
+                break
+        for occgroup in occgroup_json["Body"]["OccupancyGroups"]:
+            self._process_occupancy_group(occgroup)
+
+    def _process_occupancy_group(self, occgroup):
+        """Process occupancy group."""
+        occgroup_id = id_from_href(occgroup["href"])
+        if not occgroup.get('AssociatedSensors'):
+            _LOG.debug("No sensors associated with %s", occgroup['href'])
+            return
+        _LOG.debug("Found occupancy group with sensors: %s", occgroup_id)
+        associated_areas = occgroup.get('AssociatedAreas', [])
+        if not associated_areas:
+            _LOG.error('No associated areas found with occupancy group '
+                       'containing sensors: %s -- skipping', occgroup_id)
+            return
+        if len(associated_areas) > 1:
+            _LOG.warning("Occupancy group %s associated with multiple "
+                         "areas. Naming based on first area.", occgroup_id)
+        occgroup_area_id = id_from_href(associated_areas[0]['Area']['href'])
+        if occgroup_area_id not in self.areas:
+            _LOG.error('Unknown parent area for occupancy group %s: %s',
+                       occgroup_id, occgroup_area_id)
+            return
+        self.occupancy_groups[occgroup_id] = dict(
+            name='{} Occupancy'.format(self.areas[occgroup_area_id]['name']),
+            status=OCCUPANCY_GROUP_UNKNOWN,
+        )
+
     async def _subscribe_to_occupancy_groups(self):
         """Subscribe to occupancy group status updates."""
         _LOG.debug("Subscribing to occupancy group status updates")
@@ -448,28 +487,22 @@ class Smartbridge:
                 if response["Header"]["StatusCode"].startswith("20"):
                     _LOG.debug("Subscribed to occupancygroup status")
                 else:
-                    _LOG.warning("Failed occupancy subscription: %s",
-                                 response)
+                    _LOG.error("Failed occupancy subscription: %s", response)
+                    return
                 break
         statuses = response['Body']['OccupancyGroupStatuses']
-        used_groups = [group for group in statuses
-                       if group['OccupancyStatus'] != 'Unknown']
-        _LOG.debug("Found %d occupancy groups with sensors", len(used_groups))
-        for used_group in used_groups:
-            await self._get_occupancy_group_details(used_group)
-
-    async def _get_occupancy_group_details(self, group):
-        """Read occupancy group details."""
-        _LOG.debug("Getting occupancy group details for %s", group)
-        href = group["OccupancyGroup"]["href"]
-        self._writer.write(
-            dict(CommuniqueType="ReadRequest",
-                 Header=dict(Url=href))
-        )
-        while True:
-            response = await self._reader.read()
-            if response["CommuniqueType"] == "ReadResponse":
-                break
+        for status in statuses:
+            occgroup_id = id_from_href(status['OccupancyGroup']['href'])
+            ostat = status['OccupancyStatus']
+            if occgroup_id not in self.occupancy_groups:
+                if ostat != OCCUPANCY_GROUP_UNKNOWN:
+                    _LOG.warning("Occupancy group %s has a status but no "
+                                 "sensors", occgroup_id)
+                continue
+            if ostat == OCCUPANCY_GROUP_UNKNOWN:
+                _LOG.warning("Occupancy group %s has sensors but no status",
+                             occgroup_id)
+            self.occupancy_groups[occgroup_id]['status'] = ostat
 
     async def close(self):
         """Disconnect from the bridge."""

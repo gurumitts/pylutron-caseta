@@ -5,13 +5,14 @@ import logging
 import os
 import pytest
 try:
-    from asyncio import get_running_loop as running_loop
+    from asyncio import get_running_loop as get_loop
 except ImportError:
     # get_running_loop is better, but it was introduced in Python 3.7
-    from asyncio import get_event_loop as running_loop
+    from asyncio import get_event_loop as get_loop
 
 import pylutron_caseta.smartbridge as smartbridge
-from pylutron_caseta import FAN_MEDIUM
+from pylutron_caseta import (FAN_MEDIUM, OCCUPANCY_GROUP_OCCUPIED,
+                             OCCUPANCY_GROUP_UNOCCUPIED)
 
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
@@ -35,8 +36,8 @@ class Bridge:
         async def fake_connect():
             """Use by SmartBridge to connect to the test."""
             closed = asyncio.Event()
-            reader = _FakeLeapReader(closed, running_loop())
-            writer = _FakeLeapWriter(closed, running_loop())
+            reader = _FakeLeapReader(closed, get_loop())
+            writer = _FakeLeapWriter(closed, get_loop())
             await self.connections.put((reader, writer))
             return (reader, writer)
 
@@ -51,12 +52,12 @@ class Bridge:
 
     async def initialize(self):
         """Perform the initial connection with SmartBridge."""
-        connect_task = running_loop().create_task(self.target.connect())
+        connect_task = get_loop().create_task(self.target.connect())
         reader, writer = await self.connections.get()
 
         async def wait(coro):
             # abort if SmartBridge reports it has finished connecting early
-            task = running_loop().create_task(coro)
+            task = get_loop().create_task(coro)
             r = await asyncio.wait((connect_task, task),
                                    timeout=10,
                                    return_when=asyncio.FIRST_COMPLETED)
@@ -76,21 +77,21 @@ class Bridge:
 
     async def _accept_connection(self, reader, writer, wait):
         """Accept a connection from SmartBridge (implementation)."""
-        # First message should be a read request on /device
+        # First message should be read request on /device
         value = await wait(writer.queue.get())
         assert value == {
             "CommuniqueType": "ReadRequest",
             "Header": {"Url": "/device"}}
         writer.queue.task_done()
         await reader.write(response_from_json_file('devices.json'))
-        # Second message should be a read request on /virtualbutton
+        # Second message should be read request on /virtualbutton
         value = await wait(writer.queue.get())
         assert value == {
             "CommuniqueType": "ReadRequest",
             "Header": {"Url": "/virtualbutton"}}
         writer.queue.task_done()
         await reader.write(response_from_json_file('scenes.json'))
-        # Third message should be a read request on /areas
+        # Third message should be read request on /areas
         value = await wait(writer.queue.get())
         assert value == {
             "CommuniqueType": "ReadRequest",
@@ -98,6 +99,24 @@ class Bridge:
         }
         writer.queue.task_done()
         await reader.write(response_from_json_file('areas.json'))
+        # Fourth message should be read request on /occupancygroup
+        value = await wait(writer.queue.get())
+        assert value == {
+            "CommuniqueType": "ReadRequest",
+            "Header": {"Url": "/occupancygroup"}
+        }
+        writer.queue.task_done()
+        await reader.write(response_from_json_file('occupancygroups.json'))
+        # Fifth message should be subscribe request on /occupancygroup/status
+        value = await wait(writer.queue.get())
+        assert value == {
+            "CommuniqueType": "SubscribeRequest",
+            "Header": {"Url": "/occupancygroup/status"}
+        }
+        writer.queue.task_done()
+        await reader.write(
+            response_from_json_file('occupancygroupsubscribe.json')
+        )
         # Finally, we should check the zone status on each zone
         requested_zones = []
         for _ in range(0, 2):
@@ -385,6 +404,19 @@ async def test_area_list(bridge):
 
 
 @pytest.mark.asyncio
+async def test_occupancy_group_list(bridge):
+    """Test the list of occupancy groups loaded by the bridge."""
+    # Occupancy group 1 has no sensors, so it shouldn't appear here
+    expected_groups = {
+        "2": {"name": "Living Room Occupancy",
+              "status": OCCUPANCY_GROUP_OCCUPIED},
+        "3": {"name": "Master Bathroom Occupancy",
+              "status": OCCUPANCY_GROUP_UNOCCUPIED},
+    }
+
+    assert bridge.target.occupancy_groups == expected_groups
+
+@pytest.mark.asyncio
 async def test_is_on(bridge):
     """Test the is_on method returns device state."""
     await bridge.reader.write({
@@ -538,7 +570,7 @@ async def test_reconnect_timeout():
 
     time = 0.0
 
-    running_loop().time = lambda: time
+    get_loop().time = lambda: time
 
     await bridge.initialize()
 

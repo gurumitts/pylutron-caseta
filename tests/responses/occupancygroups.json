@@ -1,0 +1,73 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleOccupancyGroupDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/occupancygroup"
+    },
+    "Body": {
+        "OccupancyGroups": [
+            {
+                "href": "/occupancygroup/1",
+                "AssociatedAreas": [
+                    {
+                        "Area": {
+                            "href": "/area/2"
+                        }
+                    }
+                ],
+                "ProgrammingType": "Freeform",
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/193"
+                }
+            },
+            {
+                "href": "/occupancygroup/2",
+                "AssociatedSensors": [
+                    {
+                        "OccupancySensor": {
+                            "href": "/occupancysensor/1"
+                        }
+                    }
+                ],
+                "AssociatedAreas": [
+                    {
+                        "Area": {
+                            "href": "/area/3"
+                        }
+                    }
+                ],
+                "ProgrammingType": "Freeform",
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/194"
+                }
+            },
+            {
+                "href": "/occupancygroup/3",
+                "AssociatedSensors": [
+                    {
+                        "OccupancySensor": {
+                            "href": "/occupancysensor/2"
+                        }
+                    },
+                    {
+                        "OccupancySensor": {
+                            "href": "/occupancysensor/3"
+                        }
+                    }
+                ],
+                "AssociatedAreas": [
+                    {
+                        "Area": {
+                            "href": "/area/4"
+                        }
+                    }
+                ],
+                "ProgrammingType": "Freeform",
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/195"
+                }
+            }
+        ]
+    }
+}

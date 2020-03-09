@@ -1,0 +1,33 @@
+{
+    "CommuniqueType": "SubscribeResponse",
+    "Header": {
+        "MessageBodyType": "MultipleOccupancyGroupStatus",
+        "StatusCode": "200 OK",
+        "Url": "/occupancygroup/status"
+    },
+    "Body": {
+        "OccupancyGroupStatuses": [
+            {
+                "href": "/occupancygroup/1/status",
+                "OccupancyGroup": {
+                    "href": "/occupancygroup/1"
+                },
+                "OccupancyStatus": "Unknown"
+            },
+            {
+                "href": "/occupancygroup/2/status",
+                "OccupancyGroup": {
+                    "href": "/occupancygroup/2"
+                },
+                "OccupancyStatus": "Occupied"
+            },
+            {
+                "href": "/occupancygroup/3/status",
+                "OccupancyGroup": {
+                    "href": "/occupancygroup/3"
+                },
+                "OccupancyStatus": "Unoccupied"
+            }
+        ]
+    }
+}
