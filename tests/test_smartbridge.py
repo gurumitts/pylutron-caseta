@@ -445,9 +445,11 @@ async def test_occupancy_group_status_change(bridge):
 async def test_occupancy_group_status_change_notification(bridge):
     """Test that occupancy status changes send notifications."""
     notified = False
+
     def notify():
         nonlocal notified
         notified = True
+
     bridge.target.add_occupancy_subscriber('2', notify)
     await bridge.reader.write({
         'CommuniqueType': 'ReadResponse',
@@ -467,6 +469,7 @@ async def test_occupancy_group_status_change_notification(bridge):
     })
     await asyncio.wait_for(bridge.reader.queue.join(), 10)
     assert notified
+
 
 @pytest.mark.asyncio
 async def test_is_on(bridge):
