@@ -38,6 +38,7 @@ class Smartbridge:
         self.logged_in = False
         self._connect = connect
         self._subscribers = {}
+        self._occupancy_subscribers = {}
         self._login_lock = asyncio.Lock()
         self._reader = None
         self._writer = None
@@ -76,6 +77,15 @@ class Smartbridge:
         :param callback_: callback to invoke
         """
         self._subscribers[device_id] = callback_
+
+    def add_occupancy_subscriber(self, occupancy_group_id, callback_):
+        """
+        Add a listener to be notified of occupancy state changes.
+
+        :param occupancy_group_id: occupancy group id, e.g., 2
+        :param callback_: callback to invoke
+        """
+        self._occupancy_subscribers[occupancy_group_id] = callback_
 
     def get_devices(self):
         """Will return all known devices connected to the Smart Bridge."""
@@ -302,6 +312,7 @@ class Smartbridge:
         self._got_ping.set()
 
     def _handle_occupancy_group_status(self, resp_json):
+        _LOG.debug("Handling occupancy group status: %s", resp_json)
         statuses = resp_json['Body']['OccupancyGroupStatuses']
         for status in statuses:
             occgroup_id = id_from_href(status['OccupancyGroup']['href'])
@@ -315,6 +326,9 @@ class Smartbridge:
                 _LOG.warning("Occupancy group %s has sensors but no status",
                              occgroup_id)
             self.occupancy_groups[occgroup_id]['status'] = ostat
+            # Notify any subscribers of the change to occupancy status
+            if occgroup_id in self._occupancy_subscribers:
+                self._occupancy_subscribers[occgroup_id]()
 
     _read_response_handler_callbacks = dict(
         OneZoneStatus=_handle_one_zone_status,
@@ -323,7 +337,7 @@ class Smartbridge:
     )
 
     def _handle_read_response(self, resp_json):
-        body_type = resp_json['Header']['MessageBodyType']
+        body_type = resp_json.get('Header', {}).get('MessageBodyType')
         if body_type in self._read_response_handler_callbacks:
             self._read_response_handler_callbacks[body_type](self, resp_json)
 
