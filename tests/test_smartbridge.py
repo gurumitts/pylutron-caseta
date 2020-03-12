@@ -408,9 +408,11 @@ async def test_occupancy_group_list(bridge):
     """Test the list of occupancy groups loaded by the bridge."""
     # Occupancy group 1 has no sensors, so it shouldn't appear here
     expected_groups = {
-        "2": {"name": "Living Room Occupancy",
+        "2": {"occupancy_group_id": "2",
+              "name": "Living Room Occupancy",
               "status": OCCUPANCY_GROUP_OCCUPIED},
-        "3": {"name": "Master Bathroom Occupancy",
+        "3": {"occupancy_group_id": "3",
+              "name": "Master Bathroom Occupancy",
               "status": OCCUPANCY_GROUP_UNOCCUPIED},
     }
 

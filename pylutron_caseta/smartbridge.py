@@ -500,6 +500,7 @@ class Smartbridge:
                        occgroup_id, occgroup_area_id)
             return
         self.occupancy_groups[occgroup_id] = dict(
+            occupancy_group_id=occgroup_id,
             name='{} Occupancy'.format(self.areas[occgroup_area_id]['name']),
             status=OCCUPANCY_GROUP_UNKNOWN,
         )
