@@ -49,6 +49,19 @@ class LeapReader:
             self._reader.set_exception(err)
             raise err
 
+    async def wait_for(self, communique_type):
+        """
+        Read for a specific communique type.
+
+        Discards all messages not matching the communique type until the
+        specified communique type is received
+        """
+        while True:
+            received = await self.read()
+            if received.get('CommuniqueType', None) == communique_type:
+                return received
+            _LOG.info('Ignoring message %s', received)
+
     def at_eof(self):
         """Return `True` if the underlying stream is at EOF."""
         return self._reader.at_eof()

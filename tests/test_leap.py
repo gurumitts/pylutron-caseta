@@ -79,8 +79,8 @@ def pipe(event_loop):
     impl_protocol.connection_made(impl_pipe)
     test_writer = asyncio.StreamWriter(test_pipe, test_protocol,
                                        test_reader, loop=event_loop)
-    impl_writer = asyncio.StreamWriter(impl_pipe, impl_protocol,
-                                       impl_reader, loop=event_loop)
+    impl_writer = asyncio.StreamWriter(impl_pipe, impl_protocol, impl_reader,
+                                       loop=event_loop)
     leap_reader = pylutron_caseta.leap.LeapReader(impl_reader)
     leap_writer = pylutron_caseta.leap.LeapWriter(impl_writer)
     return Pipe(leap_reader, leap_writer, test_reader, test_writer)
@@ -117,3 +117,14 @@ async def test_write(pipe):
     pipe.leap_writer.write({'test': True})
     result = await pipe.test_reader.readline()
     assert result == b'{"test": true}\r\n'
+
+
+@pytest.mark.asyncio
+async def test_wait_for(pipe):
+    """Test the wait_for method."""
+    pipe.test_writer.write(b'{"test": true}\r\n')
+    pipe.test_writer.write(b'{"CommuniqueType": "TheAnswerIs42"}\r\n')
+    pipe.test_writer.write(b'{"CommuniqueType": "ReadRequest", '
+                           b'"foo": "bar"}\r\n')
+    result = await pipe.leap_reader.wait_for('ReadRequest')
+    assert result == {'CommuniqueType': 'ReadRequest', 'foo': 'bar'}

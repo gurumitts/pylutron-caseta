@@ -402,10 +402,7 @@ class Smartbridge:
         _LOG.debug("Loading devices")
         self._writer.write({
             "CommuniqueType": "ReadRequest", "Header": {"Url": "/device"}})
-        while True:
-            device_json = await self._reader.read()
-            if device_json['CommuniqueType'] == 'ReadResponse':
-                break
+        device_json = await self._reader.wait_for("ReadResponse")
         for device in device_json['Body']['Devices']:
             _LOG.debug(device)
             device_id = id_from_href(device['href'])
@@ -435,10 +432,7 @@ class Smartbridge:
         self._writer.write({
             "CommuniqueType": "ReadRequest",
             "Header": {"Url": "/virtualbutton"}})
-        while True:
-            scene_json = await self._reader.read()
-            if scene_json['CommuniqueType'] == 'ReadResponse':
-                break
+        scene_json = await self._reader.wait_for("ReadResponse")
         for scene in scene_json['Body']['VirtualButtons']:
             _LOG.debug(scene)
             # If 'Name' is not a key in scene, then it is likely a scene pico
@@ -456,10 +450,7 @@ class Smartbridge:
             dict(CommuniqueType="ReadRequest",
                  Header=dict(Url="/area"))
         )
-        while True:
-            area_json = await self._reader.read()
-            if area_json["CommuniqueType"] == "ReadResponse":
-                break
+        area_json = await self._reader.wait_for("ReadResponse")
         for area in area_json["Body"]["Areas"]:
             area_id = id_from_href(area['href'])
             # We currently only need the name, so just load that
@@ -472,10 +463,7 @@ class Smartbridge:
             dict(CommuniqueType="ReadRequest",
                  Header=dict(Url="/occupancygroup"))
         )
-        while True:
-            occgroup_json = await self._reader.read()
-            if occgroup_json['CommuniqueType'] == 'ReadResponse':
-                break
+        occgroup_json = await self._reader.wait_for("ReadResponse")
         for occgroup in occgroup_json["Body"]["OccupancyGroups"]:
             self._process_occupancy_group(occgroup)
 
@@ -512,15 +500,12 @@ class Smartbridge:
             dict(CommuniqueType="SubscribeRequest",
                  Header=dict(Url="/occupancygroup/status"))
         )
-        while True:
-            response = await self._reader.read()
-            if response["CommuniqueType"] == "SubscribeResponse":
-                if response["Header"]["StatusCode"].startswith("20"):
-                    _LOG.debug("Subscribed to occupancygroup status")
-                else:
-                    _LOG.error("Failed occupancy subscription: %s", response)
-                    return
-                break
+        response = await self._reader.wait_for("SubscribeResponse")
+        if response["Header"]["StatusCode"].startswith("20"):
+            _LOG.debug("Subscribed to occupancygroup status")
+        else:
+            _LOG.error("Failed occupancy subscription: %s", response)
+            return
         self._handle_occupancy_group_status(response)
 
     async def close(self):

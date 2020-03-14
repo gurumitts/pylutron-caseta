@@ -202,6 +202,12 @@ class _FakeLeapReader:
                 self.eof = True
             return value
 
+    async def wait_for(self, communique_type):
+        while True:
+            response = await self.read()
+            if response.get('CommuniqueType', None) == communique_type:
+                return response
+
     async def write(self, item):
         def action():
             return item
