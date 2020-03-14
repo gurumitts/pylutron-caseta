@@ -1,0 +1,117 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area"
+    },
+    "Body": {
+        "Areas": [
+            {
+                "href": "/area/1",
+                "Name": "root",
+                "LoadShedding": {
+                    "href": "/area/1/loadshedding"
+                }
+            },
+            {
+                "href": "/area/2",
+                "Name": "Hallway",
+                "Parent": {
+                    "href": "/area/1"
+                },
+                "Category": {
+                    "Type": "CustomTransition"
+                },
+                "AssociatedOccupancyGroups": [
+                    {
+                        "href": "/occupancygroup/1"
+                    }
+                ],
+                "LoadShedding": {
+                    "href": "/area/2/loadshedding"
+                },
+                "OccupancySettings": {
+                    "href": "/area/2/occupancysettings"
+                },
+                "OccupancySensorSettings": {
+                    "href": "/area/2/occupancysensorsettings"
+                },
+                "DaylightingGainSettings": {
+                    "href": "/area/2/daylightinggainsettings"
+                }
+            },
+            {
+                "href": "/area/3",
+                "Name": "Living Room",
+                "Parent": {
+                    "href": "/area/1"
+                },
+                "Category": {
+                    "Type": "LivingRoom"
+                },
+                "AssociatedDevices": [
+                    {
+                        "href": "/device/14"
+                    },
+                    {
+                        "href": "/device/15"
+                    },
+                    {
+                        "href": "/device/16"
+                    },
+                    {
+                        "href": "/device/26"
+                    },
+                    {
+                        "href": "/device/31"
+                    }
+                ],
+                "AssociatedOccupancyGroups": [
+                    {
+                        "href": "/occupancygroup/2"
+                    }
+                ],
+                "LoadShedding": {
+                    "href": "/area/3/loadshedding"
+                },
+                "OccupancySettings": {
+                    "href": "/area/3/occupancysettings"
+                },
+                "OccupancySensorSettings": {
+                    "href": "/area/3/occupancysensorsettings"
+                },
+                "DaylightingGainSettings": {
+                    "href": "/area/3/daylightinggainsettings"
+                }
+            },
+            {
+                "href": "/area/4",
+                "Name": "Master Bathroom",
+                "Parent": {
+                    "href": "/area/1"
+                },
+                "Category": {
+                    "Type": "Bathroom"
+                },
+                "AssociatedOccupancyGroups": [
+                    {
+                        "href": "/occupancygroup/3"
+                    }
+                ],
+                "LoadShedding": {
+                    "href": "/area/4/loadshedding"
+                },
+                "OccupancySettings": {
+                    "href": "/area/4/occupancysettings"
+                },
+                "OccupancySensorSettings": {
+                    "href": "/area/4/occupancysensorsettings"
+                },
+                "DaylightingGainSettings": {
+                    "href": "/area/4/daylightinggainsettings"
+                }
+            }
+        ]
+    }
+}

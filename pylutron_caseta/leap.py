@@ -3,21 +3,21 @@
 import asyncio
 import json
 import logging
+import re
 
 _LOG = logging.getLogger(__name__)
 _DEFAULT_LIMIT = 2 ** 16
 
 
-@asyncio.coroutine
-def open_connection(host=None, port=None, *,
-                    loop=None, limit=_DEFAULT_LIMIT, **kwds):
+async def open_connection(host=None, port=None, *,
+                          limit=_DEFAULT_LIMIT, **kwds):
     """Open a stream and wrap it with LEAP."""
-    connection = yield from asyncio.open_connection(host, port, loop=loop,
-                                                    limit=limit, **kwds)
+    connection = await asyncio.open_connection(host, port,
+                                               limit=limit, **kwds)
     return LeapReader(connection[0]), LeapWriter(connection[1])
 
 
-class LeapReader(object):
+class LeapReader:
     """A wrapper for reading the LEAP protocol."""
 
     def __init__(self, reader):
@@ -28,8 +28,7 @@ class LeapReader(object):
         """Get the exception."""
         return self._reader.exception()
 
-    @asyncio.coroutine
-    def read(self):
+    async def read(self):
         """
         Read a single object.
 
@@ -37,7 +36,7 @@ class LeapReader(object):
 
         If invaid data is received, raise ValueError.
         """
-        received = yield from self._reader.readline()
+        received = await self._reader.readline()
 
         if received == b'':
             return None
@@ -50,12 +49,25 @@ class LeapReader(object):
             self._reader.set_exception(err)
             raise err
 
+    async def wait_for(self, communique_type):
+        """
+        Read for a specific communique type.
+
+        Discards all messages not matching the communique type until the
+        specified communique type is received
+        """
+        while True:
+            received = await self.read()
+            if received.get('CommuniqueType', None) == communique_type:
+                return received
+            _LOG.info('Ignoring message %s', received)
+
     def at_eof(self):
         """Return `True` if the underlying stream is at EOF."""
         return self._reader.at_eof()
 
 
-class LeapWriter(object):
+class LeapWriter:
     """A wrapper for writing the LEAP protocol."""
 
     def __init__(self, writer):
@@ -66,10 +78,9 @@ class LeapWriter(object):
         """Abort the underlying stream."""
         self._writer.transport.abort()
 
-    @asyncio.coroutine
-    def drain(self):
+    async def drain(self):
         """Let the underlying stream drain its buffer."""
-        yield from self._writer.drain()
+        await self._writer.drain()
 
     def write(self, obj):
         """Write a single object."""
@@ -80,3 +91,17 @@ class LeapWriter(object):
     def write_eof(self):
         """Write EOF to the underlying stream."""
         self._writer.write_eof()
+
+
+_HREFRE = re.compile(r'/(?:\D+)/(\d+)(?:\/\D+)?')
+
+
+def id_from_href(href):
+    """Get an id from any kind of href.
+
+    Raises ValueError if id cannot be determined from the format
+    """
+    try:
+        return _HREFRE.match(href).group(1)
+    except IndexError:
+        raise ValueError("Cannot find ID from href {}".format(href))

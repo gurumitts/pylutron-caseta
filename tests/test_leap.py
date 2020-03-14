@@ -11,6 +11,7 @@ Pipe = namedtuple('Pipe', ('leap_reader', 'leap_writer',
 
 class _PipeTransport(asyncio.Transport):
     def __init__(self):
+        super().__init__()
         self._closing = False
         self._extra = {}
         self.other = None
@@ -78,41 +79,52 @@ def pipe(event_loop):
     impl_protocol.connection_made(impl_pipe)
     test_writer = asyncio.StreamWriter(test_pipe, test_protocol,
                                        test_reader, loop=event_loop)
-    impl_writer = asyncio.StreamWriter(impl_pipe, impl_protocol,
-                                       impl_reader, loop=event_loop)
+    impl_writer = asyncio.StreamWriter(impl_pipe, impl_protocol, impl_reader,
+                                       loop=event_loop)
     leap_reader = pylutron_caseta.leap.LeapReader(impl_reader)
     leap_writer = pylutron_caseta.leap.LeapWriter(impl_writer)
     return Pipe(leap_reader, leap_writer, test_reader, test_writer)
 
 
 @pytest.mark.asyncio
-def test_read(pipe):
+async def test_read(pipe):
     """Test basic object reading."""
     pipe.test_writer.write(b'{"test": true}\r\n')
-    result = yield from pipe.leap_reader.read()
+    result = await pipe.leap_reader.read()
     assert result == {'test': True}
 
 
 @pytest.mark.asyncio
-def test_read_eof(pipe):
+async def test_read_eof(pipe):
     """Test reading when EOF is encountered."""
     pipe.test_writer.close()
-    result = yield from pipe.leap_reader.read()
+    result = await pipe.leap_reader.read()
     assert result is None
 
 
 @pytest.mark.asyncio
-def test_read_invalid(pipe):
+async def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
     pipe.test_writer.write(b'?')
     pipe.test_writer.close()
     with pytest.raises(ValueError):
-        yield from pipe.leap_reader.read()
+        await pipe.leap_reader.read()
 
 
 @pytest.mark.asyncio
-def test_write(pipe):
+async def test_write(pipe):
     """Test basic object writing."""
     pipe.leap_writer.write({'test': True})
-    result = yield from pipe.test_reader.readline()
+    result = await pipe.test_reader.readline()
     assert result == b'{"test": true}\r\n'
+
+
+@pytest.mark.asyncio
+async def test_wait_for(pipe):
+    """Test the wait_for method."""
+    pipe.test_writer.write(b'{"test": true}\r\n')
+    pipe.test_writer.write(b'{"CommuniqueType": "TheAnswerIs42"}\r\n')
+    pipe.test_writer.write(b'{"CommuniqueType": "ReadRequest", '
+                           b'"foo": "bar"}\r\n')
+    result = await pipe.leap_reader.wait_for('ReadRequest')
+    assert result == {'CommuniqueType': 'ReadRequest', 'foo': 'bar'}
