@@ -172,10 +172,14 @@ ssl_context.use_privatekey(LAP_KEY)
 
 
 class JsonSocket:
+    """A socket that reads and writes json objects."""
+
     def __init__(self, socket):
+        """Create a JsonSocket wrapping the provided socket."""
         self._socket = socket
 
     def read_json(self):
+        """Read an object."""
         buffer = b""
         while not buffer.endswith(b"\r\n"):
             buffer += self._socket.read(1024)
@@ -184,6 +188,7 @@ class JsonSocket:
         return json.loads(buffer.decode("UTF-8"))
 
     def write_json(self, obj):
+        """Write an object."""
         buffer = ("%s\r\n" % json.dumps(obj)).encode("ASCII")
         self._socket.write(buffer)
         LOGGER.debug("sent: %s", buffer)
@@ -197,7 +202,8 @@ with socket.create_connection((server_addr, 8083)) as raw_socket:
 
     LOGGER.info("Connected to bridge.")
     print(
-        "Press and release the small black button on the back of the Caseta bridge..."
+        "Press and release the small black button on the back of the Caseta"
+        + "bridge..."
     )
     while True:
         message = sock.read_json()
@@ -209,6 +215,7 @@ with socket.create_connection((server_addr, 8083)) as raw_socket:
             break
 
     LOGGER.info("Getting my certificate...")
+    csr_text = csr.public_bytes(serialization.Encoding.PEM).decode("ASCII")
     sock.write_json(
         {
             "Header": {
@@ -219,7 +226,7 @@ with socket.create_connection((server_addr, 8083)) as raw_socket:
             "Body": {
                 "CommandType": "CSR",
                 "Parameters": {
-                    "CSR": csr.public_bytes(serialization.Encoding.PEM).decode("ASCII"),
+                    "CSR": csr_text,
                     "DisplayName": "get_lutron_cert.py",
                     "DeviceUID": "000000000000",
                     "Role": "Admin",
@@ -231,10 +238,12 @@ with socket.create_connection((server_addr, 8083)) as raw_socket:
         message = sock.read_json()
         if message.get("Header", {}).get("ClientTag") == "get-cert":
             break
+    cert_text = message["Body"]["SigningResult"]["Certificate"]
     with open(CERT_NAME, "wb") as f:
-        f.write(message["Body"]["SigningResult"]["Certificate"].encode("ASCII"))
+        f.write(cert_text.encode("ASCII"))
+    root_text = message["Body"]["SigningResult"]["RootCertificate"]
     with open(CA_CERT_NAME, "wb") as f:
-        f.write(message["Body"]["SigningResult"]["RootCertificate"].encode("ASCII"))
+        f.write(root_text.encode("ASCII"))
     LOGGER.info("Got certificates")
     tls_socket.shutdown()
 
