@@ -313,7 +313,7 @@ class Smartbridge:
 
     def _handle_occupancy_group_status(self, resp_json):
         _LOG.debug("Handling occupancy group status: %s", resp_json)
-        statuses = resp_json['Body']['OccupancyGroupStatuses']
+        statuses = resp_json.get('Body', {}).get('OccupancyGroupStatuses', {})
         for status in statuses:
             occgroup_id = id_from_href(status['OccupancyGroup']['href'])
             ostat = status['OccupancyStatus']
@@ -464,7 +464,7 @@ class Smartbridge:
                  Header=dict(Url="/occupancygroup"))
         )
         occgroup_json = await self._reader.wait_for("ReadResponse")
-        for occgroup in occgroup_json["Body"]["OccupancyGroups"]:
+        for occgroup in occgroup_json.get("Body", {}).get("OccupancyGroups", {}):
             self._process_occupancy_group(occgroup)
 
     def _process_occupancy_group(self, occgroup):
