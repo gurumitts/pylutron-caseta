@@ -464,7 +464,8 @@ class Smartbridge:
                  Header=dict(Url="/occupancygroup"))
         )
         occgroup_json = await self._reader.wait_for("ReadResponse")
-        for occgroup in occgroup_json.get("Body", {}).get("OccupancyGroups", {}):
+        occgroups = occgroup_json.get("Body", {}).get("OccupancyGroups", {})
+        for occgroup in occgroups:
             self._process_occupancy_group(occgroup)
 
     def _process_occupancy_group(self, occgroup):
