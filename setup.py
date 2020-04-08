@@ -5,7 +5,7 @@ from distutils.core import setup
 
 setup(
     name="pylutron_caseta",
-    version="0.6.0",
+    version="0.6.1",
     license="Apache",
     description="""Provides an API to the Lutron Smartbridge""",
     author="gurumitts",
