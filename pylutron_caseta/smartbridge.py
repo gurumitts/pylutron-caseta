@@ -272,7 +272,10 @@ class Smartbridge:
                     _LOG.debug('received LEAP: %s', received)
                     if received is not None:
                         self._handle_response(received)
-                except (ValueError, ConnectionError, asyncio.TimeoutError):
+                # ignore OSError too.
+                # sometimes you get OSError instead of ConnectionError.
+                except (ValueError, ConnectionError, OSError,
+                        asyncio.TimeoutError):
                     _LOG.warning("reconnecting", exc_info=1)
                     await asyncio.sleep(RECONNECT_DELAY)
         except asyncio.CancelledError:
