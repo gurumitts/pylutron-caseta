@@ -119,14 +119,14 @@ class Bridge:
         )
         # Finally, we should check the zone status on each zone
         requested_zones = []
-        for _ in range(0, 2):
+        for _ in range(0, 3):
             value = await wait(writer.queue.get())
             logging.info("Read %s", value)
             assert value["CommuniqueType"] == "ReadRequest"
             requested_zones.append(value["Header"]["Url"])
             writer.queue.task_done()
         requested_zones.sort()
-        assert requested_zones == ["/zone/1/status", "/zone/2/status"]
+        assert requested_zones == ["/zone/1/status", "/zone/2/status", "/zone/6/status"]
 
     async def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
@@ -320,6 +320,15 @@ async def test_device_list(bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None},
+        "7": {
+            "device_id": "7",
+            "name": "Living Room_Living Shade 3",
+            "type": "QsWirelessShade",
+            "model": "QSYC-J-RCVR",
+            "serial": 1234,
+            "current_state": -1,
+            "fan_speed": None,
+            "zone": "6"}
     }
 
     assert devices == expected_devices
@@ -590,6 +599,49 @@ async def test_set_fan(bridge):
                 "CommandType": "GoToFanSpeed",
                 "FanSpeedParameters": {"FanSpeed": "Medium"}}}}
 
+
+@pytest.mark.asyncio
+async def test_lower_cover(bridge):
+    """Test that lowering a cover produces the right commands."""
+    devices = bridge.target.get_devices()
+    bridge.target.lower_cover('7')
+    command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
+    bridge.writer.queue.task_done()
+    assert command == {
+        "CommuniqueType": "CreateRequest",
+        "Header": {"Url": "/zone/6/commandprocessor"},
+        "Body": {
+            "Command": {
+                "CommandType": "Lower"}}}
+    assert devices['7']['current_state'] == 0
+
+@pytest.mark.asyncio
+async def test_raise_cover(bridge):
+    """Test that raising a cover produces the right commands."""
+    devices = bridge.target.get_devices()
+    bridge.target.raise_cover('7')
+    command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
+    bridge.writer.queue.task_done()
+    assert command == {
+        "CommuniqueType": "CreateRequest",
+        "Header": {"Url": "/zone/6/commandprocessor"},
+        "Body": {
+            "Command": {
+                "CommandType": "Raise"}}}
+    assert devices['7']['current_state'] == 100
+
+@pytest.mark.asyncio
+async def test_stop_cover(bridge):
+    """Test that stopping a cover produces the right commands."""
+    bridge.target.stop_cover('7')
+    command = await asyncio.wait_for(bridge.writer.queue.get(), 10)
+    bridge.writer.queue.task_done()
+    assert command == {
+        "CommuniqueType": "CreateRequest",
+        "Header": {"Url": "/zone/6/commandprocessor"},
+        "Body": {
+            "Command": {
+                "CommandType": "Stop"}}}
 
 @pytest.mark.asyncio
 async def test_activate_scene(bridge):

@@ -200,6 +200,40 @@ class Smartbridge:
                         "Parameter": [{"Type": "Level", "Value": value}]}}}
             self._writer.write(cmd)
 
+    def _send_zone_create_request(self, device_id, command):
+        zone_id = self._get_zone_id(device_id)
+        if not zone_id:
+            return
+        self._writer.write({
+            "CommuniqueType": "CreateRequest",
+            "Header": {"Url": "/zone/%s/commandprocessor" % zone_id},
+            "Body": {
+                "Command": {
+                    "CommandType": command
+                }
+            }
+        })
+
+    def stop_cover(self, device_id):
+        """Will stop a cover."""
+        self._send_zone_create_request(device_id, "Stop")
+
+    def raise_cover(self, device_id):
+        """Will raise a cover."""
+        self._send_zone_create_request(device_id, "Raise")
+        # If set_value is called, we get an optimistic callback right
+        # away with the value, if we use Raise we have to set it
+        # as one won't come unless Stop is called or something goes wrong.
+        self.devices[device_id]['current_state'] = 100
+
+    def lower_cover(self, device_id):
+        """Will lower a cover."""
+        self._send_zone_create_request(device_id, "Lower")
+        # If set_value is called, we get an optimistic callback right
+        # away with the value, if we use Lower we have to set it
+        # as one won't come unless Stop is called or something goes wrong.
+        self.devices[device_id]['current_state'] = 0
+
     def set_fan(self, device_id, value):
         """
         Will set the value for a fan device with the given device ID.
