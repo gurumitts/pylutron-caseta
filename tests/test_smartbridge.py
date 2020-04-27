@@ -126,7 +126,11 @@ class Bridge:
             requested_zones.append(value["Header"]["Url"])
             writer.queue.task_done()
         requested_zones.sort()
-        assert requested_zones == ["/zone/1/status", "/zone/2/status", "/zone/6/status"]
+        assert requested_zones == [
+            "/zone/1/status",
+            "/zone/2/status",
+            "/zone/6/status"
+        ]
 
     async def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
@@ -615,6 +619,7 @@ async def test_lower_cover(bridge):
                 "CommandType": "Lower"}}}
     assert devices['7']['current_state'] == 0
 
+
 @pytest.mark.asyncio
 async def test_raise_cover(bridge):
     """Test that raising a cover produces the right commands."""
@@ -630,6 +635,7 @@ async def test_raise_cover(bridge):
                 "CommandType": "Raise"}}}
     assert devices['7']['current_state'] == 100
 
+
 @pytest.mark.asyncio
 async def test_stop_cover(bridge):
     """Test that stopping a cover produces the right commands."""
@@ -642,6 +648,7 @@ async def test_stop_cover(bridge):
         "Body": {
             "Command": {
                 "CommandType": "Stop"}}}
+
 
 @pytest.mark.asyncio
 async def test_activate_scene(bridge):
