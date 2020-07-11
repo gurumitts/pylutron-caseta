@@ -13,3 +13,5 @@ build/
 /caseta-bridge.crt
 /caseta.crt
 /caseta.key
+/dist/
+/pylutron_caseta.egg-info/
