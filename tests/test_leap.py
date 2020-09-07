@@ -1,12 +1,12 @@
 """Tests to validate ssl interactions."""
 import asyncio
-import pytest
 from collections import namedtuple
+
+import pytest
 
 import pylutron_caseta.leap
 
-Pipe = namedtuple('Pipe', ('leap_reader', 'leap_writer',
-                           'test_reader', 'test_writer'))
+Pipe = namedtuple("Pipe", ("leap_reader", "leap_writer", "test_reader", "test_writer"))
 
 
 class _PipeTransport(asyncio.Transport):
@@ -39,7 +39,8 @@ class _PipeTransport(asyncio.Transport):
     def get_write_buffer_size(self):
         return 0
 
-    def get_write_buffer_limits(self):
+    def get_write_buffer_limits(self):  # pylint: disable=no-self-use
+        """Return (0, 0)."""
         return (0, 0)
 
     def set_write_buffer_limits(self, high=None, low=None):
@@ -62,8 +63,8 @@ class _PipeTransport(asyncio.Transport):
         return self._protocol
 
 
-@pytest.fixture
-def pipe(event_loop):
+@pytest.fixture(name="pipe")
+def fixture_pipe(event_loop):
     """Create linked readers and writers for tests."""
     test_reader = asyncio.StreamReader(loop=event_loop)
     impl_reader = asyncio.StreamReader(loop=event_loop)
@@ -77,10 +78,12 @@ def pipe(event_loop):
     impl_pipe.set_protocol(impl_protocol)
     test_protocol.connection_made(test_pipe)
     impl_protocol.connection_made(impl_pipe)
-    test_writer = asyncio.StreamWriter(test_pipe, test_protocol,
-                                       test_reader, loop=event_loop)
-    impl_writer = asyncio.StreamWriter(impl_pipe, impl_protocol, impl_reader,
-                                       loop=event_loop)
+    test_writer = asyncio.StreamWriter(
+        test_pipe, test_protocol, test_reader, loop=event_loop
+    )
+    impl_writer = asyncio.StreamWriter(
+        impl_pipe, impl_protocol, impl_reader, loop=event_loop
+    )
     leap_reader = pylutron_caseta.leap.LeapReader(impl_reader)
     leap_writer = pylutron_caseta.leap.LeapWriter(impl_writer)
     return Pipe(leap_reader, leap_writer, test_reader, test_writer)
@@ -91,7 +94,7 @@ async def test_read(pipe):
     """Test basic object reading."""
     pipe.test_writer.write(b'{"test": true}\r\n')
     result = await pipe.leap_reader.read()
-    assert result == {'test': True}
+    assert result == {"test": True}
 
 
 @pytest.mark.asyncio
@@ -105,7 +108,7 @@ async def test_read_eof(pipe):
 @pytest.mark.asyncio
 async def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
-    pipe.test_writer.write(b'?')
+    pipe.test_writer.write(b"?")
     pipe.test_writer.close()
     with pytest.raises(ValueError):
         await pipe.leap_reader.read()
@@ -114,7 +117,7 @@ async def test_read_invalid(pipe):
 @pytest.mark.asyncio
 async def test_write(pipe):
     """Test basic object writing."""
-    pipe.leap_writer.write({'test': True})
+    pipe.leap_writer.write({"test": True})
     result = await pipe.test_reader.readline()
     assert result == b'{"test": true}\r\n'
 
@@ -124,7 +127,6 @@ async def test_wait_for(pipe):
     """Test the wait_for method."""
     pipe.test_writer.write(b'{"test": true}\r\n')
     pipe.test_writer.write(b'{"CommuniqueType": "TheAnswerIs42"}\r\n')
-    pipe.test_writer.write(b'{"CommuniqueType": "ReadRequest", '
-                           b'"foo": "bar"}\r\n')
-    result = await pipe.leap_reader.wait_for('ReadRequest')
-    assert result == {'CommuniqueType': 'ReadRequest', 'foo': 'bar'}
+    pipe.test_writer.write(b'{"CommuniqueType": "ReadRequest", ' b'"foo": "bar"}\r\n')
+    result = await pipe.leap_reader.wait_for("ReadRequest")
+    assert result == {"CommuniqueType": "ReadRequest", "foo": "bar"}

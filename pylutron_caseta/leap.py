@@ -9,11 +9,9 @@ _LOG = logging.getLogger(__name__)
 _DEFAULT_LIMIT = 2 ** 16
 
 
-async def open_connection(host=None, port=None, *,
-                          limit=_DEFAULT_LIMIT, **kwds):
+async def open_connection(host=None, port=None, *, limit=_DEFAULT_LIMIT, **kwds):
     """Open a stream and wrap it with LEAP."""
-    connection = await asyncio.open_connection(host, port,
-                                               limit=limit, **kwds)
+    connection = await asyncio.open_connection(host, port, limit=limit, **kwds)
     return LeapReader(connection[0]), LeapWriter(connection[1])
 
 
@@ -38,12 +36,12 @@ class LeapReader:
         """
         received = await self._reader.readline()
 
-        if received == b'':
+        if received == b"":
             return None
-        _LOG.debug('received %s', received)
+        _LOG.debug("received %s", received)
 
         try:
-            return json.loads(received.decode('UTF-8'))
+            return json.loads(received.decode("UTF-8"))
         except ValueError as err:
             _LOG.error("Invalid LEAP response: %s", received)
             self._reader.set_exception(err)
@@ -58,9 +56,9 @@ class LeapReader:
         """
         while True:
             received = await self.read()
-            if received.get('CommuniqueType', None) == communique_type:
+            if received.get("CommuniqueType", None) == communique_type:
                 return received
-            _LOG.info('Ignoring message %s', received)
+            _LOG.info("Ignoring message %s", received)
 
     def at_eof(self):
         """Return `True` if the underlying stream is at EOF."""
@@ -84,16 +82,16 @@ class LeapWriter:
 
     def write(self, obj):
         """Write a single object."""
-        text = json.dumps(obj).encode('UTF-8')
-        _LOG.debug('sending %s', text)
-        self._writer.write(text + b'\r\n')
+        text = json.dumps(obj).encode("UTF-8")
+        _LOG.debug("sending %s", text)
+        self._writer.write(text + b"\r\n")
 
     def write_eof(self):
         """Write EOF to the underlying stream."""
         self._writer.write_eof()
 
 
-_HREFRE = re.compile(r'/(?:\D+)/(\d+)(?:\/\D+)?')
+_HREFRE = re.compile(r"/(?:\D+)/(\d+)(?:\/\D+)?")
 
 
 def id_from_href(href):
@@ -103,5 +101,5 @@ def id_from_href(href):
     """
     try:
         return _HREFRE.match(href).group(1)
-    except IndexError:
-        raise ValueError("Cannot find ID from href {}".format(href))
+    except IndexError as ex:
+        raise ValueError("Cannot find ID from href {}".format(href)) from ex
