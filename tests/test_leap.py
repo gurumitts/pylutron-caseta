@@ -1,12 +1,22 @@
-"""Tests to validate ssl interactions."""
+"""Tests to validate low-level network interactions."""
 import asyncio
-from collections import namedtuple
+import json
+from typing import AsyncGenerator, Iterable, NamedTuple, Tuple
 
 import pytest
 
-import pylutron_caseta.leap
+from pylutron_caseta import BridgeDisconnectedError
+from pylutron_caseta.leap import LeapProtocol
+from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
 
-Pipe = namedtuple("Pipe", ("leap_reader", "leap_writer", "test_reader", "test_writer"))
+
+class Pipe(NamedTuple):
+    """A LeapProtocol that communicates to a stream reader/writer pair."""
+
+    leap: LeapProtocol
+    leap_loop: asyncio.Task
+    test_reader: asyncio.StreamReader
+    test_writer: asyncio.StreamWriter
 
 
 class _PipeTransport(asyncio.Transport):
@@ -21,7 +31,7 @@ class _PipeTransport(asyncio.Transport):
         self._closing = True
         self.other.get_protocol().connection_lost(None)
 
-    def is_closing(self):
+    def is_closing(self) -> bool:
         return self._closing
 
     def pause_reading(self):
@@ -33,43 +43,45 @@ class _PipeTransport(asyncio.Transport):
     def abort(self):
         self.close()
 
-    def can_write_eof(self):
+    def can_write_eof(self) -> bool:
         return False
 
-    def get_write_buffer_size(self):
+    def get_write_buffer_size(self) -> int:
         return 0
 
-    def get_write_buffer_limits(self):  # pylint: disable=no-self-use
+    def get_write_buffer_limits(self) -> Tuple[int, int]:  # pylint: disable=no-self-use
         """Return (0, 0)."""
         return (0, 0)
 
     def set_write_buffer_limits(self, high=None, low=None):
         raise NotImplementedError()
 
-    def write(self, data):
+    def write(self, data: bytes):
         self.other.get_protocol().data_received(data)
 
-    def writelines(self, list_of_data):
+    def writelines(self, list_of_data: Iterable[bytes]):
         for line in list_of_data:
             self.write(line)
 
     def write_eof(self):
         raise NotImplementedError()
 
-    def set_protocol(self, protocol):
+    def set_protocol(self, protocol: asyncio.BaseProtocol):
         self._protocol = protocol
 
-    def get_protocol(self):
+    def get_protocol(self) -> asyncio.BaseProtocol:
         return self._protocol
 
 
 @pytest.fixture(name="pipe")
-def fixture_pipe(event_loop):
+async def fixture_pipe(
+    event_loop: asyncio.AbstractEventLoop,
+) -> AsyncGenerator[Pipe, None]:
     """Create linked readers and writers for tests."""
-    test_reader = asyncio.StreamReader(loop=event_loop)
-    impl_reader = asyncio.StreamReader(loop=event_loop)
-    test_protocol = asyncio.StreamReaderProtocol(test_reader, loop=event_loop)
-    impl_protocol = asyncio.StreamReaderProtocol(impl_reader, loop=event_loop)
+    test_reader = asyncio.StreamReader()
+    impl_reader = asyncio.StreamReader()
+    test_protocol = asyncio.StreamReaderProtocol(test_reader)
+    impl_protocol = asyncio.StreamReaderProtocol(impl_reader)
     test_pipe = _PipeTransport()
     impl_pipe = _PipeTransport()
     test_pipe.other = impl_pipe
@@ -79,54 +91,124 @@ def fixture_pipe(event_loop):
     test_protocol.connection_made(test_pipe)
     impl_protocol.connection_made(impl_pipe)
     test_writer = asyncio.StreamWriter(
-        test_pipe, test_protocol, test_reader, loop=event_loop
+        test_pipe, test_protocol, test_reader, event_loop
     )
     impl_writer = asyncio.StreamWriter(
-        impl_pipe, impl_protocol, impl_reader, loop=event_loop
+        impl_pipe, impl_protocol, impl_reader, event_loop
     )
-    leap_reader = pylutron_caseta.leap.LeapReader(impl_reader)
-    leap_writer = pylutron_caseta.leap.LeapWriter(impl_writer)
-    return Pipe(leap_reader, leap_writer, test_reader, test_writer)
+
+    leap = LeapProtocol(impl_reader, impl_writer)
+    leap_task = asyncio.create_task(leap.run())
+
+    yield Pipe(leap, leap_task, test_reader, test_writer)
+
+    leap_task.cancel()
 
 
 @pytest.mark.asyncio
-async def test_read(pipe):
-    """Test basic object reading."""
-    pipe.test_writer.write(b'{"test": true}\r\n')
-    result = await pipe.leap_reader.read()
-    assert result == {"test": True}
+async def test_call(pipe: Pipe):
+    """Test basic call and response."""
+    task = asyncio.create_task(pipe.leap.request("ReadRequest", "/test"))
+
+    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+
+    # message should contain ClientTag
+    tag = received.get("Header", {}).pop("ClientTag", None)
+    assert tag
+    assert isinstance(tag, str)
+
+    assert received == {"CommuniqueType": "ReadRequest", "Header": {"Url": "/test"}}
+
+    response_obj = {
+        "CommuniqueType": "ReadResponse",
+        "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
+        "Body": {"ok": True},
+    }
+    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+
+    result = await task
+
+    assert result == Response(
+        Header=ResponseHeader(StatusCode=ResponseStatus(200, "OK"), Url="/test"),
+        CommuniqueType="ReadResponse",
+        Body={"ok": True},
+    )
 
 
 @pytest.mark.asyncio
 async def test_read_eof(pipe):
     """Test reading when EOF is encountered."""
     pipe.test_writer.close()
-    result = await pipe.leap_reader.read()
-    assert result is None
+
+    await pipe.leap_loop
 
 
 @pytest.mark.asyncio
 async def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
-    pipe.test_writer.write(b"?")
+    pipe.test_writer.write(b"?\r\n")
+
+    with pytest.raises(json.JSONDecodeError):
+        await pipe.leap_loop
+
+
+@pytest.mark.asyncio
+async def test_busy_close(pipe):
+    """Test closing the session while there are in-flight requests."""
+    task = asyncio.create_task(pipe.leap.request("ReadRequest", "/test"))
+
+    await pipe.test_reader.readline()
     pipe.test_writer.close()
-    with pytest.raises(ValueError):
-        await pipe.leap_reader.read()
+    await pipe.leap_loop
+    pipe.leap.close()
+
+    with pytest.raises(BridgeDisconnectedError):
+        await task
 
 
 @pytest.mark.asyncio
-async def test_write(pipe):
-    """Test basic object writing."""
-    pipe.leap_writer.write({"test": True})
-    result = await pipe.test_reader.readline()
-    assert result == b'{"test": true}\r\n'
+async def test_unsolicited(pipe):
+    """Test subscribing and unsubscribing unsolicited message handlers."""
+    handler1_message = None
+    handler2_message = None
+    handler2_called = asyncio.Event()
 
+    def handler1(response):
+        nonlocal handler1_message
+        handler1_message = response
 
-@pytest.mark.asyncio
-async def test_wait_for(pipe):
-    """Test the wait_for method."""
-    pipe.test_writer.write(b'{"test": true}\r\n')
-    pipe.test_writer.write(b'{"CommuniqueType": "TheAnswerIs42"}\r\n')
-    pipe.test_writer.write(b'{"CommuniqueType": "ReadRequest", ' b'"foo": "bar"}\r\n')
-    result = await pipe.leap_reader.wait_for("ReadRequest")
-    assert result == {"CommuniqueType": "ReadRequest", "foo": "bar"}
+    def handler2(response):
+        nonlocal handler2_message
+        handler2_message = response
+        handler2_called.set()
+
+    pipe.leap.subscribe_unsolicited(handler1)
+    pipe.leap.subscribe_unsolicited(handler2)
+
+    response_dict = {
+        "CommuniqueType": "ReadResponse",
+        "Header": {"StatusCode": "200 OK", "Url": "/test"},
+        "Body": {"Index": 0},
+    }
+    response_bytes = f"{json.dumps(response_dict)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+    response = Response.from_json(response_dict)
+
+    await asyncio.wait_for(handler2_called.wait(), 1.0)
+    handler2_called.clear()
+
+    assert handler1_message == response, "handler1 did not receive correct message"
+    assert handler2_message == response, "handler2 did not receive correct message"
+
+    pipe.leap.unsubscribe_unsolicited(handler1)
+
+    response_dict["Body"]["Index"] = 1
+    response_bytes = f"{json.dumps(response_dict)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+    response = Response.from_json(response_dict)
+
+    await asyncio.wait_for(handler2_called.wait(), 1.0)
+
+    assert handler1_message != response, "handler1 was not unsubscribed"
+    assert handler2_message == response, "handler2 did not receive correct message"
