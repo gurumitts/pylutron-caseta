@@ -16,7 +16,7 @@
 		"editor.formatOnSave": true,
 		"editor.formatOnType": true,
 		"python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
-		"python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+		"python.formatting.blackPath": "/usr/local/bin/black",
 		"python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
 		"python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
 		"python.linting.flake8Path": "/usr/local/bin/flake8",
