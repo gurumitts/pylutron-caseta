@@ -367,21 +367,21 @@ class Smartbridge:
 
     async def _monitor_once(self):
         """Monitor for events until an error occurs."""
-        _LOG.debug("Connecting to Smart Bridge via SSL")
-        self._leap = await self._connect()
-        self._leap.subscribe_unsolicited(self._handle_unsolicited)
-        _LOG.debug("Successfully connected to Smart Bridge.")
-
-        if self._login_task is not None:
-            self._login_task.cancel()
-
-        if self._ping_task is not None:
-            self._ping_task.cancel()
-
-        self._login_task = asyncio.get_running_loop().create_task(self._login())
-        self._ping_task = asyncio.get_running_loop().create_task(self._ping())
-
         try:
+            _LOG.debug("Connecting to Smart Bridge via SSL")
+            self._leap = await self._connect()
+            self._leap.subscribe_unsolicited(self._handle_unsolicited)
+            _LOG.debug("Successfully connected to Smart Bridge.")
+
+            if self._login_task is not None:
+                self._login_task.cancel()
+
+            if self._ping_task is not None:
+                self._ping_task.cancel()
+
+            self._login_task = asyncio.get_running_loop().create_task(self._login())
+            self._ping_task = asyncio.get_running_loop().create_task(self._ping())
+
             await self._leap.run()
             _LOG.warning("LEAP session ended. Reconnecting...")
             await asyncio.sleep(RECONNECT_DELAY)
@@ -405,8 +405,9 @@ class Smartbridge:
                 self._ping_task.cancel()
                 self._ping_task = None
 
-            self._leap.close()
-            self._leap = None
+            if self._leap is not None:
+                self._leap.close()
+                self._leap = None
 
     def _handle_one_zone_status(self, response: Response):
         body = response.Body

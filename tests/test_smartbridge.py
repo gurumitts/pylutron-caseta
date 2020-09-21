@@ -566,9 +566,9 @@ async def test_is_on_fan(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_value(bridge: Bridge):
+async def test_set_value(bridge: Bridge, event_loop):
     """Test that setting values produces the right commands."""
-    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
+    task = event_loop.create_task(bridge.target.set_value("2", 50))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -600,7 +600,7 @@ async def test_set_value(bridge: Bridge):
     bridge.leap.requests.task_done()
     await task
 
-    task = asyncio.get_running_loop().create_task(bridge.target.turn_on("2"))
+    task = event_loop.create_task(bridge.target.turn_on("2"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -632,7 +632,7 @@ async def test_set_value(bridge: Bridge):
     bridge.leap.requests.task_done()
     await task
 
-    task = asyncio.get_running_loop().create_task(bridge.target.turn_off("2"))
+    task = event_loop.create_task(bridge.target.turn_off("2"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -666,11 +666,9 @@ async def test_set_value(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_fan(bridge: Bridge):
+async def test_set_fan(bridge: Bridge, event_loop):
     """Test that setting fan speed produces the right commands."""
-    task = asyncio.get_running_loop().create_task(
-        bridge.target.set_fan("2", FAN_MEDIUM)
-    )
+    task = event_loop.create_task(bridge.target.set_fan("2", FAN_MEDIUM))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -687,10 +685,10 @@ async def test_set_fan(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_lower_cover(bridge: Bridge):
+async def test_lower_cover(bridge: Bridge, event_loop):
     """Test that lowering a cover produces the right commands."""
     devices = bridge.target.get_devices()
-    task = asyncio.get_running_loop().create_task(bridge.target.lower_cover("7"))
+    task = event_loop.create_task(bridge.target.lower_cover("7"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -713,10 +711,10 @@ async def test_lower_cover(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_raise_cover(bridge: Bridge):
+async def test_raise_cover(bridge: Bridge, event_loop):
     """Test that raising a cover produces the right commands."""
     devices = bridge.target.get_devices()
-    task = asyncio.get_running_loop().create_task(bridge.target.raise_cover("7"))
+    task = event_loop.create_task(bridge.target.raise_cover("7"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -739,9 +737,9 @@ async def test_raise_cover(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_stop_cover(bridge: Bridge):
+async def test_stop_cover(bridge: Bridge, event_loop):
     """Test that stopping a cover produces the right commands."""
-    task = asyncio.get_running_loop().create_task(bridge.target.stop_cover("7"))
+    task = event_loop.create_task(bridge.target.stop_cover("7"))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -753,9 +751,9 @@ async def test_stop_cover(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_activate_scene(bridge: Bridge):
+async def test_activate_scene(bridge: Bridge, event_loop):
     """Test that activating scenes produces the right commands."""
-    task = asyncio.get_running_loop().create_task(bridge.target.activate_scene("1"))
+    task = event_loop.create_task(bridge.target.activate_scene("1"))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -779,11 +777,35 @@ async def test_reconnect_eof(bridge: Bridge, event_loop):
 
     await bridge.accept_connection()
 
-    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
+    task = event_loop.create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
     task.cancel()
+
+
+@pytest.mark.asyncio
+async def test_connect_error(event_loop):
+    """Test that SmartBridge can retry failed connections."""
+    time = 0.0
+    event_loop.time = lambda: time
+
+    tried = asyncio.Event()
+
+    async def fake_connect():
+        """Simulate connection error for the test."""
+        tried.set()
+        raise OSError()
+
+    target = smartbridge.Smartbridge(fake_connect)
+    connect_task = event_loop.create_task(target.connect())
+
+    await tried.wait()
+    tried.clear()
+    time += smartbridge.RECONNECT_DELAY
+
+    await tried.wait()
+    connect_task.cancel()
 
 
 @pytest.mark.asyncio
@@ -799,7 +821,7 @@ async def test_reconnect_error(bridge: Bridge, event_loop):
 
     await bridge.accept_connection()
 
-    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
+    task = event_loop.create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
@@ -826,7 +848,7 @@ async def test_reconnect_timeout(event_loop):
     time += smartbridge.RECONNECT_DELAY
     await bridge.accept_connection()
 
-    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
+    task = event_loop.create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
