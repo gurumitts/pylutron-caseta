@@ -5,3 +5,7 @@ disable=
   too-many-arguments,
   too-many-instance-attributes,
   too-many-public-methods,
+
+good-names=
+  i,j,k,ex,Run,_, # defaults
+  T
