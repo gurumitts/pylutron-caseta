@@ -1,5 +1,6 @@
 """Tests to validate ssl interactions."""
 import asyncio
+from datetime import timedelta
 import json
 import logging
 import os
@@ -663,6 +664,27 @@ async def test_set_value(bridge: Bridge, event_loop):
     )
     bridge.leap.requests.task_done()
     await task
+
+
+@pytest.mark.asyncio
+async def test_set_value_with_fade(bridge: Bridge, event_loop):
+    """Test that setting values with fade_time produces the right commands."""
+    task = event_loop.create_task(
+        bridge.target.set_value("2", 50, fade_time=timedelta(seconds=4))
+    )
+    command, _ = await bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/1/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToDimmedLevel",
+                "DimmedLevelParameters": {"Level": 50, "FadeTime": "00:00:04"},
+            }
+        },
+    )
+    bridge.leap.requests.task_done()
+    task.cancel()
 
 
 @pytest.mark.asyncio
