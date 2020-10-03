@@ -1,7 +1,9 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge."""
 
 import asyncio
+from datetime import timedelta
 import logging
+import math
 import socket
 import ssl
 from typing import Callable, Dict, List, Optional
@@ -239,27 +241,48 @@ class Smartbridge:
 
         return response
 
-    async def set_value(self, device_id: str, value: int):
+    async def set_value(
+        self, device_id: str, value: int, fade_time: Optional[timedelta] = None
+    ):
         """
         Will set the value for a device with the given ID.
 
         :param device_id: device id to set the value on
         :param value: integer value from 0 to 100 to set
+        :param fade_time: duration for the light to fade from its current value to the
+        new value (only valid for lights)
         """
-        zone_id = self._get_zone_id(device_id)
+        device = self.devices[device_id]
+
+        zone_id = device.get("zone")
         if not zone_id:
             return
 
-        await self._request(
-            "CreateRequest",
-            f"/zone/{zone_id}/commandprocessor",
-            {
-                "Command": {
-                    "CommandType": "GoToLevel",
-                    "Parameter": [{"Type": "Level", "Value": value}],
-                }
-            },
-        )
+        if device.get("type") in _LEAP_DEVICE_TYPES["light"] and fade_time is not None:
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToDimmedLevel",
+                        "DimmedLevelParameters": {
+                            "Level": value,
+                            "FadeTime": _format_duration(fade_time),
+                        },
+                    }
+                },
+            )
+        else:
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToLevel",
+                        "Parameter": [{"Type": "Level", "Value": value}],
+                    }
+                },
+            )
 
     async def _send_zone_create_request(self, device_id: str, command: str):
         zone_id = self._get_zone_id(device_id)
@@ -313,21 +336,23 @@ class Smartbridge:
                 },
             )
 
-    async def turn_on(self, device_id: str):
+    async def turn_on(self, device_id: str, **kwargs):
         """
         Will turn 'on' the device with the given ID.
 
         :param device_id: device id to turn on
+        :param **kwargs: additional parameters for set_value
         """
-        await self.set_value(device_id, 100)
+        await self.set_value(device_id, 100, **kwargs)
 
-    async def turn_off(self, device_id: str):
+    async def turn_off(self, device_id: str, **kwargs):
         """
         Will turn 'off' the device with the given ID.
 
         :param device_id: device id to turn off
+        :param **kwargs: additional parameters for set_value
         """
-        await self.set_value(device_id, 0)
+        await self.set_value(device_id, 0, **kwargs)
 
     async def activate_scene(self, scene_id: str):
         """
@@ -611,3 +636,13 @@ class Smartbridge:
             self._monitor_task.cancel()
         if self._ping_task is not None and not self._ping_task.cancelled():
             self._ping_task.cancel()
+
+
+def _format_duration(duration: timedelta) -> str:
+    """Convert a timedelta to the hh:mm:ss format used in LEAP."""
+    total_seconds = math.floor(duration.total_seconds())
+    seconds = int(total_seconds % 60)
+    total_minutes = math.floor(total_seconds / 60)
+    minutes = int(total_minutes % 60)
+    hours = int(total_minutes / 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
