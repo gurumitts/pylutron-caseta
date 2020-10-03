@@ -17,4 +17,5 @@ setup(
     download_url="https://github.com/gurumitts/pylutron-caseta",
     packages=["pylutron_caseta"],
     install_requires=[],
+    python_requires=">=3.7.0",
 )
