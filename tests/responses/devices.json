@@ -162,6 +162,21 @@
                         "href": "/devicerule/122"
                     }
                 ]
+            },
+            {
+                "href": "/device/7",
+                "Name": "Living Shade 3",
+                "FullyQualifiedName": ["Living Room", "Living Shade 3"],
+                "Parent": {
+                    "href": "/project"
+                },
+                "SerialNumber": 1234,
+                "ModelNumber": "QSYC-J-RCVR",
+                "DeviceType": "QsWirelessShade",
+                "LocalZones": [{"href": "/zone/6"}],
+                "AssociatedArea": {"href": "/area/4"},
+                "LinkNodes": [{"href": "/device/10/linknode/9"}],
+                "DeviceRules": [{"href": "/devicerule/10"}]
             }
         ]
     }

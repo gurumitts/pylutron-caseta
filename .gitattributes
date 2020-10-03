@@ -1,0 +1,3 @@
+# Always use LF line endings.
+# This avoids problems when using WSL.
+* text=auto eol=lf
