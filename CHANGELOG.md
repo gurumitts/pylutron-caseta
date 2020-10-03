@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2020-10-03
+
 ### Added
 
 - `set_value` (and shortcuts `turn_on` `turn_off`) now take an optional `fade_time` parameter taking a `timedelta` that controls the transition time for lights.
@@ -139,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.6.1...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.6.1...0.7.0
 [0.6.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.5.0...v0.5.1
