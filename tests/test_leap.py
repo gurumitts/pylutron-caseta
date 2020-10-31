@@ -212,3 +212,99 @@ async def test_unsolicited(pipe):
 
     assert handler1_message != response, "handler1 was not unsubscribed"
     assert handler2_message == response, "handler2 did not receive correct message"
+
+
+@pytest.mark.asyncio
+async def test_subscribe_tagged(pipe: Pipe):
+    """
+    Test subscribing to a topic and receiving responses.
+
+    Unlike with unsolicited subscriptions, when the client sends a SubscribeRequest,
+    the server sends back all events related to that subscription with the same tag
+    value.
+    """
+    handler_message = None
+    handler_called = asyncio.Event()
+
+    def handler(response):
+        nonlocal handler_message
+        handler_message = response
+        handler_called.set()
+
+    task = asyncio.create_task(pipe.leap.subscribe("/test", handler))
+
+    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+
+    # message should contain ClientTag
+    tag = received.get("Header", {}).pop("ClientTag", None)
+    assert tag
+    assert isinstance(tag, str)
+
+    assert received == {
+        "CommuniqueType": "SubscribeRequest",
+        "Header": {"Url": "/test"},
+    }
+
+    response_obj = {
+        "CommuniqueType": "SubscribeResponse",
+        "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
+        "Body": {"ok": True},
+    }
+    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+
+    result, received_tag = await task
+
+    assert result == Response(
+        Header=ResponseHeader(StatusCode=ResponseStatus(200, "OK"), Url="/test"),
+        CommuniqueType="SubscribeResponse",
+        Body={"ok": True},
+    )
+    assert received_tag == tag
+
+    # Now that the client has subscribed, send an event to the handler.
+    response_obj = {
+        "CommuniqueType": "ReadResponse",
+        "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
+        "Body": {"ok": True},
+    }
+    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+
+    await asyncio.wait_for(handler_called.wait(), 1.0)
+    assert handler_message == Response(
+        Header=ResponseHeader(StatusCode=ResponseStatus(200, "OK"), Url="/test"),
+        CommuniqueType="ReadResponse",
+        Body={"ok": True},
+    )
+
+
+@pytest.mark.asyncio
+async def test_subscribe_tagged_404(pipe: Pipe):
+    """Test subscribing to a topic that does not exist."""
+
+    def _handler(_: Response):
+        pass
+
+    task = asyncio.create_task(pipe.leap.subscribe("/test", _handler))
+
+    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+
+    tag = received.get("Header", {}).pop("ClientTag", None)
+    response_obj = {
+        "CommuniqueType": "SubscribeResponse",
+        "Header": {"ClientTag": tag, "StatusCode": "404 Not Found", "Url": "/test"},
+    }
+    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    pipe.test_writer.write(response_bytes)
+
+    result, _ = await task
+
+    assert result == Response(
+        Header=ResponseHeader(StatusCode=ResponseStatus(404, "Not Found"), Url="/test"),
+        CommuniqueType="SubscribeResponse",
+        Body=None,
+    )
+
+    # The subscription should not be registered.
+    assert {} == pipe.leap._tagged_subscriptions  # pylint: disable=protected-access

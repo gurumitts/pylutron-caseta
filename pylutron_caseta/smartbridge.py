@@ -6,7 +6,7 @@ import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -240,6 +240,29 @@ class Smartbridge:
             raise BridgeResponseError(response)
 
         return response
+
+    async def _subscribe(
+        self,
+        url: str,
+        callback: Callable[[Response], None],
+        communique_type: str = "SubscribeRequest",
+        body: Optional[dict] = None,
+    ) -> Tuple[Response, str]:
+        if self._leap is None:
+            raise BridgeDisconnectedError()
+
+        response, tag = await asyncio.wait_for(
+            self._leap.subscribe(
+                url, callback, communique_type=communique_type, body=body
+            ),
+            timeout=REQUEST_TIMEOUT,
+        )
+
+        status = response.Header.StatusCode
+        if status is None or not status.is_successful():
+            raise BridgeResponseError(response)
+
+        return (response, tag)
 
     async def set_value(
         self, device_id: str, value: int, fade_time: Optional[timedelta] = None
@@ -475,23 +498,12 @@ class Smartbridge:
             if occgroup_id in self._occupancy_subscribers:
                 self._occupancy_subscribers[occgroup_id]()
 
-    _read_response_handler_callbacks = dict(
-        OneZoneStatus=_handle_one_zone_status,
-        MultipleOccupancyGroupStatus=_handle_occupancy_group_status,
-    )
-
-    def _handle_read_response(self, response: Response):
-        if response.Header.MessageBodyType is None:
-            return
-        callback = self._read_response_handler_callbacks.get(
-            response.Header.MessageBodyType, None
-        )
-        if callback is not None:
-            callback(self, response)
-
     def _handle_unsolicited(self, response: Response):
-        if response.CommuniqueType == "ReadResponse":
-            self._handle_read_response(response)
+        if (
+            response.CommuniqueType == "ReadResponse"
+            and response.Header.MessageBodyType == "OneZoneStatus"
+        ):
+            self._handle_one_zone_status(response)
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
@@ -508,7 +520,7 @@ class Smartbridge:
                     response = await self._request(
                         "ReadRequest", f"/zone/{device['zone']}/status"
                     )
-                    self._handle_read_response(response)
+                    self._handle_one_zone_status(response)
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
@@ -632,7 +644,9 @@ class Smartbridge:
         """Subscribe to occupancy group status updates."""
         _LOG.debug("Subscribing to occupancy group status updates")
         try:
-            response = await self._request("SubscribeRequest", "/occupancygroup/status")
+            response, _ = await self._subscribe(
+                "/occupancygroup/status", self._handle_occupancy_group_status
+            )
             _LOG.debug("Subscribed to occupancygroup status")
         except BridgeResponseError as ex:
             _LOG.error("Failed occupancy subscription: %s", ex.response)
