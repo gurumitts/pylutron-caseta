@@ -449,6 +449,10 @@ class Smartbridge:
 
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
+
+        if response.Body is None:
+            return
+
         statuses = response.Body.get("OccupancyGroupStatuses", {})
         for status in statuses:
             occgroup_id = id_from_href(status["OccupancyGroup"]["href"])
@@ -579,6 +583,9 @@ class Smartbridge:
         """Load the occupancy groups from the Smart Bridge."""
         _LOG.debug("Loading occupancy groups from the Smart Bridge")
         occgroup_json = await self._request("ReadRequest", "/occupancygroup")
+        if occgroup_json.Body is None:
+            return
+
         occgroups = occgroup_json.Body.get("OccupancyGroups", {})
         for occgroup in occgroups:
             self._process_occupancy_group(occgroup)
