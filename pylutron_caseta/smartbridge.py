@@ -436,6 +436,9 @@ class Smartbridge:
 
     def _handle_one_zone_status(self, response: Response):
         body = response.Body
+        if body is None:
+            return
+
         status = body["ZoneStatus"]
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
@@ -449,6 +452,10 @@ class Smartbridge:
 
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
+
+        if response.Body is None:
+            return
+
         statuses = response.Body.get("OccupancyGroupStatuses", {})
         for status in statuses:
             occgroup_id = id_from_href(status["OccupancyGroup"]["href"])
@@ -488,13 +495,13 @@ class Smartbridge:
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
-        await self._load_devices()
-        await self._load_scenes()
-        await self._load_areas()
-        await self._load_occupancy_groups()
-        await self._subscribe_to_occupancy_groups()
-
         try:
+            await self._load_devices()
+            await self._load_scenes()
+            await self._load_areas()
+            await self._load_occupancy_groups()
+            await self._subscribe_to_occupancy_groups()
+
             for device in self.devices.values():
                 if device.get("zone") is not None:
                     _LOG.debug("Requesting zone information from %s", device)
@@ -579,6 +586,9 @@ class Smartbridge:
         """Load the occupancy groups from the Smart Bridge."""
         _LOG.debug("Loading occupancy groups from the Smart Bridge")
         occgroup_json = await self._request("ReadRequest", "/occupancygroup")
+        if occgroup_json.Body is None:
+            return
+
         occgroups = occgroup_json.Body.get("OccupancyGroups", {})
         for occgroup in occgroups:
             self._process_occupancy_group(occgroup)
