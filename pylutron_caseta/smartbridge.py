@@ -436,6 +436,9 @@ class Smartbridge:
 
     def _handle_one_zone_status(self, response: Response):
         body = response.Body
+        if body is None:
+            return
+
         status = body["ZoneStatus"]
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
@@ -492,13 +495,13 @@ class Smartbridge:
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
-        await self._load_devices()
-        await self._load_scenes()
-        await self._load_areas()
-        await self._load_occupancy_groups()
-        await self._subscribe_to_occupancy_groups()
-
         try:
+            await self._load_devices()
+            await self._load_scenes()
+            await self._load_areas()
+            await self._load_occupancy_groups()
+            await self._subscribe_to_occupancy_groups()
+
             for device in self.devices.values():
                 if device.get("zone") is not None:
                     _LOG.debug("Requesting zone information from %s", device)

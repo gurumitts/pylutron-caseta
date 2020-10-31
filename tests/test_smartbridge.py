@@ -111,6 +111,13 @@ class Bridge:
         self.connections = asyncio.Queue()
         self.leap: _FakeLeap = None
 
+        self.occupancy_group_list_result = response_from_json_file(
+            "occupancygroups.json"
+        )
+        self.occupancy_group_subscription_data_result = response_from_json_file(
+            "occupancygroupsubscribe.json"
+        )
+
         async def fake_connect():
             """Open a fake LEAP connection for the test."""
             leap = _FakeLeap()
@@ -166,7 +173,7 @@ class Bridge:
         # Fourth message should be read request on /occupancygroup
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/occupancygroup")
-        response.set_result(response_from_json_file("occupancygroups.json"))
+        response.set_result(self.occupancy_group_list_result)
         leap.requests.task_done()
 
         # Fifth message should be subscribe request on /occupancygroup/status
@@ -174,7 +181,7 @@ class Bridge:
         assert request == Request(
             communique_type="SubscribeRequest", url="/occupancygroup/status"
         )
-        response.set_result(response_from_json_file("occupancygroupsubscribe.json"))
+        response.set_result(self.occupancy_group_subscription_data_result)
         leap.requests.task_done()
 
         # Finally, we should check the zone status on each zone
@@ -228,16 +235,27 @@ class Bridge:
         self.connections.task_done()
 
 
-@pytest.fixture(name="bridge")
-async def fixture_bridge() -> AsyncGenerator[Bridge, None]:
-    """Create a bridge attached to a fake reader and writer."""
-    harness = Bridge()
+@pytest.fixture(name="bridge_uninit")
+async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
+    """
+    Create a bridge attached to a fake reader and writer but not yet initialized.
 
-    await harness.initialize()
+    This is used for tests that need to customize the virtual devices present during
+    initialization.
+    """
+    harness = Bridge()
 
     yield harness
 
     await harness.target.close()
+
+
+@pytest.fixture(name="bridge")
+async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+    """Create a bridge attached to a fake reader and writer."""
+    await bridge_uninit.initialize()
+
+    yield bridge_uninit
 
 
 @pytest.mark.asyncio
@@ -446,6 +464,39 @@ async def test_occupancy_group_list(bridge: Bridge):
     }
 
     assert bridge.target.occupancy_groups == expected_groups
+
+
+@pytest.mark.asyncio
+async def test_occupancy_no_bodies(bridge_uninit: Bridge):
+    """Test the that the bridge initializes even if no occupancy status is returned."""
+    bridge = bridge_uninit
+
+    # unconfirmed: user says sometimes they get back a response where the body is None.
+    # It's unclear if there is some other indication via StatusCode or MessageBodyType
+    # that the body is missing.
+    # See #61
+    bridge.occupancy_group_list_result = Response(
+        Header=ResponseHeader(
+            StatusCode=ResponseStatus(code=200, message="OK"),
+            Url="/occupancygroup",
+            MessageBodyType="MultipleOccupancyGroupDefinition",
+        ),
+        CommuniqueType="ReadResponse",
+        Body=None,
+    )
+    bridge.occupancy_group_subscription_data_result = Response(
+        Header=ResponseHeader(
+            StatusCode=ResponseStatus(code=200, message="OK"),
+            Url="/occupancygroup/status",
+            MessageBodyType="MultipleOccupancyGroupStatus",
+        ),
+        CommuniqueType="SubscribeResponse",
+        Body=None,
+    )
+
+    await bridge.initialize()
+
+    assert bridge.target.occupancy_groups == {}
 
 
 @pytest.mark.asyncio
