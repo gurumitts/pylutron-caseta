@@ -76,7 +76,7 @@ class Response(NamedTuple):
 
     Header: ResponseHeader
     CommuniqueType: Optional[str] = None
-    Body: dict = {}
+    Body: Optional[dict] = {}
 
     @classmethod
     def from_json(cls, data: dict) -> "Response":

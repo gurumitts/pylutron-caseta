@@ -5,13 +5,17 @@ import json
 import logging
 import re
 import uuid
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from . import BridgeDisconnectedError
 from .messages import Response
 
 _LOG = logging.getLogger(__name__)
 _DEFAULT_LIMIT = 2 ** 16
+
+
+def _make_tag() -> str:
+    return str(uuid.uuid4())
 
 
 class LeapProtocol:
@@ -26,13 +30,20 @@ class LeapProtocol:
         self._reader = reader
         self._writer = writer
         self._in_flight_requests: Dict[str, "asyncio.Future[Response]"] = {}
+        self._tagged_subscriptions: Dict[str, Callable[[Response], None]] = {}
         self._unsolicited_subs: List[Callable[[Response], None]] = []
 
     async def request(
-        self, communique_type: str, url: str, body: Optional[dict] = None
+        self,
+        communique_type: str,
+        url: str,
+        body: Optional[dict] = None,
+        tag: Optional[str] = None,
     ) -> Response:
         """Make a request to the bridge and return the response."""
-        tag = str(uuid.uuid4())
+        if tag is None:
+            tag = _make_tag()
+
         future: asyncio.Future = asyncio.get_running_loop().create_future()
 
         cmd = {
@@ -79,9 +90,18 @@ class LeapProtocol:
                         _LOG.debug("received: %s", resp_json)
                         in_flight.set_result(Response.from_json(resp_json))
                     else:
-                        _LOG.error(
-                            "Was not expecting message with tag %s: %s", tag, resp_json
-                        )
+                        subscription = self._tagged_subscriptions.get(tag, None)
+                        if subscription is not None:
+                            _LOG.debug(
+                                "received for subscription %s: %s", tag, resp_json
+                            )
+                            subscription(Response.from_json(resp_json))
+                        else:
+                            _LOG.error(
+                                "Was not expecting message with tag %s: %s",
+                                tag,
+                                resp_json,
+                            )
                 else:
                     _LOG.debug("Received message with no tag: %s", resp_json)
                     obj = Response.from_json(resp_json)
@@ -92,6 +112,39 @@ class LeapProtocol:
                             _LOG.exception(
                                 "Got exception from unsolicited message handler"
                             )
+
+    async def subscribe(
+        self,
+        url: str,
+        callback: Callable[[Response], None],
+        body: Optional[dict] = None,
+        communique_type: str = "SubscribeRequest",
+        tag: Optional[str] = None,
+    ) -> Tuple[Response, str]:
+        """
+        Subscribe to events from the bridge.
+
+        This is similar to a normal request, except that the bridge is expected to send
+        additional responses with the same tag value at a later time. These additional
+        responses will be handled by the provided callback.
+
+        This returns both the response message and a string that will be required for
+        unsubscribing (not implemented).
+        """
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+
+        if tag is None:
+            tag = _make_tag()
+
+        response = await self.request(communique_type, url, body, tag=tag)
+
+        status = response.Header.StatusCode
+        if status is not None and status.is_successful():
+            self._tagged_subscriptions[tag] = callback
+            _LOG.debug("Subscribed to %s as %s", url, tag)
+
+        return (response, tag)
 
     def subscribe_unsolicited(self, callback: Callable[[Response], None]):
         """

@@ -9,3 +9,7 @@ disable=
 good-names=
   i,j,k,ex,Run,_, # defaults
   T
+
+[SIMILARITIES]
+# allow more lines when using typing to allow for copied signatures
+min-similarity-lines=8
