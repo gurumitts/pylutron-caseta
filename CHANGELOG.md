@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- If the bridge does not return information about occupancy groups, pylutron_caseta will still initialize.
+- Occupancy groups are now subscribed correctly.
+
 ## [0.7.0] - 2020-10-03
 
 ### Added
