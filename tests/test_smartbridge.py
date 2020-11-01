@@ -1,5 +1,6 @@
 """Tests to validate ssl interactions."""
 import asyncio
+from collections import defaultdict
 from datetime import timedelta
 import json
 import logging
@@ -8,11 +9,12 @@ from typing import (
     AsyncGenerator,
     Awaitable,
     Callable,
+    Dict,
     List,
     NamedTuple,
     Optional,
+    Tuple,
     TypeVar,
-    TYPE_CHECKING,
 )
 
 import pytest
@@ -25,9 +27,6 @@ from pylutron_caseta import (
     OCCUPANCY_GROUP_UNOCCUPIED,
     BridgeDisconnectedError,
 )
-
-if TYPE_CHECKING:
-    from typing import Tuple
 
 logging.getLogger().setLevel(logging.DEBUG)
 _LOG = logging.getLogger(__name__)
@@ -54,11 +53,14 @@ class _FakeLeap:
             asyncio.Queue()
         )
         self.running = None
+        self._subscriptions: Dict[str, List[Callable[[Response], None]]] = defaultdict(
+            list
+        )
         self._unsolicited: List[Callable[[Response], None]] = []
 
     async def request(
         self, communique_type: str, url: str, body: Optional[dict] = None
-    ) -> dict:
+    ) -> Response:
         """Make a request to the bridge and return the response."""
         future: asyncio.Future = asyncio.get_running_loop().create_future()
         obj = Request(communique_type=communique_type, url=url, body=body)
@@ -66,6 +68,18 @@ class _FakeLeap:
         await self.requests.put((obj, future))
 
         return await future
+
+    async def subscribe(
+        self,
+        url: str,
+        callback: Callable[[Response], None],
+        body: Optional[dict] = None,
+        communique_type: str = "SubscribeRequest",
+    ) -> Tuple[Response, str]:
+        """Subscribe to events from the bridge."""
+        response = await self.request(communique_type, url, body)
+        self._subscriptions[url].append(callback)
+        return (response, "not-implemented")
 
     async def run(self):
         """Event monitoring loop."""
@@ -85,6 +99,14 @@ class _FakeLeap:
     def send_unsolicited(self, response: Response):
         """Send an unsolicited response message to SmartBridge."""
         for handler in self._unsolicited:
+            handler(response)
+
+    def send_to_subscribers(self, response: Response):
+        """Send an response message to topic subscribers."""
+        url = response.Header.Url
+        if url is None:
+            raise TypeError("url must not be None")
+        for handler in self._subscriptions[url]:
             handler(response)
 
     def close(self):
@@ -502,7 +524,7 @@ async def test_occupancy_no_bodies(bridge_uninit: Bridge):
 @pytest.mark.asyncio
 async def test_occupancy_group_status_change(bridge: Bridge):
     """Test that the status is updated when occupancy changes."""
-    bridge.leap.send_unsolicited(
+    bridge.leap.send_to_subscribers(
         Response(
             CommuniqueType="ReadResponse",
             Header=ResponseHeader(
@@ -535,7 +557,7 @@ async def test_occupancy_group_status_change_notification(bridge: Bridge):
         notified = True
 
     bridge.target.add_occupancy_subscriber("2", notify)
-    bridge.leap.send_unsolicited(
+    bridge.leap.send_to_subscribers(
         Response(
             CommuniqueType="ReadResponse",
             Header=ResponseHeader(
