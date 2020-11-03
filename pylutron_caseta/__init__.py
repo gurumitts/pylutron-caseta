@@ -14,6 +14,7 @@ _LEAP_DEVICE_TYPES = {
         "TriathlonHoneycombShade",
         "TriathlonRollerShade",
         "QsWirelessShade",
+        "SerenaTiltOnlyWoodBlind",
     ],
     "sensor": [
         "Pico1Button",
