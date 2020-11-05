@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Instances in the `areas` and `occupancy_groups` dictionaries are no longer replaced during reconnection, which can cause surprise issues after a network interruption or bridge restart in consuming software such as Home Assistant. This is consistent with the `devices` dictionary.
+
 ## [0.7.1] - 2020-11-01
 
 ### Fixed
