@@ -592,7 +592,7 @@ class Smartbridge:
         for area in area_json.Body["Areas"]:
             area_id = id_from_href(area["href"])
             # We currently only need the name, so just load that
-            self.areas[area_id] = dict(name=area["Name"])
+            self.areas.setdefault(area_id, dict(name=area["Name"]))
 
     async def _load_occupancy_groups(self):
         """Load the occupancy groups from the Smart Bridge."""
@@ -634,10 +634,14 @@ class Smartbridge:
                 occgroup_area_id,
             )
             return
-        self.occupancy_groups[occgroup_id] = dict(
-            occupancy_group_id=occgroup_id,
-            name="{} Occupancy".format(self.areas[occgroup_area_id]["name"]),
-            status=OCCUPANCY_GROUP_UNKNOWN,
+        self.occupancy_groups.setdefault(
+            occgroup_id,
+            dict(
+                occupancy_group_id=occgroup_id,
+                status=OCCUPANCY_GROUP_UNKNOWN,
+            ),
+        ).update(
+            name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
         )
 
     async def _subscribe_to_occupancy_groups(self):

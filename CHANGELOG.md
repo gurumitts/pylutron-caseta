@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2020-11-10
+
+### Changed
+
+- Instances in the `areas` and `occupancy_groups` dictionaries are no longer replaced during reconnection, which can cause surprise issues after a network interruption or bridge restart in consuming software such as Home Assistant. This is consistent with the `devices` dictionary.
+
 ## [0.7.1] - 2020-11-01
 
 ### Fixed
@@ -148,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.7.1...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.7.2...HEAD
+[0.7.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.6.0...v0.6.1
