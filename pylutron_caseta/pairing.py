@@ -16,11 +16,11 @@ from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM
 
 LOGGER = logging.getLogger(__name__)
 
+CERT_COMMON_NAME = "pylutron_caseta"
+
 SOCKET_TIMEOUT = 10
 BUTTON_PRESS_TIMEOUT = 180
-CERT_SUBJECT = x509.Name(
-    [x509.NameAttribute(NameOID.COMMON_NAME, "get_lutron_cert.py")]
-)
+CERT_SUBJECT = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, CERT_COMMON_NAME)])
 
 PAIR_KEY = "key"
 PAIR_CERT = "cert"
@@ -108,7 +108,7 @@ def _generate_certificate(server_addr, ssl_context, csr):
                         "CommandType": "CSR",
                         "Parameters": {
                             "CSR": csr_text,
-                            "DisplayName": "get_lutron_cert.py",
+                            "DisplayName": CERT_COMMON_NAME,
                             "DeviceUID": "000000000000",
                             "Role": "Admin",
                         },
