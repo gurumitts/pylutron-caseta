@@ -52,6 +52,10 @@ class JsonSocket:
         self._writer.write(buffer)
         LOGGER.debug("sent: %s", buffer)
 
+    def __del__(self):
+        """Cleanup when the object is deleted."""
+        self._writer.close()
+
 
 async def async_pair(server_addr):
     """Pair with a lutron bridge."""
