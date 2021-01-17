@@ -16,6 +16,6 @@ setup(
     url="https://github.com/gurumitts/pylutron-caseta",
     download_url="https://github.com/gurumitts/pylutron-caseta",
     packages=["pylutron_caseta"],
-    install_requires=[],
+    install_requires=["cryptography"],
     python_requires=">=3.7.0",
 )

@@ -6,6 +6,8 @@ A Python API to control Lutron Caséta devices.
 
 Use `get_lutron_cert.py` to obtain `caseta.key` `caseta.crt` and `caseta-bridge.crt`. These files are used for authentication between your code and the Caséta bridge. See instructions at the top of [`get_lutron_cert.py`](get_lutron_cert.py) for more information.
 
+Alternatively, your code can use the `pairing` module to generate the necessary certificates at runtime.
+
 Once you have those files, you can connect to the bridge and start controlling devices.
 
 ```py
