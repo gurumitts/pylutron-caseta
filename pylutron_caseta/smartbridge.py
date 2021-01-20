@@ -144,10 +144,6 @@ class Smartbridge:
         """Will return all known devices connected to the Smart Bridge."""
         return self.devices
 
-    def get_lip_devices(self) -> Dict[int, dict]:
-        """Will return all known devices connected to the Smart Bridge via LIP."""
-        return self.lip_devices
-
     def get_devices_by_domain(self, domain: str) -> List[dict]:
         """
         Return a list of devices for the given domain.

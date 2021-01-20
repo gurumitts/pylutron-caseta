@@ -180,7 +180,7 @@ class Bridge:
         response.set_result(response_from_json_file("devices.json"))
         leap.requests.task_done()
 
-        # First message should be read request on /server/2/id
+        # Second message should be read request on /server/2/id
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/server/2/id")
         response.set_result(response_from_json_file("lip.json"))
@@ -444,100 +444,8 @@ async def test_device_list(bridge: Bridge):
 @pytest.mark.asyncio
 async def test_lip_device_list(bridge: Bridge):
     """Test methods getting devices."""
-    devices = bridge.target.get_lip_devices()
+    devices = bridge.target.lip_devices
     expected_devices = {
-        2: {
-            "Name": "Back Hall Pico",
-            "ID": 2,
-            "Area": {"Name": "Back Hall"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Numbaer": 6},
-            ],
-        },
-        5: {
-            "Name": "South Pico",
-            "ID": 5,
-            "Area": {"Name": "Bar Room"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Number": 6},
-            ],
-        },
-        29: {
-            "Name": "Blinds Remote",
-            "ID": 29,
-            "Area": {"Name": "Living Room"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Number": 6},
-                {"Number": 10},
-                {"Number": 11},
-                {"Number": 12},
-                {"Number": 13},
-                {"Number": 14},
-                {"Number": 18},
-                {"Number": 19},
-                {"Number": 20},
-                {"Number": 21},
-                {"Number": 22},
-                {"Number": 26},
-                {"Number": 27},
-                {"Number": 28},
-                {"Number": 29},
-                {"Number": 30},
-                {"Number": 34},
-                {"Number": 35},
-                {"Number": 36},
-                {"Number": 37},
-                {"Number": 38},
-            ],
-        },
-        30: {
-            "Name": "Pico",
-            "ID": 30,
-            "Area": {"Name": "Office"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Number": 6},
-            ],
-        },
-        31: {
-            "Name": "Pico 1",
-            "ID": 31,
-            "Area": {"Name": "Nick Office"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Number": 6},
-            ],
-        },
-        32: {
-            "Name": "Pico",
-            "ID": 32,
-            "Area": {"Name": "Breakfast"},
-            "Buttons": [
-                {"Number": 2},
-                {"Number": 3},
-                {"Number": 4},
-                {"Number": 5},
-                {"Number": 6},
-            ],
-        },
         33: {
             "Name": "Pico",
             "ID": 33,
@@ -549,18 +457,6 @@ async def test_lip_device_list(bridge: Bridge):
                 {"Number": 5},
                 {"Number": 6},
             ],
-        },
-        34: {
-            "Name": "Dual Pico Right",
-            "ID": 34,
-            "Area": {"Name": "Master Bedroom"},
-            "Buttons": [{"Number": 8}, {"Number": 9}, {"Number": 10}, {"Number": 11}],
-        },
-        35: {
-            "Name": "Dual Pico Left",
-            "ID": 35,
-            "Area": {"Name": "Master Bedroom"},
-            "Buttons": [{"Number": 8}, {"Number": 9}, {"Number": 10}, {"Number": 11}],
         },
         36: {
             "Name": "Left Pico",
