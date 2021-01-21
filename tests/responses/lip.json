@@ -1,0 +1,41 @@
+{
+	"CommuniqueType": "ReadResponse",
+	"Header": {
+		"MessageBodyType": "OneLIPIdListDefinition",
+		"StatusCode": "200 OK",
+		"Url": "/server/2/id"
+	},
+	"Body": {
+		"LIPIdList": {
+			"Devices": [{
+				"Name": "Pico",
+				"ID": 33,
+				"Area": {
+					"Name": "Kitchen"
+				},
+				"Buttons": [{
+					"Number": 2
+				}, {
+					"Number": 3
+				}, {
+					"Number": 4
+				}, {
+					"Number": 5
+				}, {
+					"Number": 6
+				}]
+			}, {
+				"Name": "Left Pico",
+				"ID": 36,
+				"Area": {
+					"Name": "Master Bedroom"
+				},
+				"Buttons": [{
+					"Number": 2
+				}, {
+					"Number": 4
+				}]
+			}]
+		}
+	}
+}
