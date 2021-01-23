@@ -43,6 +43,7 @@ class Smartbridge:
     def __init__(self, connect: Callable[[], LeapProtocol]):
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
+        self.lip_devices: Dict[int, dict] = {}
         self.scenes: Dict[str, dict] = {}
         self.occupancy_groups: Dict[str, dict] = {}
         self.areas: Dict[str, dict] = {}
@@ -509,6 +510,7 @@ class Smartbridge:
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         try:
             await self._load_devices()
+            await self._load_lip_devices()
             await self._load_scenes()
             await self._load_areas()
             await self._load_occupancy_groups()
@@ -567,6 +569,23 @@ class Smartbridge:
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
             )
+
+    async def _load_lip_devices(self):
+        """Load the LIP device list from the SSL LEAP server interface."""
+        _LOG.debug("Loading LIP devices")
+        try:
+            device_json = await self._request("ReadRequest", "/server/2/id")
+        except BridgeResponseError:
+            # Only the PRO and RASelect2 hubs support getting the LIP devices
+            return
+
+        devices = device_json.Body.get("LIPIdList", {}).get("Devices", {})
+        _LOG.debug(devices)
+        self.lip_devices = {
+            device["ID"]: device
+            for device in devices
+            if "ID" in device and "Name" in device
+        }
 
     async def _load_scenes(self):
         """

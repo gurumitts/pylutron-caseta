@@ -180,25 +180,31 @@ class Bridge:
         response.set_result(response_from_json_file("devices.json"))
         leap.requests.task_done()
 
-        # Second message should be read request on /virtualbutton
+        # Second message should be read request on /server/2/id
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/server/2/id")
+        response.set_result(response_from_json_file("lip.json"))
+        leap.requests.task_done()
+
+        # Third message should be read request on /virtualbutton
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
         response.set_result(response_from_json_file("scenes.json"))
         leap.requests.task_done()
 
-        # Third message should be read request on /areas
+        # Forth message should be read request on /areas
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(response_from_json_file("areas.json"))
         leap.requests.task_done()
 
-        # Fourth message should be read request on /occupancygroup
+        # Fifth message should be read request on /occupancygroup
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/occupancygroup")
         response.set_result(self.occupancy_group_list_result)
         leap.requests.task_done()
 
-        # Fifth message should be subscribe request on /occupancygroup/status
+        # Sixth message should be subscribe request on /occupancygroup/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
             communique_type="SubscribeRequest", url="/occupancygroup/status"
@@ -433,6 +439,34 @@ async def test_device_list(bridge: Bridge):
     devices = bridge.target.get_devices_by_type("CasetaFanSpeedController")
     assert len(devices) == 1
     assert devices[0]["device_id"] == "3"
+
+
+@pytest.mark.asyncio
+async def test_lip_device_list(bridge: Bridge):
+    """Test methods getting devices."""
+    devices = bridge.target.lip_devices
+    expected_devices = {
+        33: {
+            "Name": "Pico",
+            "ID": 33,
+            "Area": {"Name": "Kitchen"},
+            "Buttons": [
+                {"Number": 2},
+                {"Number": 3},
+                {"Number": 4},
+                {"Number": 5},
+                {"Number": 6},
+            ],
+        },
+        36: {
+            "Name": "Left Pico",
+            "ID": 36,
+            "Area": {"Name": "Master Bedroom"},
+            "Buttons": [{"Number": 2}, {"Number": 4}],
+        },
+    }
+
+    assert devices == expected_devices
 
 
 def test_scene_list(bridge: Bridge):
