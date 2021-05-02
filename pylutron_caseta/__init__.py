@@ -10,7 +10,10 @@ _LEAP_DEVICE_TYPES = {
         "WallSwitch",
         "OutdoorPlugInSwitch",
     ],
-    "fan": ["CasetaFanSpeedController"],
+    "fan": [
+        "CasetaFanSpeedController",
+        "MaestroFanSpeedController",
+    ],
     "cover": [
         "SerenaHoneycombShade",
         "SerenaRollerShade",
