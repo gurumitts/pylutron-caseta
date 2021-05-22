@@ -6,8 +6,14 @@ from .messages import Response, ResponseStatus
 
 _LEAP_DEVICE_TYPES = {
     "light": ["WallDimmer", "PlugInDimmer"],
-    "switch": ["WallSwitch"],
-    "fan": ["CasetaFanSpeedController"],
+    "switch": [
+        "WallSwitch",
+        "OutdoorPlugInSwitch",
+    ],
+    "fan": [
+        "CasetaFanSpeedController",
+        "MaestroFanSpeedController",
+    ],
     "cover": [
         "SerenaHoneycombShade",
         "SerenaRollerShade",
