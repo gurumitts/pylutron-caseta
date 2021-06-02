@@ -9,6 +9,7 @@ _LEAP_DEVICE_TYPES = {
     "switch": [
         "WallSwitch",
         "OutdoorPlugInSwitch",
+        "PlugInSwitch",
     ],
     "fan": [
         "CasetaFanSpeedController",
