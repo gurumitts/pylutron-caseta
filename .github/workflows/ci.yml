@@ -27,4 +27,8 @@ jobs:
       - name: Test with tox
         run: |
           tox
-          coveralls
+      - name: Collect code coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          coveralls --service=github
