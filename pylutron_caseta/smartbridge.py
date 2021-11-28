@@ -144,7 +144,7 @@ class Smartbridge:
         self._occupancy_subscribers[occupancy_group_id] = callback_
 
     def add_button_subscriber(
-        self, button_id: str, callback_: Callable[[], None]
+        self, button_id: str, callback_: Callable[[str], None]
     ):
         """
         Add a listener to be notified of button state changes.
