@@ -1,8 +1,8 @@
 // For format details, see https://aka.ms/vscode-remote/devcontainer.json or this file's README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.122.1/containers/python-3
 {
-	"name": "Python 3.7",
-	"image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.7",
+	"name": "Python 3.8",
+	"image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.8",
 	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": "/usr/local/bin/python",

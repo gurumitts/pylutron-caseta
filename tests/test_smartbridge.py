@@ -20,12 +20,12 @@ from typing import (
 import pytest
 
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
-import pylutron_caseta.smartbridge as smartbridge
 from pylutron_caseta import (
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
     BridgeDisconnectedError,
+    smartbridge,
 )
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -35,7 +35,7 @@ _LOG = logging.getLogger(__name__)
 def response_from_json_file(filename: str) -> Response:
     """Fetch a response from a saved JSON file."""
     responsedir = os.path.join(os.path.split(__file__)[0], "responses")
-    with open(os.path.join(responsedir, filename), "r") as ifh:
+    with open(os.path.join(responsedir, filename), "r", encoding="utf-8") as ifh:
         return Response.from_json(json.load(ifh))
 
 
