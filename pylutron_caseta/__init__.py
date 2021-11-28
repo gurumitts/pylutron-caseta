@@ -46,6 +46,8 @@ OCCUPANCY_GROUP_OCCUPIED = "Occupied"
 OCCUPANCY_GROUP_UNOCCUPIED = "Unoccupied"
 OCCUPANCY_GROUP_UNKNOWN = "Unknown"
 
+BUTTON_STATUS_PRESSED = "Press"
+BUTTON_STATUS_RELEASED = "Release"
 
 class BridgeDisconnectedError(Exception):
     """Raised when the connection is lost while waiting for a response."""
