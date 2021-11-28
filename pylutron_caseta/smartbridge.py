@@ -729,7 +729,7 @@ class Smartbridge:
         try:
             for button in self.buttons:
                 response, _ = await self._subscribe(
-                   "/button/"+str(button)+"/status/event", self._handle_button_status
+                   f"/button/{button}/status/event", self._handle_button_status
                 )
                 _LOG.debug("Subscribed to device status")
                 self._handle_button_status(response)
