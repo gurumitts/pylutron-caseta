@@ -503,7 +503,7 @@ class Smartbridge:
         button_event = status["ButtonEvent"]["EventType"]
         if button_id in self.buttons:
             self.buttons[button_id]["current_state"] = button_event
-            # Notify any subscribers of the change to occupancy status
+            # Notify any subscribers of the change to button status
             if button_id in self._button_subscribers:
                 self._button_subscribers[button_id](button_event)
 
