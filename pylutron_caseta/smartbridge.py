@@ -52,7 +52,7 @@ class Smartbridge:
         self._connect = connect
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
-        self._button_subscribers: Dict[str, Callable[[], None]] = {}
+        self._button_subscribers: Dict[str, Callable[[str], None]] = {}
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -143,9 +143,7 @@ class Smartbridge:
         """
         self._occupancy_subscribers[occupancy_group_id] = callback_
 
-    def add_button_subscriber(
-        self, button_id: str, callback_: Callable[[], None]
-    ):
+    def add_button_subscriber(self, button_id: str, callback_: Callable[[str], None]):
         """
         Add a listener to be notified of button state changes.
 
@@ -503,7 +501,7 @@ class Smartbridge:
         button_event = status["ButtonEvent"]["EventType"]
         if button_id in self.buttons:
             self.buttons[button_id]["current_state"] = button_event
-            # Notify any subscribers of the change to occupancy status
+            # Notify any subscribers of the change to button status
             if button_id in self._button_subscribers:
                 self._button_subscribers[button_id](button_event)
 
@@ -644,10 +642,14 @@ class Smartbridge:
                 self.scenes[scene_id] = {"scene_id": scene_id, "name": scene_name}
 
     async def _load_buttons(self):
-        """Load Pico button groups and button mappings"""
+        """Load Pico button groups and button mappings."""
         _LOG.debug("Loading buttons for Pico Button Groups")
         button_json = await self._request("ReadRequest", "/button")
-        button_devices = {v["buttongroup"]: v for (k, v) in self.devices.items() if v["buttongroup"] is not None}
+        button_devices = {
+            v["buttongroup"]: v
+            for (k, v) in self.devices.items()
+            if v["buttongroup"] is not None
+        }
         for button in button_json.Body["Buttons"]:
             button_device = button_devices[id_from_href(button["Parent"]["href"])]
             button_id = id_from_href(button["href"])
@@ -655,7 +657,11 @@ class Smartbridge:
             pico_name = button_device["name"]
             self.buttons.setdefault(
                 button_id,
-                {"device_id": button_id, "current_state": BUTTON_STATUS_RELEASED,  "button_number": button_number},
+                {
+                    "device_id": button_id,
+                    "current_state": BUTTON_STATUS_RELEASED,
+                    "button_number": button_number,
+                },
             ).update(
                 name=pico_name,
                 type=button_device["type"],
@@ -725,13 +731,13 @@ class Smartbridge:
     async def _subscribe_to_button_status(self):
         """Subscribe to pico button status updates."""
         _LOG.debug("Subscribing to pico button status updates")
-        self.buttons
         try:
             for button in self.buttons:
                 response, _ = await self._subscribe(
-                   "/button/"+str(button)+"/status/event", self._handle_button_status
+                    f"/button/{button}/status/event",
+                    self._handle_button_status,
                 )
-                _LOG.debug("Subscribed to device status")
+                _LOG.debug("Subscribed to button %s status", button)
                 self._handle_button_status(response)
         except BridgeResponseError as ex:
             _LOG.error("Failed device status subscription: %s", ex.response)

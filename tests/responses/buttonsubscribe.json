@@ -1,0 +1,7 @@
+{
+    "CommuniqueType": "SubscribeResponse",
+    "Header": {
+        "StatusCode": "204 NoContent",
+        "Url": "/button/101/status/event"
+    }
+}
