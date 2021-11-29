@@ -48,7 +48,7 @@ class JsonSocket:
 
     async def async_write_json(self, obj):
         """Write an object."""
-        buffer = ("%s\r\n" % json.dumps(obj)).encode("ASCII")
+        buffer = f"{json.dumps(obj)}\r\n".encode("ASCII")
         self._writer.write(buffer)
         LOGGER.debug("sent: %s", buffer)
 
@@ -187,39 +187,39 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
 
 
 def _generate_csr_with_ssl_context():
-    lap_cert_temp_file = tempfile.NamedTemporaryFile()
-    lap_key_temp_file = tempfile.NamedTemporaryFile()
+    with tempfile.NamedTemporaryFile() as lap_cert_temp_file:
+        with tempfile.NamedTemporaryFile() as lap_key_temp_file:
 
-    private_key = _generate_private_key()
-    key_bytes_pem = _convert_private_key_to_pem(private_key)
+            private_key = _generate_private_key()
+            key_bytes_pem = _convert_private_key_to_pem(private_key)
 
-    csr = _generate_csr(private_key)
+            csr = _generate_csr(private_key)
 
-    lap_cert_temp_file.write(LAP_CERT_PEM.encode("ASCII"))
-    lap_cert_temp_file.flush()
-    lap_key_temp_file.write(LAP_KEY_PEM.encode("ASCII"))
-    lap_key_temp_file.flush()
+            lap_cert_temp_file.write(LAP_CERT_PEM.encode("ASCII"))
+            lap_cert_temp_file.flush()
+            lap_key_temp_file.write(LAP_KEY_PEM.encode("ASCII"))
+            lap_key_temp_file.flush()
 
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
-    ssl_context.load_cert_chain(lap_cert_temp_file.name, lap_key_temp_file.name)
-    ssl_context.verify_mode = ssl.CERT_REQUIRED
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
+            ssl_context.load_cert_chain(lap_cert_temp_file.name, lap_key_temp_file.name)
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
 
-    return csr, key_bytes_pem, ssl_context
+            return csr, key_bytes_pem, ssl_context
 
 
 def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
-    key_temp_file = tempfile.NamedTemporaryFile()
-    key_temp_file.write(key_bytes_pem)
-    key_temp_file.flush()
+    with tempfile.NamedTemporaryFile() as key_temp_file:
+        key_temp_file.write(key_bytes_pem)
+        key_temp_file.flush()
 
-    cert_temp_file = tempfile.NamedTemporaryFile()
-    cert_temp_file.write(cert_pem.encode("ASCII"))
-    cert_temp_file.flush()
+        with tempfile.NamedTemporaryFile() as cert_temp_file:
+            cert_temp_file.write(cert_pem.encode("ASCII"))
+            cert_temp_file.flush()
 
-    signed_ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    signed_ssl_context.load_verify_locations(cadata=ca_pem)
-    signed_ssl_context.load_cert_chain(cert_temp_file.name, key_temp_file.name)
-    signed_ssl_context.verify_mode = ssl.CERT_REQUIRED
+            signed_ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            signed_ssl_context.load_verify_locations(cadata=ca_pem)
+            signed_ssl_context.load_cert_chain(cert_temp_file.name, key_temp_file.name)
+            signed_ssl_context.verify_mode = ssl.CERT_REQUIRED
 
-    return signed_ssl_context
+            return signed_ssl_context
