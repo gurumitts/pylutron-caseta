@@ -655,10 +655,16 @@ class Smartbridge:
             for button_group in device["button_groups"]
         }
         for button in button_json.Body["Buttons"]:
-            button_device = button_devices.get(id_from_href(button["Parent"]["href"]))
-            if button_device is None:
-                continue
             button_id = id_from_href(button["href"])
+            parent_id = id_from_href(button["Parent"]["href"])
+            button_device = button_devices.get(parent_id)
+            if button_device is None:
+                _LOG.error(
+                    "Encountered a button %s belonging to unknown button group %s",
+                    button_id,
+                    parent_id,
+                )
+                continue
             button_number = button["ButtonNumber"]
             pico_name = button_device["name"]
             self.buttons.setdefault(
