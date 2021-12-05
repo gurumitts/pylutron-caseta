@@ -651,7 +651,9 @@ class Smartbridge:
             if v["buttongroup"] is not None
         }
         for button in button_json.Body["Buttons"]:
-            button_device = button_devices[id_from_href(button["Parent"]["href"])]
+            button_device = button_devices.get(id_from_href(button["Parent"]["href"]))
+            if button_device is None:
+                continue
             button_id = id_from_href(button["href"])
             button_number = button["ButtonNumber"]
             pico_name = button_device["name"]

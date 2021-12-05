@@ -17,6 +17,28 @@
                     "href": "/buttongroup/2"
                 },
                 "Name": "Button 1"
+            },
+            {
+                "href": "/button/102",
+                "ButtonNumber": 0,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/131"
+                },
+                "Parent": {
+                    "href": "/buttongroup/5"
+                },
+                "Name": "Button 1"
+            },
+            {
+                "href": "/button/103",
+                "ButtonNumber": 5,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/136"
+                },
+                "Parent": {
+                    "href": "/buttongroup/6"
+                },
+                "Name": "Button 1"
             }
         ]
     }
