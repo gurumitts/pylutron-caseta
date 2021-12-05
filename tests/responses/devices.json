@@ -226,7 +226,32 @@
                         "href": "/devicerule/25"
                     }
                 ]
-            }
+            },
+            {
+                "href": "/device/9",
+                "Name": "Blinds Remote",
+                "FullyQualifiedName": ["Living Room", "Blinds Remote"],
+                "Parent": {
+                    "href": "/project"
+                },
+                "SerialNumber": 92322656,
+                "ModelNumber": "CS-YJ-4GC-WH",
+                "DeviceType": "FourGroupRemote",
+                "ButtonGroups": [{
+                    "href": "/buttongroup/5"
+                }, {
+                    "href": "/buttongroup/6"
+                }],
+                "AssociatedArea": {
+                    "href": "/area/2"
+                },
+                "LinkNodes": [{
+                    "href": "/device/9/linknode/31"
+                }],
+                "DeviceRules": [{
+                    "href": "/devicerule/32"
+                }]
+            }            
         ]
     }
 }

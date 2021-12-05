@@ -222,13 +222,14 @@ class Bridge:
         response.set_result(self.occupancy_group_subscription_data_result)
         leap.requests.task_done()
 
-        # Eighth message should be subscribe request on /button/101/status/event
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="SubscribeRequest", url="/button/101/status/event"
-        )
-        response.set_result(self.button_subscription_data_result)
-        leap.requests.task_done()
+        # 8-10th message should be subscribe request on /button/{button}/status/event
+        for button in (101, 102, 103):
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
+            )
+            response.set_result(self.button_subscription_data_result)
+            leap.requests.task_done()
 
         # Finally, we should check the zone status on each zone
         requested_zones = []
@@ -343,7 +344,7 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "model": "L-BDG2-WH",
             "serial": 1234,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "2": {
             "device_id": "2",
@@ -354,7 +355,7 @@ async def test_device_list(bridge: Bridge):
             "serial": 2345,
             "current_state": 0,
             "fan_speed": None,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "3": {
             "device_id": "3",
@@ -365,7 +366,7 @@ async def test_device_list(bridge: Bridge):
             "serial": 3456,
             "current_state": 0,
             "fan_speed": None,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "4": {
             "device_id": "4",
@@ -376,7 +377,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "5": {
             "device_id": "5",
@@ -387,7 +388,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "6": {
             "device_id": "6",
@@ -398,7 +399,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
-            "buttongroup": None,
+            "button_groups": None,
         },
         "7": {
             "device_id": "7",
@@ -409,7 +410,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": 0,
             "fan_speed": None,
             "zone": "6",
-            "buttongroup": None,
+            "button_groups": None,
         },
         "8": {
             "device_id": "8",
@@ -419,7 +420,18 @@ async def test_device_list(bridge: Bridge):
             "serial": 4321,
             "current_state": -1,
             "fan_speed": None,
-            "buttongroup": "2",
+            "button_groups": ["2"],
+            "zone": None,
+        },
+        "9": {
+            "button_groups": ["5", "6"],
+            "current_state": -1,
+            "device_id": "9",
+            "fan_speed": None,
+            "model": "CS-YJ-4GC-WH",
+            "name": "Living Room_Blinds Remote",
+            "serial": 92322656,
+            "type": "FourGroupRemote",
             "zone": None,
         },
     }

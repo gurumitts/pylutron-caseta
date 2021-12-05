@@ -589,11 +589,14 @@ class Smartbridge:
             _LOG.debug(device)
             device_id = id_from_href(device["href"])
             device_zone = None
-            button_group = None
+            button_groups = None
             if "LocalZones" in device:
                 device_zone = id_from_href(device["LocalZones"][0]["href"])
             if "ButtonGroups" in device:
-                button_group = id_from_href(device["ButtonGroups"][0]["href"])
+                button_groups = [
+                    id_from_href(button_group["href"])
+                    for button_group in device["ButtonGroups"]
+                ]
             device_name = "_".join(device["FullyQualifiedName"])
             self.devices.setdefault(
                 device_id,
@@ -601,7 +604,7 @@ class Smartbridge:
             ).update(
                 zone=device_zone,
                 name=device_name,
-                buttongroup=button_group,
+                button_groups=button_groups,
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
@@ -646,9 +649,10 @@ class Smartbridge:
         _LOG.debug("Loading buttons for Pico Button Groups")
         button_json = await self._request("ReadRequest", "/button")
         button_devices = {
-            v["buttongroup"]: v
-            for (k, v) in self.devices.items()
-            if v["buttongroup"] is not None
+            button_group: device
+            for device in self.devices.values()
+            if device["button_groups"] is not None
+            for button_group in device["button_groups"]
         }
         for button in button_json.Body["Buttons"]:
             button_device = button_devices[id_from_href(button["Parent"]["href"])]
