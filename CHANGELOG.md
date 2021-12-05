@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2021-12-04
+
 ### Added
 
 - Pico Remote button status and event handlers.
@@ -183,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.11.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.8.0...v0.9.0
