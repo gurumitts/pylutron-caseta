@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for remotes that have multiple button groups (eg Serena RF 4-group Remote).
+
+### Changed
+
+- The `buttongroup` member of of a device has been replaced with `button_groups`.
+
 ## [0.12.1] - 2021-12-05
 
 ### Fixed
