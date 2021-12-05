@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2021-12-05
+
+### Added
+
+- Support for remotes that have multiple button groups (eg Serena RF 4-group Remote).
+
+### Changed
+
+- The `buttongroup` member of of a device has been replaced with `button_groups`.
+
 ## [0.12.1] - 2021-12-05
 
 ### Fixed
@@ -191,7 +201,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.1...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.10.0...v0.11.0
