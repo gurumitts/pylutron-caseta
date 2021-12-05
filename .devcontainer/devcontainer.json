@@ -30,5 +30,5 @@
 		"visualstudioexptteam.vscodeintellicode",
 		"esbenp.prettier-vscode"
 	],
-	"postCreateCommand": "pip3 install -r requirements.txt -r requirements_test.txt tox -e ."
+	"postCreateCommand": "pip3 install tox -e '.[test,lint]'"
 }
