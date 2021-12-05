@@ -2,6 +2,8 @@
 
 A Python API to control Lutron Caséta devices.
 
+[![Coverage Status](https://coveralls.io/repos/github/gurumitts/pylutron-caseta/badge.svg?branch=dev)](https://coveralls.io/github/gurumitts/pylutron-caseta?branch=dev)
+
 ## Getting started
 
 Use `get_lutron_cert.py` to obtain `caseta.key` `caseta.crt` and `caseta-bridge.crt`. These files are used for authentication between your code and the Caséta bridge. See instructions at the top of [`get_lutron_cert.py`](get_lutron_cert.py) for more information.

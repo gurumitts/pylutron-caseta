@@ -18,6 +18,7 @@ from . import (
     _LEAP_DEVICE_TYPES,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
+    BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
@@ -43,6 +44,7 @@ class Smartbridge:
     def __init__(self, connect: Callable[[], LeapProtocol]):
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
+        self.buttons: Dict[str, dict] = {}
         self.lip_devices: Dict[int, dict] = {}
         self.scenes: Dict[str, dict] = {}
         self.occupancy_groups: Dict[str, dict] = {}
@@ -50,6 +52,7 @@ class Smartbridge:
         self._connect = connect
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
+        self._button_subscribers: Dict[str, Callable[[str], None]] = {}
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -140,9 +143,22 @@ class Smartbridge:
         """
         self._occupancy_subscribers[occupancy_group_id] = callback_
 
+    def add_button_subscriber(self, button_id: str, callback_: Callable[[str], None]):
+        """
+        Add a listener to be notified of button state changes.
+
+        :param button_id: button id, e.g., 2
+        :param callback_: callback to invoke
+        """
+        self._button_subscribers[button_id] = callback_
+
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the Smart Bridge."""
         return self.devices
+
+    def get_buttons(self) -> Dict[str, dict]:
+        """Will return all known Pico buttons connected to the Smart Bridge."""
+        return self.buttons
 
     def get_devices_by_domain(self, domain: str) -> List[dict]:
         """
@@ -474,6 +490,21 @@ class Smartbridge:
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
+    def _handle_button_status(self, response: Response):
+        _LOG.debug("Handling button status: %s", response)
+
+        if response.Body is None:
+            return
+
+        status = response.Body["ButtonStatus"]
+        button_id = id_from_href(status["Button"]["href"])
+        button_event = status["ButtonEvent"]["EventType"]
+        if button_id in self.buttons:
+            self.buttons[button_id]["current_state"] = button_event
+            # Notify any subscribers of the change to button status
+            if button_id in self._button_subscribers:
+                self._button_subscribers[button_id](button_event)
+
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
 
@@ -510,11 +541,13 @@ class Smartbridge:
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         try:
             await self._load_devices()
+            await self._load_buttons()
             await self._load_lip_devices()
             await self._load_scenes()
             await self._load_areas()
             await self._load_occupancy_groups()
             await self._subscribe_to_occupancy_groups()
+            await self._subscribe_to_button_status()
 
             for device in self.devices.values():
                 if device.get("zone") is not None:
@@ -556,8 +589,11 @@ class Smartbridge:
             _LOG.debug(device)
             device_id = id_from_href(device["href"])
             device_zone = None
+            button_group = None
             if "LocalZones" in device:
                 device_zone = id_from_href(device["LocalZones"][0]["href"])
+            if "ButtonGroups" in device:
+                button_group = id_from_href(device["ButtonGroups"][0]["href"])
             device_name = "_".join(device["FullyQualifiedName"])
             self.devices.setdefault(
                 device_id,
@@ -565,6 +601,7 @@ class Smartbridge:
             ).update(
                 zone=device_zone,
                 name=device_name,
+                buttongroup=button_group,
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
@@ -603,6 +640,34 @@ class Smartbridge:
                 scene_id = id_from_href(scene["href"])
                 scene_name = scene["Name"]
                 self.scenes[scene_id] = {"scene_id": scene_id, "name": scene_name}
+
+    async def _load_buttons(self):
+        """Load Pico button groups and button mappings."""
+        _LOG.debug("Loading buttons for Pico Button Groups")
+        button_json = await self._request("ReadRequest", "/button")
+        button_devices = {
+            v["buttongroup"]: v
+            for (k, v) in self.devices.items()
+            if v["buttongroup"] is not None
+        }
+        for button in button_json.Body["Buttons"]:
+            button_device = button_devices[id_from_href(button["Parent"]["href"])]
+            button_id = id_from_href(button["href"])
+            button_number = button["ButtonNumber"]
+            pico_name = button_device["name"]
+            self.buttons.setdefault(
+                button_id,
+                {
+                    "device_id": button_id,
+                    "current_state": BUTTON_STATUS_RELEASED,
+                    "button_number": button_number,
+                },
+            ).update(
+                name=pico_name,
+                type=button_device["type"],
+                model=button_device["model"],
+                serial=button_device["serial"],
+            )
 
     async def _load_areas(self):
         """Load the areas from the Smart Bridge."""
@@ -662,6 +727,21 @@ class Smartbridge:
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
         )
+
+    async def _subscribe_to_button_status(self):
+        """Subscribe to pico button status updates."""
+        _LOG.debug("Subscribing to pico button status updates")
+        try:
+            for button in self.buttons:
+                response, _ = await self._subscribe(
+                    f"/button/{button}/status/event",
+                    self._handle_button_status,
+                )
+                _LOG.debug("Subscribed to button %s status", button)
+                self._handle_button_status(response)
+        except BridgeResponseError as ex:
+            _LOG.error("Failed device status subscription: %s", ex.response)
+            return
 
     async def _subscribe_to_occupancy_groups(self):
         """Subscribe to occupancy group status updates."""

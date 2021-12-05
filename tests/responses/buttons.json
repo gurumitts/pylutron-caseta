@@ -1,0 +1,23 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleButtonDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/button"
+    },
+    "Body": {
+        "Buttons": [
+            {
+                "href": "/button/101",
+                "ButtonNumber": 0,
+                "ProgrammingModel": {
+                    "href": "/programmingmodel/127"
+                },
+                "Parent": {
+                    "href": "/buttongroup/2"
+                },
+                "Name": "Button 1"
+            }
+        ]
+    }
+}

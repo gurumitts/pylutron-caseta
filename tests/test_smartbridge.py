@@ -20,12 +20,13 @@ from typing import (
 import pytest
 
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
-import pylutron_caseta.smartbridge as smartbridge
 from pylutron_caseta import (
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
+    BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
+    smartbridge,
 )
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -35,7 +36,7 @@ _LOG = logging.getLogger(__name__)
 def response_from_json_file(filename: str) -> Response:
     """Fetch a response from a saved JSON file."""
     responsedir = os.path.join(os.path.split(__file__)[0], "responses")
-    with open(os.path.join(responsedir, filename), "r") as ifh:
+    with open(os.path.join(responsedir, filename), "r", encoding="utf-8") as ifh:
         return Response.from_json(json.load(ifh))
 
 
@@ -139,6 +140,9 @@ class Bridge:
         self.occupancy_group_subscription_data_result = response_from_json_file(
             "occupancygroupsubscribe.json"
         )
+        self.button_subscription_data_result = response_from_json_file(
+            "buttonsubscribe.json"
+        )
 
         async def fake_connect():
             """Open a fake LEAP connection for the test."""
@@ -180,36 +184,50 @@ class Bridge:
         response.set_result(response_from_json_file("devices.json"))
         leap.requests.task_done()
 
-        # Second message should be read request on /server/2/id
+        # Second message should be read request on /button
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/button")
+        response.set_result(response_from_json_file("buttons.json"))
+        leap.requests.task_done()
+
+        # Third message should be read request on /server/2/id
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/server/2/id")
         response.set_result(response_from_json_file("lip.json"))
         leap.requests.task_done()
 
-        # Third message should be read request on /virtualbutton
+        # Fourth message should be read request on /virtualbutton
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
         response.set_result(response_from_json_file("scenes.json"))
         leap.requests.task_done()
 
-        # Forth message should be read request on /areas
+        # Fifth message should be read request on /areas
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(response_from_json_file("areas.json"))
         leap.requests.task_done()
 
-        # Fifth message should be read request on /occupancygroup
+        # Sixth message should be read request on /occupancygroup
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/occupancygroup")
         response.set_result(self.occupancy_group_list_result)
         leap.requests.task_done()
 
-        # Sixth message should be subscribe request on /occupancygroup/status
+        # Seventh message should be subscribe request on /occupancygroup/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
             communique_type="SubscribeRequest", url="/occupancygroup/status"
         )
         response.set_result(self.occupancy_group_subscription_data_result)
+        leap.requests.task_done()
+
+        # Eighth message should be subscribe request on /button/101/status/event
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/button/101/status/event"
+        )
+        response.set_result(self.button_subscription_data_result)
         leap.requests.task_done()
 
         # Finally, we should check the zone status on each zone
@@ -325,6 +343,7 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "model": "L-BDG2-WH",
             "serial": 1234,
+            "buttongroup": None,
         },
         "2": {
             "device_id": "2",
@@ -335,6 +354,7 @@ async def test_device_list(bridge: Bridge):
             "serial": 2345,
             "current_state": 0,
             "fan_speed": None,
+            "buttongroup": None,
         },
         "3": {
             "device_id": "3",
@@ -345,6 +365,7 @@ async def test_device_list(bridge: Bridge):
             "serial": 3456,
             "current_state": 0,
             "fan_speed": None,
+            "buttongroup": None,
         },
         "4": {
             "device_id": "4",
@@ -355,6 +376,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
+            "buttongroup": None,
         },
         "5": {
             "device_id": "5",
@@ -365,6 +387,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
+            "buttongroup": None,
         },
         "6": {
             "device_id": "6",
@@ -375,6 +398,7 @@ async def test_device_list(bridge: Bridge):
             "current_state": -1,
             "fan_speed": None,
             "zone": None,
+            "buttongroup": None,
         },
         "7": {
             "device_id": "7",
@@ -385,6 +409,18 @@ async def test_device_list(bridge: Bridge):
             "current_state": 0,
             "fan_speed": None,
             "zone": "6",
+            "buttongroup": None,
+        },
+        "8": {
+            "device_id": "8",
+            "name": "Master Bedroom_Pico",
+            "type": "Pico3ButtonRaiseLower",
+            "model": "PJ2-3BRL-GXX-X01",
+            "serial": 4321,
+            "current_state": -1,
+            "fan_speed": None,
+            "buttongroup": "2",
+            "zone": None,
         },
     }
 
@@ -607,6 +643,59 @@ async def test_occupancy_group_status_change_notification(bridge: Bridge):
                         "OccupancyStatus": "Unoccupied",
                     }
                 ]
+            },
+        )
+    )
+    assert notified
+
+
+@pytest.mark.asyncio
+async def test_button_status_change(bridge: Bridge):
+    """Test that the status is updated when Pico button is pressed."""
+    bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/101/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/101"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
+            },
+        )
+    )
+    new_status = bridge.target.buttons["101"]["current_state"]
+    assert new_status == BUTTON_STATUS_PRESSED
+
+
+@pytest.mark.asyncio
+async def test_button_status_change_notification(bridge: Bridge):
+    """Test that button status changes send notifications."""
+    notified = False
+
+    def notify(status):
+        assert status == BUTTON_STATUS_PRESSED
+        nonlocal notified
+        notified = True
+
+    bridge.target.add_button_subscriber("101", notify)
+    bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/101/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/101"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
             },
         )
     )
