@@ -654,7 +654,9 @@ class Smartbridge:
             if device["button_groups"] is not None
             for button_group in device["button_groups"]
         }
-        for button in button_json.Body["Buttons"]:
+        # If there are no devices with buttons 'Buttons' will
+        # not be present in the response
+        for button in button_json.Body.get("Buttons", []):
             button_id = id_from_href(button["href"])
             parent_id = id_from_href(button["Parent"]["href"])
             button_device = button_devices.get(parent_id)
