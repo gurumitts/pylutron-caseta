@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- No longer fails to initialize when no buttons are associated with the bridge.
+
 ## [0.13.0] - 2021-12-05
 
 ### Added
