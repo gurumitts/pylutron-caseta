@@ -1,7 +1,7 @@
 # linters such as flake8 and pylint should be pinned, as new releases
 # make new things fail. Manually update these pins when pulling in a
 # new version
-black==20.8b1
+black==22.1.0
 flake8==3.8.3
 pylint==2.12.1
 mypy==0.782
