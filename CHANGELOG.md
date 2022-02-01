@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2022-02-01
+
+### Fixed
+
+- No longer fails to initialize when no buttons are associated with the bridge.
+
 ## [0.13.0] - 2021-12-05
 
 ### Added
@@ -201,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.11.0...v0.12.0
