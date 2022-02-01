@@ -5,6 +5,7 @@ from datetime import timedelta
 import json
 import logging
 import os
+import re
 from typing import (
     AsyncGenerator,
     Awaitable,
@@ -134,6 +135,7 @@ class Bridge:
         self.connections = asyncio.Queue()
         self.leap: _FakeLeap = None
 
+        self.button_list_result = response_from_json_file("buttons.json")
         self.occupancy_group_list_result = response_from_json_file(
             "occupancygroups.json"
         )
@@ -187,7 +189,7 @@ class Bridge:
         # Second message should be read request on /button
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/button")
-        response.set_result(response_from_json_file("buttons.json"))
+        response.set_result(self.button_list_result)
         leap.requests.task_done()
 
         # Third message should be read request on /server/2/id
@@ -223,7 +225,10 @@ class Bridge:
         leap.requests.task_done()
 
         # 8-10th message should be subscribe request on /button/{button}/status/event
-        for button in (101, 102, 103):
+        for button in (
+            re.sub(r".*/", "", button["href"])
+            for button in self.button_list_result.Body.get("Buttons", [])
+        ):
             request, response = await wait(leap.requests.get())
             assert request == Request(
                 communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
@@ -568,6 +573,28 @@ async def test_occupancy_group_list(bridge: Bridge):
     }
 
     assert bridge.target.occupancy_groups == expected_groups
+
+
+@pytest.mark.asyncio
+async def test_initialization_without_buttons(bridge_uninit: Bridge):
+    """Test the that the bridge initializes even if no button status is returned."""
+    bridge = bridge_uninit
+
+    # Apparently if a user has no buttons the list of buttons is omitted.
+    # See #87.
+    bridge.button_list_result = Response(
+        Header=ResponseHeader(
+            StatusCode=ResponseStatus(code=200, message="OK"),
+            Url="/button",
+            MessageBodyType="MultipleButtonDefinition",
+        ),
+        CommuniqueType="ReadResponse",
+        Body={},
+    )
+
+    await bridge.initialize()
+
+    assert bridge.target.buttons == {}
 
 
 @pytest.mark.asyncio
