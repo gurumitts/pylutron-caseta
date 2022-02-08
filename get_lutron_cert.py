@@ -244,6 +244,10 @@ with socket.create_connection((server_addr, 8083)) as raw_socket:
     root_text = message["Body"]["SigningResult"]["RootCertificate"]
     with open(CA_CERT_NAME, "wb") as f:
         f.write(root_text.encode("ASCII"))
+        certs = tls_socket.get_peer_cert_chain()
+        if certs is not None:
+            for cert in certs:
+                f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
     LOGGER.info("Got certificates")
     tls_socket.shutdown()
 

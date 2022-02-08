@@ -1,0 +1,34 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneDeviceDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/2171"
+    },
+    "Body": {
+        "Device": {
+            "href": "/device/2171",
+            "Name": "Fan Keypad",
+            "Parent": {
+                "href": "/project"
+            },
+            "ModelNumber": "RRST-W4B-XX",
+            "DeviceType": "SunnataKeypad",
+            "AssociatedArea": {
+                "href": "/area/766"
+            },
+            "LinkNodes": [
+                {
+                    "href": "/device/2171/linknode/2173"
+                }
+            ],
+            "FirmwareImage": {
+                "href": "/firmwareimage/2171"
+            },
+            "DeviceClass": {
+                "HexadecimalEncoding": "1270101"
+            },
+            "AddressedState": "Unaddressed"
+        }
+    }
+}

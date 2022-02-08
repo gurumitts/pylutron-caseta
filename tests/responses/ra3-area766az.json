@@ -1,0 +1,38 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleZoneDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/766/associatedzone"
+    },
+    "Body": {
+        "Zones": [
+            {
+                "href": "/zone/2091",
+                "Name": "Overhead",
+                "ControlType": "Dimmed",
+                "Category": {
+                    "Type": "",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/766"
+                },
+                "SortOrder": 0
+            },
+            {
+                "href": "/zone/2107",
+                "Name": "Landscape",
+                "ControlType": "Dimmed",
+                "Category": {
+                    "Type": "",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/766"
+                },
+                "SortOrder": 1
+            }
+        ]
+    }
+}

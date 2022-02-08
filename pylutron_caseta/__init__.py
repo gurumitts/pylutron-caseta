@@ -5,15 +5,29 @@ from typing import Optional
 from .messages import Response, ResponseStatus
 
 _LEAP_DEVICE_TYPES = {
-    "light": ["WallDimmer", "PlugInDimmer"],
+    "light": [
+        "WallDimmer",
+        "PlugInDimmer",
+        "InLineDimmer",
+        "SunnataDimmer",
+        "TempInWallPaddleDimmer",
+        "WallDimmerWithPreset",
+        "Dimmed",  # Kludge - this is the Zone term
+    ],
     "switch": [
         "WallSwitch",
         "OutdoorPlugInSwitch",
         "PlugInSwitch",
+        "InLineSwitch",
+        "PowPakSwitch",
+        "SunnataSwitch",
+        "TempInWallPaddleSwitch",
+        "Switched",  # Kludge - this is the Zone term
     ],
     "fan": [
         "CasetaFanSpeedController",
         "MaestroFanSpeedController",
+        "FanSpeed",  # Kludge - this is the Zone term
     ],
     "cover": [
         "SerenaHoneycombShade",
@@ -21,6 +35,10 @@ _LEAP_DEVICE_TYPES = {
         "TriathlonHoneycombShade",
         "TriathlonRollerShade",
         "QsWirelessShade",
+        "QsWirelessHorizontalSheerBlind",
+        "QsWirelessWoodBlind",
+        "RightDrawDrape",
+        "Shade",  # Kludge - this is the Zone term
     ],
     "sensor": [
         "Pico1Button",
@@ -33,6 +51,15 @@ _LEAP_DEVICE_TYPES = {
         "Pico4ButtonZone",
         "Pico4Button2Group",
         "FourGroupRemote",
+        "SeeTouchTabletopKeypad",
+        "SunnataKeypad",
+        "SeeTouchHybridKeypad",
+        "SeeTouchInternational",
+        "SeeTouchKeypad",
+        "HomeownerKeypad",
+        "GrafikTHybridKeypad",
+        "AlisseKeypad",
+        "PalladiomKeypad",
     ],
 }
 
