@@ -202,12 +202,12 @@ def _generate_csr_with_ssl_context():
 
                 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
                 ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
-                lap_key_temp_file.close()
                 ssl_context.load_cert_chain(lap_cert_temp_file.name, lap_key_temp_file.name)
                 ssl_context.verify_mode = ssl.CERT_REQUIRED
 
                 return csr, key_bytes_pem, ssl_context
             finally:
+                lap_key_temp_file.close()
                 lap_cert_temp_file.close()
                 os.remove(lap_key_temp_file.name)
                 os.remove(lap_cert_temp_file.name)
