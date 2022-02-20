@@ -236,4 +236,3 @@ def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
                 os.remove(cert_temp_file.name)
 
             return signed_ssl_context
-            
