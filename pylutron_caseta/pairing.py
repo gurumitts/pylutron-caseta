@@ -6,6 +6,7 @@ import logging
 import socket
 import ssl
 import tempfile
+import os
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
