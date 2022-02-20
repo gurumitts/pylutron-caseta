@@ -29,6 +29,7 @@ PAIR_CERT = "cert"
 PAIR_CA = "ca"
 PAIR_VERSION = "version"
 
+
 class JsonSocket:
     """A socket that reads and writes json objects."""
 
@@ -202,7 +203,9 @@ def _generate_csr_with_ssl_context():
 
                 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
                 ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
-                ssl_context.load_cert_chain(lap_cert_temp_file.name, lap_key_temp_file.name)
+                ssl_context.load_cert_chain(
+                    lap_cert_temp_file.name, lap_key_temp_file.name
+                )
                 ssl_context.verify_mode = ssl.CERT_REQUIRED
 
                 return csr, key_bytes_pem, ssl_context
@@ -225,7 +228,9 @@ def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
 
                 signed_ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
                 signed_ssl_context.load_verify_locations(cadata=ca_pem)
-                signed_ssl_context.load_cert_chain(cert_temp_file.name, key_temp_file.name)
+                signed_ssl_context.load_cert_chain(
+                    cert_temp_file.name, key_temp_file.name
+                )
                 signed_ssl_context.verify_mode = ssl.CERT_REQUIRED
 
                 return signed_ssl_context
