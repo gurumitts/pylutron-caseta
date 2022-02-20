@@ -6,6 +6,7 @@ import logging
 import socket
 import ssl
 import tempfile
+import os
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -27,7 +28,7 @@ PAIR_KEY = "key"
 PAIR_CERT = "cert"
 PAIR_CA = "ca"
 PAIR_VERSION = "version"
-
+IS_WINDOWS = os.name != "nt"
 
 class JsonSocket:
     """A socket that reads and writes json objects."""
@@ -187,8 +188,8 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
 
 
 def _generate_csr_with_ssl_context():
-    with tempfile.NamedTemporaryFile() as lap_cert_temp_file:
-        with tempfile.NamedTemporaryFile() as lap_key_temp_file:
+    with tempfile.NamedTemporaryFile(delete=not IS_WINDOWS) as lap_cert_temp_file:
+        with tempfile.NamedTemporaryFile(delete=not IS_WINDOWS) as lap_key_temp_file:
 
             private_key = _generate_private_key()
             key_bytes_pem = _convert_private_key_to_pem(private_key)
@@ -204,16 +205,22 @@ def _generate_csr_with_ssl_context():
             ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
             ssl_context.load_cert_chain(lap_cert_temp_file.name, lap_key_temp_file.name)
             ssl_context.verify_mode = ssl.CERT_REQUIRED
+            
+            if (IS_WINDOWS):
+                lap_key_temp_file.close()
+                lap_cert_temp_file.close()
+                os.remove(lap_key_temp_file.name)
+                os.remove(lap_cert_temp_file.name)
 
             return csr, key_bytes_pem, ssl_context
 
 
 def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
-    with tempfile.NamedTemporaryFile() as key_temp_file:
+    with tempfile.NamedTemporaryFile(delete=False) as key_temp_file:
         key_temp_file.write(key_bytes_pem)
         key_temp_file.flush()
 
-        with tempfile.NamedTemporaryFile() as cert_temp_file:
+        with tempfile.NamedTemporaryFile(delete=False) as cert_temp_file:
             cert_temp_file.write(cert_pem.encode("ASCII"))
             cert_temp_file.flush()
 
@@ -222,4 +229,11 @@ def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
             signed_ssl_context.load_cert_chain(cert_temp_file.name, key_temp_file.name)
             signed_ssl_context.verify_mode = ssl.CERT_REQUIRED
 
+            if (IS_WINDOWS):
+                key_temp_file.close()
+                cert_temp_file.close()
+                os.remove(key_temp_file.name)
+                os.remove(cert_temp_file.name)
+
             return signed_ssl_context
+            
