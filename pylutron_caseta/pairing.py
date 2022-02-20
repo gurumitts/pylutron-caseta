@@ -28,7 +28,7 @@ PAIR_KEY = "key"
 PAIR_CERT = "cert"
 PAIR_CA = "ca"
 PAIR_VERSION = "version"
-IS_WINDOWS = os.name != "nt"
+IS_WINDOWS = os.name == "nt"
 
 class JsonSocket:
     """A socket that reads and writes json objects."""
