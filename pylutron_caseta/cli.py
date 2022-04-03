@@ -126,7 +126,7 @@ async def lap_pair(address: str, cacert: TextIO, cert: TextIO, key: TextIO):
     def _ready():
         click.echo(
             "Press the small black button on the back of the bridge to complete "
-            + "pairing."
+            "pairing."
         )
 
     data = await async_pair(address[0], _ready)
@@ -144,7 +144,7 @@ async def lap_pair(address: str, cacert: TextIO, cert: TextIO, key: TextIO):
     multiple=True,
     help=(
         "Limit scanned network interfaces. "
-        + "This option may be specified multiple times."
+        "This option may be specified multiple times."
     ),
 )
 @click.option(
