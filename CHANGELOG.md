@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New command line tools: lap-pair, leap-scan, leap.
+
+### Removed
+
+- get_lutron_cert.py. Use lap-pair instead. See README.md for details.
+
 ### Fixed
 
 - `async_pair` works on Windows.
