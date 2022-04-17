@@ -49,7 +49,7 @@ class _CertOption(click.Option):
         base = config_home / "pylutron_caseta"
 
         config_home.mkdir(exist_ok=True)
-        base.mkdir(mode=0o600, exist_ok=True)
+        base.mkdir(mode=0o700, exist_ok=True)
 
         return base / (self.host(ctx) + self.suffix)
 
