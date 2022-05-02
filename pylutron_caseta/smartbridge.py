@@ -553,8 +553,15 @@ class Smartbridge:
         try:
             await self._load_areas()
 
-            # if load_devices is true, carry on
-            if await self._load_devices():
+            # Read /project to determine bridge type
+            project_json = await self._request("ReadRequest", f"/project")
+            project = project_json.Body["Project"]
+
+            if (project["ProductType"] == "Lutron Smart Bridge Project"):
+                # Caseta Bridge Device detected
+                _LOG.debug("Caseta bridge detected")
+                
+                await self._load_devices()
                 await self._load_buttons()
                 await self._load_lip_devices()
                 await self._load_scenes()
@@ -569,8 +576,13 @@ class Smartbridge:
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
                         self._handle_one_zone_status(response)
-            else:
-                # devices had no content error - try RA3 queries
+
+            elif (project["ProductType"] == "Lutron RadioRA 3 Project") :
+                # RadioRa3 Bridge (processor) Device detected
+                _LOG.debug("RA3 bridge detected")
+
+                # Load processor as devices[1] for compatibility with lutron_caseta HA integration
+                await self._load_ra3_processor()
                 await self._load_ra3_devices()
                 await self._subscribe_to_button_status()
 
@@ -634,11 +646,7 @@ class Smartbridge:
         return True
 
     async def _load_ra3_devices(self):
-        _LOG.debug("RA3 Detected")
 
-        # Load processor as devices[1] for compatibility with lutron_caseta HA integration
-        await self._load_ra3_processor()
-        
         for area in self.areas.values():
             await self._load_ra3_control_stations(area)
             await self._load_ra3_zones(area)
@@ -655,8 +663,7 @@ class Smartbridge:
         if processor_json.Body is None:
             return
         
-        processor_json = processor_json.Body["Devices"]
-        processor = processor_json[0]
+        processor = processor_json.Body["Devices"][0]
         processor_area = self.areas[processor["AssociatedArea"]["href"].split("/")[2]]["name"]
         
         level = -1
