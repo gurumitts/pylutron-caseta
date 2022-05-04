@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID  # type: ignore
 
-from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM
+from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM, LUTRON_ROOT_CA_PEM
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +64,14 @@ async def async_pair(server_addr):
         None, _generate_csr_with_ssl_context
     )
 
-    cert_pem, ca_pem = await _async_generate_certificate(server_addr, ssl_context, csr)
+    try:
+        cert_pem, ca_pem = await _async_generate_certificate(server_addr, ssl_context, csr)
+    except ssl.SSLCertVerificationError:
+        """SSL certificate verification error - might be an RA3 processor, try to connect using the lutron-root certificate instead of LAP_CA"""
+        ssl_context.load_verify_locations(cadata=LUTRON_ROOT_CA_PEM)
+        cert_pem, ca_pem = await _async_generate_certificate(server_addr, ssl_context, csr)
+        """Generate certificates worked with RA3 lutron-root so bridge is RA3. Discard the ca_pem for caseta and replace with LUTRON_ROOT_CA_PEM"""
+        ca_pem = LUTRON_ROOT_CA_PEM
 
     signed_ssl_context = await loop.run_in_executor(
         None, _generate_signed_ssl_context, key_bytes_pem, cert_pem, ca_pem
@@ -86,7 +93,7 @@ async def async_pair(server_addr):
     }
 
 
-async def _async_generate_certificate(server_addr, ssl_context, csr):
+async def _async_generate_certificate(server_addr, ssl_context, csr):    
     reader, writer = await asyncio.wait_for(
         asyncio.open_connection(
             server_addr,
@@ -97,6 +104,7 @@ async def _async_generate_certificate(server_addr, ssl_context, csr):
         ),
         timeout=SOCKET_TIMEOUT,
     )
+
     json_socket = JsonSocket(reader, writer)
     LOGGER.info("Press the small black button on the back of the Caseta bridge...")
     while True:

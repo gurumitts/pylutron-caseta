@@ -553,8 +553,15 @@ class Smartbridge:
         try:
             await self._load_areas()
 
-            # if load_devices is true, carry on
-            if await self._load_devices():
+            # Read /project to determine bridge type
+            project_json = await self._request("ReadRequest", f"/project")
+            project = project_json.Body["Project"]
+
+            if (project["ProductType"] == "Lutron Smart Bridge Project"):
+                # Caseta Bridge Device detected
+                _LOG.debug("Caseta bridge detected")
+                
+                await self._load_devices()
                 await self._load_buttons()
                 await self._load_lip_devices()
                 await self._load_scenes()
@@ -569,8 +576,13 @@ class Smartbridge:
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
                         self._handle_one_zone_status(response)
-            else:
-                # devices had no content error - try RA3 queries
+
+            elif (project["ProductType"] == "Lutron RadioRA 3 Project") :
+                # RadioRa3 Bridge (processor) Device detected
+                _LOG.debug("RA3 bridge detected")
+
+                # Load processor as devices[1] for compatibility with lutron_caseta HA integration
+                await self._load_ra3_processor()
                 await self._load_ra3_devices()
                 await self._subscribe_to_button_status()
 
@@ -634,7 +646,6 @@ class Smartbridge:
         return True
 
     async def _load_ra3_devices(self):
-        _LOG.debug("RA3 Detected")
 
         for area in self.areas.values():
             await self._load_ra3_control_stations(area)
@@ -643,6 +654,36 @@ class Smartbridge:
         # caseta does this by default, but we need to do it manually for RA3
         await self._subscribe_to_multi_zone_status()
 
+    async def _load_ra3_processor(self):
+        # Load processor as devices[1] for compatibility with lutron_caseta HA integration
+        
+        processor_json = await self._request(
+            "ReadRequest", f"/device?where=IsThisDevice:true"
+        )
+        if processor_json.Body is None:
+            return
+        
+        processor = processor_json.Body["Devices"][0]
+        processor_area = self.areas[processor["AssociatedArea"]["href"].split("/")[2]]["name"]
+        
+        level = -1
+        device_id = "1"
+        fan_speed = None
+        device_name = processor["Name"]
+        zone_type = None
+        self.devices.setdefault(
+            device_id,
+            {"device_id": device_id, "current_state": level, "fan_speed": fan_speed},
+        ).update(
+            zone=device_id,
+            name="_".join((processor_area,processor["Name"],processor["DeviceType"])),
+            button_groups=None,
+            type=zone_type,
+            model=processor["ModelNumber"],
+            serial=processor["SerialNumber"],
+        )
+
+        
     async def _load_ra3_control_stations(self, area):
         # For each area, process the control stations.
         # Find button devices with buttons, ignore all other devices
@@ -682,6 +723,7 @@ class Smartbridge:
         device_json = await self._request("ReadRequest", f"/device/{device_id}")
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
+        device_serial = device_json.Body["Device"]["SerialNumber"]
         button_groups = [
             id_from_href(group["href"])
             for group in button_group_json.Body["ButtonGroupsExpanded"]
@@ -696,11 +738,11 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name="_".join((name, device_name)),
+            name="_".join((name, device_type)),
             button_groups=button_groups,
             type=device_type,
             model=device_model,
-            serial=None,
+            serial=device_serial,
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
@@ -729,10 +771,10 @@ class Smartbridge:
                 "button_group": parent_id,
             },
         ).update(
-            name=device["name"].split("_")[1],
+            name=device["name"],
             type=device["type"],
             model=device["model"],
-            serial=None,
+            serial=device["serial"],
             button_name=button_name,
             button_led=button_led,
         )
@@ -761,7 +803,7 @@ class Smartbridge:
                 button_groups=None,
                 type=zone_type,
                 model=None,
-                serial=None,
+                serial="_".join(("lcra3",str(self.devices["1"]["serial"]),str(area_id),str(zone_id))),
             )
 
     async def _load_lip_devices(self):
