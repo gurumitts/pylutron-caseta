@@ -723,7 +723,16 @@ class Smartbridge:
         device_json = await self._request("ReadRequest", f"/device/{device_id}")
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
-        device_serial = device_json.Body["Device"]["SerialNumber"]
+        
+        if "SerialNumber" in device_json.Body["Device"]:
+            device_serial = device_json.Body["Device"]["SerialNumber"]
+            _LOG.debug("Found control device with serial")    
+        else:
+            _LOG.debug("Found control device missing serial")    
+            device_serial = "_".join((name, device_type))
+        
+        _LOG.debug(device_serial)
+
         button_groups = [
             id_from_href(group["href"])
             for group in button_group_json.Body["ButtonGroupsExpanded"]
