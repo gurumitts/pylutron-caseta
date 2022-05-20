@@ -376,6 +376,28 @@ class Smartbridge:
                 },
             )
 
+    async def set_tilt(self, device_id: str, value: int):
+        """
+        Set the tilt for tiltable blinds.
+
+        :param device_id: The device ID of the blinds.
+        :param value: The desired tilt between 0 and 100.
+        """
+        zone_id = self._get_zone_id(device_id)
+        if zone_id:
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToTilt",
+                        "TiltParameters": {
+                            "Tilt": value,
+                        },
+                    },
+                },
+            )
+
     async def turn_on(self, device_id: str, **kwargs):
         """
         Will turn 'on' the device with the given ID.
@@ -483,10 +505,12 @@ class Smartbridge:
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
+        tilt = status.get("Tilt", None)
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
         device["current_state"] = level
         device["fan_speed"] = fan_speed
+        device["tilt"] = tilt
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
@@ -600,7 +624,12 @@ class Smartbridge:
             device_name = "_".join(device["FullyQualifiedName"])
             self.devices.setdefault(
                 device_id,
-                {"device_id": device_id, "current_state": -1, "fan_speed": None},
+                {
+                    "device_id": device_id,
+                    "current_state": -1,
+                    "fan_speed": None,
+                    "tilt": None,
+                },
             ).update(
                 zone=device_zone,
                 name=device_name,
