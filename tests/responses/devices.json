@@ -251,6 +251,30 @@
                 "DeviceRules": [{
                     "href": "/devicerule/32"
                 }]
+            },
+            {
+                "href": "/device/10",
+                "Name": "Blinds",
+                "FullyQualifiedName": ["Living Room", "Blinds"],
+                "Parent": {
+                    "href": "/project"
+                },
+                "SerialNumber": 4567,
+                "ModelNumber": "SYC-EDU-B-J",
+                "DeviceType": "SerenaTiltOnlyWoodBlind",
+                "LocalZones": [{
+                    "href": "/zone/3"
+                }],
+                "AssociatedArea": {
+                    "href": "/area/2"
+                },
+                "LinkNodes": [{
+                    "href": "/device/10/linknode/18"
+                }],
+                "DeviceRules": [{
+                    "href": "/devicerule/125"
+                }],
+                "AddressedState": "Addressed"
             }
         ]
     }

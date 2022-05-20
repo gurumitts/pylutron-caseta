@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support for Serena tilt-only wood blinds.
 - New command line tools: lap-pair, leap-scan, leap.
 
 ### Removed
