@@ -170,6 +170,10 @@ class LeapProtocol:
         self._in_flight_requests.clear()
         self._tagged_subscriptions.clear()
 
+    async def wait_closed(self):
+        """Wait for the connection to be completely closed."""
+        await self._writer.wait_closed()
+
 
 async def open_connection(
     host: str, port: int, *, limit: int = _DEFAULT_LIMIT, **kwds
