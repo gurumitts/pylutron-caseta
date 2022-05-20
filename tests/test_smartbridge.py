@@ -355,6 +355,7 @@ async def test_device_list(bridge: Bridge):
             "serial": 1234,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "2": {
             "device_id": "2",
@@ -367,6 +368,7 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "3": {
             "device_id": "3",
@@ -379,6 +381,7 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "4": {
             "device_id": "4",
@@ -391,6 +394,7 @@ async def test_device_list(bridge: Bridge):
             "zone": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": ["2"],
         },
         "5": {
             "device_id": "5",
@@ -403,6 +407,7 @@ async def test_device_list(bridge: Bridge):
             "zone": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": ["3"],
         },
         "6": {
             "device_id": "6",
@@ -415,6 +420,7 @@ async def test_device_list(bridge: Bridge):
             "zone": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": ["4"],
         },
         "7": {
             "device_id": "7",
@@ -427,6 +433,7 @@ async def test_device_list(bridge: Bridge):
             "zone": "6",
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "8": {
             "device_id": "8",
@@ -439,6 +446,7 @@ async def test_device_list(bridge: Bridge):
             "button_groups": ["2"],
             "zone": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "9": {
             "button_groups": ["5", "6"],
@@ -451,6 +459,7 @@ async def test_device_list(bridge: Bridge):
             "type": "FourGroupRemote",
             "zone": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
         "10": {
             "device_id": "10",
@@ -463,6 +472,7 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "button_groups": None,
             "tilt": None,
+            "occupancy_sensors": None,
         },
     }
 
@@ -608,11 +618,13 @@ async def test_occupancy_group_list(bridge: Bridge):
             "occupancy_group_id": "2",
             "name": "Living Room Occupancy",
             "status": OCCUPANCY_GROUP_OCCUPIED,
+            "sensors": ["1"],
         },
         "3": {
             "occupancy_group_id": "3",
             "name": "Master Bathroom Occupancy",
             "status": OCCUPANCY_GROUP_UNOCCUPIED,
+            "sensors": ["2", "3"],
         },
     }
 
