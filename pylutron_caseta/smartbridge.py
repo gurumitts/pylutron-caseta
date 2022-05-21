@@ -614,12 +614,18 @@ class Smartbridge:
             device_id = id_from_href(device["href"])
             device_zone = None
             button_groups = None
+            occupancy_sensors = None
             if "LocalZones" in device:
                 device_zone = id_from_href(device["LocalZones"][0]["href"])
             if "ButtonGroups" in device:
                 button_groups = [
                     id_from_href(button_group["href"])
                     for button_group in device["ButtonGroups"]
+                ]
+            if "OccupancySensors" in device:
+                occupancy_sensors = [
+                    id_from_href(occupancy_sensor["href"])
+                    for occupancy_sensor in device["OccupancySensors"]
                 ]
             device_name = "_".join(device["FullyQualifiedName"])
             self.devices.setdefault(
@@ -634,6 +640,7 @@ class Smartbridge:
                 zone=device_zone,
                 name=device_name,
                 button_groups=button_groups,
+                occupancy_sensors=occupancy_sensors,
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
@@ -735,10 +742,16 @@ class Smartbridge:
     def _process_occupancy_group(self, occgroup):
         """Process occupancy group."""
         occgroup_id = id_from_href(occgroup["href"])
-        if not occgroup.get("AssociatedSensors"):
+        occsensor_ids = []
+        associated_sensors = occgroup.get("AssociatedSensors", [])
+        if not associated_sensors:
             _LOG.debug("No sensors associated with %s", occgroup["href"])
             return
         _LOG.debug("Found occupancy group with sensors: %s", occgroup_id)
+
+        for sensor in associated_sensors:
+            occsensor_ids.append(id_from_href(sensor["OccupancySensor"]["href"]))
+
         associated_areas = occgroup.get("AssociatedAreas", [])
         if not associated_areas:
             _LOG.error(
@@ -754,6 +767,7 @@ class Smartbridge:
                 occgroup_id,
             )
         occgroup_area_id = id_from_href(associated_areas[0]["Area"]["href"])
+
         if occgroup_area_id not in self.areas:
             _LOG.error(
                 "Unknown parent area for occupancy group %s: %s",
@@ -766,6 +780,7 @@ class Smartbridge:
             dict(
                 occupancy_group_id=occgroup_id,
                 status=OCCUPANCY_GROUP_UNKNOWN,
+                sensors=occsensor_ids,
             ),
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",

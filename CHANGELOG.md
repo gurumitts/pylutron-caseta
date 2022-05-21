@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for Serena tilt-only wood blinds.
 - New command line tools: lap-pair, leap-scan, leap.
+- Occupancy sensors are linked using `device['occupancy_sensors']` and `group['sensors']`.
 
 ### Removed
 
