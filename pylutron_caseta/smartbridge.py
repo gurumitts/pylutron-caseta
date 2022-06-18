@@ -376,6 +376,28 @@ class Smartbridge:
                 },
             )
 
+    async def set_tilt(self, device_id: str, value: int):
+        """
+        Set the tilt for tiltable blinds.
+
+        :param device_id: The device ID of the blinds.
+        :param value: The desired tilt between 0 and 100.
+        """
+        zone_id = self._get_zone_id(device_id)
+        if zone_id:
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToTilt",
+                        "TiltParameters": {
+                            "Tilt": value,
+                        },
+                    },
+                },
+            )
+
     async def turn_on(self, device_id: str, **kwargs):
         """
         Will turn 'on' the device with the given ID.
@@ -483,10 +505,12 @@ class Smartbridge:
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
+        tilt = status.get("Tilt", None)
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
         device["current_state"] = level
         device["fan_speed"] = fan_speed
+        device["tilt"] = tilt
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
@@ -590,6 +614,7 @@ class Smartbridge:
             device_id = id_from_href(device["href"])
             device_zone = None
             button_groups = None
+            occupancy_sensors = None
             if "LocalZones" in device:
                 device_zone = id_from_href(device["LocalZones"][0]["href"])
             if "ButtonGroups" in device:
@@ -597,14 +622,25 @@ class Smartbridge:
                     id_from_href(button_group["href"])
                     for button_group in device["ButtonGroups"]
                 ]
+            if "OccupancySensors" in device:
+                occupancy_sensors = [
+                    id_from_href(occupancy_sensor["href"])
+                    for occupancy_sensor in device["OccupancySensors"]
+                ]
             device_name = "_".join(device["FullyQualifiedName"])
             self.devices.setdefault(
                 device_id,
-                {"device_id": device_id, "current_state": -1, "fan_speed": None},
+                {
+                    "device_id": device_id,
+                    "current_state": -1,
+                    "fan_speed": None,
+                    "tilt": None,
+                },
             ).update(
                 zone=device_zone,
                 name=device_name,
                 button_groups=button_groups,
+                occupancy_sensors=occupancy_sensors,
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
@@ -706,10 +742,16 @@ class Smartbridge:
     def _process_occupancy_group(self, occgroup):
         """Process occupancy group."""
         occgroup_id = id_from_href(occgroup["href"])
-        if not occgroup.get("AssociatedSensors"):
+        occsensor_ids = []
+        associated_sensors = occgroup.get("AssociatedSensors", [])
+        if not associated_sensors:
             _LOG.debug("No sensors associated with %s", occgroup["href"])
             return
         _LOG.debug("Found occupancy group with sensors: %s", occgroup_id)
+
+        for sensor in associated_sensors:
+            occsensor_ids.append(id_from_href(sensor["OccupancySensor"]["href"]))
+
         associated_areas = occgroup.get("AssociatedAreas", [])
         if not associated_areas:
             _LOG.error(
@@ -725,6 +767,7 @@ class Smartbridge:
                 occgroup_id,
             )
         occgroup_area_id = id_from_href(associated_areas[0]["Area"]["href"])
+
         if occgroup_area_id not in self.areas:
             _LOG.error(
                 "Unknown parent area for occupancy group %s: %s",
@@ -737,6 +780,7 @@ class Smartbridge:
             dict(
                 occupancy_group_id=occgroup_id,
                 status=OCCUPANCY_GROUP_UNKNOWN,
+                sensors=occsensor_ids,
             ),
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
