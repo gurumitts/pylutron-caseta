@@ -723,7 +723,17 @@ class Smartbridge:
         device_json = await self._request("ReadRequest", f"/device/{device_id}")
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
+
+        # if device is sunnata keypad, determine buttonlayout and override type
+        if device_type == "SunnataKeypad":
+            if device_model == "RRST-W2B-XX":
+                device_type = "SunnataKeypad_2Button"
+            elif device_model == "RRST-W3RL-XX":
+                device_type = "SunnataKeypad_3ButtonRaiseLower"
+            elif device_model == "RRST-W4B-XX":
+                device_type = "SunnataKeypad_4Button"
         
+
         if "SerialNumber" in device_json.Body["Device"]:
             device_serial = device_json.Body["Device"]["SerialNumber"]
             _LOG.debug("Found control device with serial")    
@@ -747,7 +757,7 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name="_".join((name, device_type)),
+            name="_".join((name, device_name, device_type)),
             button_groups=button_groups,
             type=device_type,
             model=device_model,
