@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2022-06-18
+
+### Added
+
+- Support for Serena tilt-only wood blinds.
+- New command line tools: lap-pair, leap-scan, leap.
+- Occupancy sensors are linked using `device['occupancy_sensors']` and `group['sensors']`.
+
+### Removed
+
+- get_lutron_cert.py. Use lap-pair instead. See README.md for details.
+
+### Fixed
+
+- `async_pair` works on Windows.
+
 ## [0.13.1] - 2022-02-01
 
 ### Fixed
@@ -207,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.1...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.12.0...v0.12.1

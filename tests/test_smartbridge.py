@@ -245,7 +245,7 @@ class Bridge:
 
         # Check the zone status on each zone
         requested_zones = []
-        for _ in range(0, 3):
+        for _ in range(0, 4):
             request, response = await wait(leap.requests.get())
             logging.info("Read %s", request)
             assert request.communique_type == "ReadRequest"
@@ -261,7 +261,6 @@ class Bridge:
                     Body={
                         "ZoneStatus": {
                             "href": request.url,
-                            "Level": 0,
                             "Zone": {"href": request.url.replace("/status", "")},
                             "StatusAccuracy": "Good",
                         }
@@ -270,7 +269,12 @@ class Bridge:
             )
             leap.requests.task_done()
         requested_zones.sort()
-        assert requested_zones == ["/zone/1/status", "/zone/2/status", "/zone/6/status"]
+        assert requested_zones == [
+            "/zone/1/status",
+            "/zone/2/status",
+            "/zone/3/status",
+            "/zone/6/status",
+        ]
 
     async def _process_station(self, result, leap, wait):
         if result.Body is None:
@@ -463,6 +467,8 @@ async def test_device_list(bridge: Bridge):
             "model": "L-BDG2-WH",
             "serial": 1234,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
         "2": {
             "device_id": "2",
@@ -471,9 +477,11 @@ async def test_device_list(bridge: Bridge):
             "zone": "1",
             "model": "PD-6WCL-XX",
             "serial": 2345,
-            "current_state": 0,
+            "current_state": -1,
             "fan_speed": None,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
         "3": {
             "device_id": "3",
@@ -482,9 +490,11 @@ async def test_device_list(bridge: Bridge):
             "zone": "2",
             "model": "PD-FSQN-XX",
             "serial": 3456,
-            "current_state": 0,
+            "current_state": -1,
             "fan_speed": None,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
         "4": {
             "device_id": "4",
@@ -496,6 +506,8 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "zone": None,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": ["2"],
         },
         "5": {
             "device_id": "5",
@@ -507,6 +519,8 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "zone": None,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": ["3"],
         },
         "6": {
             "device_id": "6",
@@ -518,6 +532,8 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "zone": None,
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": ["4"],
         },
         "7": {
             "device_id": "7",
@@ -525,10 +541,12 @@ async def test_device_list(bridge: Bridge):
             "type": "QsWirelessShade",
             "model": "QSYC-J-RCVR",
             "serial": 1234,
-            "current_state": 0,
+            "current_state": -1,
             "fan_speed": None,
             "zone": "6",
             "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
         "8": {
             "device_id": "8",
@@ -540,6 +558,8 @@ async def test_device_list(bridge: Bridge):
             "fan_speed": None,
             "button_groups": ["2"],
             "zone": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
         "9": {
             "button_groups": ["5", "6"],
@@ -551,6 +571,21 @@ async def test_device_list(bridge: Bridge):
             "serial": 92322656,
             "type": "FourGroupRemote",
             "zone": None,
+            "tilt": None,
+            "occupancy_sensors": None,
+        },
+        "10": {
+            "device_id": "10",
+            "name": "Living Room_Blinds",
+            "type": "SerenaTiltOnlyWoodBlind",
+            "zone": "3",
+            "model": "SYC-EDU-B-J",
+            "serial": 4567,
+            "current_state": -1,
+            "fan_speed": None,
+            "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
         },
     }
 
@@ -578,11 +613,24 @@ async def test_device_list(bridge: Bridge):
             Body={"ZoneStatus": {"FanSpeed": "Medium", "Zone": {"href": "/zone/2"}}},
         )
     )
+    bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/3/status",
+            ),
+            Body={"ZoneStatus": {"Tilt": 25, "Zone": {"href": "/zone/3"}}},
+        )
+    )
     devices = bridge.target.get_devices()
     assert devices["2"]["current_state"] == 100
     assert devices["2"]["fan_speed"] is None
     assert devices["3"]["current_state"] == -1
     assert devices["3"]["fan_speed"] == FAN_MEDIUM
+    assert devices["10"]["current_state"] == -1
+    assert devices["10"]["tilt"] == 25
 
     devices = bridge.target.get_devices_by_domain("light")
     assert len(devices) == 1
@@ -605,6 +653,12 @@ async def test_device_list(bridge: Bridge):
     devices = bridge.target.get_devices_by_type("CasetaFanSpeedController")
     assert len(devices) == 1
     assert devices[0]["device_id"] == "3"
+
+    devices = bridge.target.get_devices_by_domain("cover")
+    assert [device["device_id"] for device in devices] == ["7", "10"]
+
+    devices = bridge.target.get_devices_by_type("SerenaTiltOnlyWoodBlind")
+    assert [device["device_id"] for device in devices] == ["10"]
 
 
 @pytest.mark.asyncio
@@ -677,11 +731,13 @@ async def test_occupancy_group_list(bridge: Bridge):
             "occupancy_group_id": "2",
             "name": "Living Room Occupancy",
             "status": OCCUPANCY_GROUP_OCCUPIED,
+            "sensors": ["1"],
         },
         "3": {
             "occupancy_group_id": "3",
             "name": "Master Bathroom Occupancy",
             "status": OCCUPANCY_GROUP_UNOCCUPIED,
+            "sensors": ["2", "3"],
         },
     }
 
@@ -1047,6 +1103,25 @@ async def test_set_fan(bridge: Bridge, event_loop):
             "Command": {
                 "CommandType": "GoToFanSpeed",
                 "FanSpeedParameters": {"FanSpeed": "Medium"},
+            }
+        },
+    )
+    bridge.leap.requests.task_done()
+    task.cancel()
+
+
+@pytest.mark.asyncio
+async def test_set_tilt(bridge: Bridge, event_loop):
+    """Test that setting tilt produces the right commands."""
+    task = event_loop.create_task(bridge.target.set_tilt("10", 50))
+    command, _ = await bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/3/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToTilt",
+                "TiltParameters": {"Tilt": 50},
             }
         },
     )

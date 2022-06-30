@@ -12,7 +12,7 @@ _LEAP_DEVICE_TYPES = {
         "SunnataDimmer",
         "TempInWallPaddleDimmer",
         "WallDimmerWithPreset",
-        "Dimmed",  # Kludge - this is the Zone term
+        "Dimmed",
     ],
     "switch": [
         "WallSwitch",
@@ -22,12 +22,12 @@ _LEAP_DEVICE_TYPES = {
         "PowPakSwitch",
         "SunnataSwitch",
         "TempInWallPaddleSwitch",
-        "Switched",  # Kludge - this is the Zone term
+        "Switched",
     ],
     "fan": [
         "CasetaFanSpeedController",
         "MaestroFanSpeedController",
-        "FanSpeed",  # Kludge - this is the Zone term
+        "FanSpeed",
     ],
     "cover": [
         "SerenaHoneycombShade",
@@ -38,7 +38,8 @@ _LEAP_DEVICE_TYPES = {
         "QsWirelessHorizontalSheerBlind",
         "QsWirelessWoodBlind",
         "RightDrawDrape",
-        "Shade",  # Kludge - this is the Zone term
+        "Shade",
+        "SerenaTiltOnlyWoodBlind",
     ],
     "sensor": [
         "Pico1Button",
