@@ -497,11 +497,13 @@ class Smartbridge:
                 self._leap = None
 
     def _handle_one_zone_status(self, response: Response):
+        _LOG.debug("Handling single zone status: %s", response)
         body = response.Body
         if body is None:
             return
+        self._handle_zone_status(body["ZoneStatus"])
 
-        status = body["ZoneStatus"]
+    def _handle_zone_status(self, status):
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
@@ -530,15 +532,13 @@ class Smartbridge:
                 self._button_subscribers[button_id](button_event)
 
     def _handle_multi_zone_status(self, response: Response):
-        _LOG.debug("Handling zone status: %s", response)
+        _LOG.debug("Handling multi zone status: %s", response)
 
         if response.Body is None:
             return
 
-        for status in response.Body["ZoneStatuses"]:
-            self._handle_one_zone_status(
-                Response(ResponseHeader(), None, {"ZoneStatus": status})
-            )
+        for zonestatus in response.Body["ZoneStatuses"]:
+            self._handle_zone_status(zonestatus)
 
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
@@ -607,7 +607,6 @@ class Smartbridge:
                         response = await self._request(
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
-                        self._handle_one_zone_status(response)
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
