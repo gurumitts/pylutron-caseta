@@ -80,10 +80,10 @@ async def async_pair(
     try:
         cert_pem, ca_pem = await _async_generate_certificate(server_addr, ssl_context, csr, ready)
     except ssl.SSLCertVerificationError:
-        """SSL certificate verification error - might be an RA3 processor, try to connect using the lutron-root certificate instead of LAP_CA"""
+        # SSL certificate verification error - might be an RA3 processor, try to connect using the lutron-root certificate instead of LAP_CA
         ssl_context.load_verify_locations(cadata=LUTRON_ROOT_CA_PEM)
         cert_pem, ca_pem = await _async_generate_certificate(server_addr, ssl_context, csr, ready)
-        """Generate certificates worked with RA3 lutron-root so bridge is RA3. Discard the ca_pem for caseta and replace with LUTRON_ROOT_CA_PEM"""
+        # Generate certificates worked with RA3 lutron-root so bridge is RA3. Discard the ca_pem for caseta and replace with LUTRON_ROOT_CA_PEM
         ca_pem = LUTRON_ROOT_CA_PEM
 
     signed_ssl_context = await loop.run_in_executor(
