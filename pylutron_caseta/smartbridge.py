@@ -855,8 +855,7 @@ class Smartbridge:
                 button_groups=None,
                 type=zone_type,
                 model=None,
-                serial=None,
-                #serial="_".join(("lcra3",str(self.devices["1"]["serial"]),str(area_id),str(zone_id))),
+                serial="_".join(("lcra3",str(self.devices["1"]["serial"]),str(area_id),str(zone_id))),
             )
 
     async def _load_lip_devices(self):
