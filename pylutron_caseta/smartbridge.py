@@ -758,22 +758,10 @@ class Smartbridge:
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
 
-        # if device is sunnata keypad, determine buttonlayout and override type
-        if device_type == "SunnataKeypad":
-            if device_model == "RRST-W2B-XX":
-                device_type = "SunnataKeypad_2Button"
-            elif device_model == "RRST-W3RL-XX":
-                device_type = "SunnataKeypad_3ButtonRaiseLower"
-            elif device_model == "RRST-W4B-XX":
-                device_type = "SunnataKeypad_4Button"
-        
-
         if "SerialNumber" in device_json.Body["Device"]:
             device_serial = device_json.Body["Device"]["SerialNumber"]
-            _LOG.debug("Found control device with serial")    
         else:
-            _LOG.debug("Found control device missing serial")    
-            device_serial = "_".join((name, device_type))
+            device_serial = None
 
         button_groups = [
             id_from_href(group["href"])
@@ -854,7 +842,7 @@ class Smartbridge:
                 button_groups=None,
                 type=zone_type,
                 model=None,
-                serial="_".join(("lcra3",str(self.devices["1"]["serial"]),str(area_id),str(zone_id))),
+                serial=None,
             )
 
     async def _load_lip_devices(self):
