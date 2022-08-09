@@ -1,4 +1,3 @@
-"""Tests to validate low-level network interactions."""
 import asyncio
 import json
 from typing import AsyncGenerator, Iterable, NamedTuple, Tuple

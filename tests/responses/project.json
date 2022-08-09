@@ -1,0 +1,29 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneProjectDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/project"
+    },
+    "Body": {
+        "Project": {
+            "href": "/project",
+            "Name": "Smart Bridge Project",
+            "ProductType": "Lutron Smart Bridge Project",
+            "MasterDeviceList": {
+                "Devices": [
+                    {
+                        "href": "/device/1"
+                    }
+                ]
+            },
+            "GUID": "0000000000000000000000000000000000000000",
+            "TimeclockEventRules": {
+                "href": "/project/timeclockeventrules"
+            },
+            "DeviceRules": {
+                "href": "/project/devicerule/1"
+            }
+        }
+    }
+}

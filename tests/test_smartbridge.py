@@ -35,6 +35,7 @@ from pylutron_caseta import (
 logging.getLogger().setLevel(logging.DEBUG)
 _LOG = logging.getLogger(__name__)
 
+DEFAULT_PROCESSOR = "Caseta"
 
 def response_from_json_file(filename: str) -> Response:
     """Fetch a response from a saved JSON file."""
@@ -157,7 +158,7 @@ class Bridge:
 
         self.target = smartbridge.Smartbridge(fake_connect)
 
-    async def initialize(self, processor="Caseta"):
+    async def initialize(self, processor=DEFAULT_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
         connect_task = asyncio.get_running_loop().create_task(self.target.connect())
         fake_leap = await self.connections.get()
@@ -191,6 +192,12 @@ class Bridge:
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(response_from_json_file("areas.json"))
+        leap.requests.task_done()
+
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file("project.json"))
         leap.requests.task_done()
 
         # Read request on /device
@@ -293,7 +300,7 @@ class Bridge:
                     url=f"/device/{device_id}/buttongroup/expanded",
                 )
                 button_group_result = response_from_json_file(
-                    f"ra3-devicebg{device_id}.json"
+                    f"ra3/device/{device_id}/buttongroup.json"
                 )
                 response.set_result(button_group_result)
                 leap.requests.task_done()
@@ -303,7 +310,7 @@ class Bridge:
                     communique_type="ReadRequest", url=f"/device/{device_id}"
                 )
                 response.set_result(
-                    response_from_json_file(f"ra3-device{device_id}.json")
+                    response_from_json_file(f"ra3/device/{device_id}/device.json")
                 )
                 leap.requests.task_done()
 
@@ -319,7 +326,7 @@ class Bridge:
     async def _accept_connection_ra3(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
         # Read request on /areas
-        ra3_area_list_result = response_from_json_file("ra3-areas.json")
+        ra3_area_list_result = response_from_json_file("ra3/areas.json")
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(ra3_area_list_result)
@@ -328,13 +335,13 @@ class Bridge:
         # Read request on /project
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/project")
-        response.set_result(response_from_json_file("ra3-project.json"))
+        response.set_result(response_from_json_file("ra3/project.json"))
         leap.requests.task_done()
 
-        # Read request on /device
+        # Read request on /device?where=IsThisDevice:true
         request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/device")
-        response.set_result(response_from_json_file("ra3-devices.json"))
+        assert request == Request(communique_type="ReadRequest", url="/device?where=IsThisDevice:true")
+        response.set_result(response_from_json_file("ra3/processor.json"))
         leap.requests.task_done()
 
         # Read request on each area's control stations & zones
@@ -348,7 +355,7 @@ class Bridge:
                 communique_type="ReadRequest",
                 url=f"/area/{area_id}/associatedcontrolstation",
             )
-            station_result = response_from_json_file(f"ra3-area{area_id}cs.json")
+            station_result = response_from_json_file(f"ra3/area/{area_id}/controlstation.json")
             response.set_result(station_result)
             leap.requests.task_done()
             await self._process_station(station_result, leap, wait)
@@ -357,7 +364,7 @@ class Bridge:
             assert request == Request(
                 communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
             )
-            zone_result = response_from_json_file(f"ra3-area{area_id}az.json")
+            zone_result = response_from_json_file(f"ra3/area/{area_id}/associatedzone.json")
             response.set_result(zone_result)
             leap.requests.task_done()
 
@@ -366,7 +373,7 @@ class Bridge:
         assert request == Request(
             communique_type="SubscribeRequest", url="/zone/status"
         )
-        response.set_result(response_from_json_file("ra3-zonestatus.json"))
+        response.set_result(response_from_json_file("ra3/zonestatus.json"))
         leap.requests.task_done()
 
         # Subscribe request on /button/{button}/status/event
@@ -424,13 +431,11 @@ async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
 
 
 @pytest.fixture(name="ra3_bridge")
-async def fixture_bridge_ra3() -> AsyncGenerator[Bridge, None]:
+async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a RA3 bridge attached to a fake reader and writer."""
-    harness = Bridge()
-
-    await harness.initialize("RA3")
-
-    yield harness
+    await bridge_uninit.initialize("RA3")
+    
+    yield bridge_uninit
 
 
 @pytest.mark.asyncio
@@ -1352,6 +1357,17 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
     """Test methods getting devices."""
     devices = ra3_bridge.target.get_devices()
     expected_devices = {
+        "1": {
+            'button_groups': None,
+            'current_state': -1,
+            'device_id': '1',
+            'fan_speed': None,
+            'model': 'JanusProcRA3',
+            'name': 'Equipment Room_Enclosure Device 001_RadioRa3Processor',
+            'serial': 11111111,
+            'type': None,
+            'zone': '1'
+        },
         "1361": {
             "button_groups": None,
             "current_state": 0,
@@ -1360,6 +1376,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Primary Bath_Vanities",
             "serial": None,
+            "tilt": None,
             "type": "Dimmed",
             "zone": "1361",
         },
@@ -1371,6 +1388,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Primary Bath_Shower & Tub",
             "serial": None,
+            "tilt": None,
             "type": "Dimmed",
             "zone": "1377",
         },
@@ -1382,6 +1400,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Primary Bath_Vent",
             "serial": None,
+            "tilt": None,
             "type": "Switched",
             "zone": "1393",
         },
@@ -1391,7 +1410,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "1488",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-A02",
-            "name": "Primary Bath_Entry_Audio Pico",
+            "name": "Primary Bath_Entry_Audio Pico_Pico3ButtonRaiseLower",
             "serial": None,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
@@ -1404,6 +1423,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Porch_Porch",
             "serial": None,
+            "tilt": None,
             "type": "Dimmed",
             "zone": "2010",
         },
@@ -1415,6 +1435,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Entry_Overhead",
             "serial": None,
+            "tilt": None,
             "type": "Dimmed",
             "zone": "2091",
         },
@@ -1426,6 +1447,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Entry_Landscape",
             "serial": None,
+            "tilt": None,
             "type": "Dimmed",
             "zone": "2107",
         },
@@ -1435,7 +1457,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2139",
             "fan_speed": None,
             "model": "RRST-W4B-XX",
-            "name": "Entry_Entry by Living Room_Scene Keypad",
+            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad",
             "serial": None,
             "type": "SunnataKeypad",
             "zone": None,
@@ -1446,7 +1468,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2171",
             "fan_speed": None,
             "model": "RRST-W4B-XX",
-            "name": "Entry_Entry by Living Room_Fan Keypad",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad",
             "serial": None,
             "type": "SunnataKeypad",
             "zone": None,
@@ -1457,7 +1479,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2939",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-A02",
-            "name": "Primary Bath_Vanity_Audio Pico",
+            "name": "Primary Bath_Vanity_Audio Pico_Pico3ButtonRaiseLower",
             "serial": None,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
@@ -1468,8 +1490,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "5341",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-L01",
-            "name": "Equipment Room_TestingPico_TestingPicoDev",
-            "serial": None,
+            "name": "Equipment Room_TestingPico_TestingPicoDev_Pico3ButtonRaiseLower",
+            "serial": 68130838,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
         },
@@ -1481,6 +1503,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "model": None,
             "name": "Equipment Room_Overhead",
             "serial": None,
+            "tilt": None,
             "type": "Switched",
             "zone": "536",
         },
