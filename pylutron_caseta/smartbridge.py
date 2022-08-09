@@ -639,7 +639,7 @@ class Smartbridge:
 
         # If /device has no body, this probably isn't Caseta
         if device_json.Body is None:
-            return False
+            return
 
         for device in device_json.Body["Devices"]:
             _LOG.debug(device)
@@ -677,7 +677,6 @@ class Smartbridge:
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
             )
-        return True
 
     async def _load_ra3_devices(self):
 
