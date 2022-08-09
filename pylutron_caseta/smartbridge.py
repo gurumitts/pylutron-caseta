@@ -23,7 +23,7 @@ from . import (
     BridgeResponseError,
 )
 from .leap import open_connection, id_from_href, LeapProtocol
-from .messages import Response, ResponseHeader
+from .messages import Response
 
 _LOG = logging.getLogger(__name__)
 
