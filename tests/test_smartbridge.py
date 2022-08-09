@@ -325,6 +325,12 @@ class Bridge:
         response.set_result(ra3_area_list_result)
         leap.requests.task_done()
 
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file("ra3-project.json"))
+        leap.requests.task_done()
+
         # Read request on /device
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/device")
