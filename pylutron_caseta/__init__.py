@@ -5,11 +5,15 @@ from typing import Optional
 from .messages import Response, ResponseStatus
 
 _LEAP_DEVICE_TYPES = {
-    "light": ["WallDimmer", "PlugInDimmer"],
+    "light": ["WallDimmer",
+        "PlugInDimmer",
+        "InLineDimmer",
+    ],
     "switch": [
         "WallSwitch",
         "OutdoorPlugInSwitch",
         "PlugInSwitch",
+        "InLineSwitch",
     ],
     "fan": [
         "CasetaFanSpeedController",
