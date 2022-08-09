@@ -607,6 +607,7 @@ class Smartbridge:
                         response = await self._request(
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
+                        self._handle_one_zone_status(response)
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
