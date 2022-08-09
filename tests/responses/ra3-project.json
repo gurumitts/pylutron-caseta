@@ -1,0 +1,39 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneProjectDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/project"
+    },
+    "Body": {
+        "Project": {
+            "href": "/project",
+            "Name": "Home",
+            "ProductType": "Lutron RadioRA 3 Project",
+            "MasterDeviceList": {
+                "Devices": [
+                    {
+                        "href": "/device/96"
+                    }
+                ]
+            },
+            "Contacts": [
+                {
+                    "href": "/contactinfo/81"
+                }
+            ],
+            "TimeclockEventRules": {
+                "href": "/project/timeclockeventrules"
+            },
+            "ProjectModifiedTimestamp": {
+                "Year": 2022,
+                "Month": 2,
+                "Day": 8,
+                "Hour": 0,
+                "Minute": 39,
+                "Second": 20,
+                "Utc": "0"
+            }
+        }
+    }
+}
