@@ -37,6 +37,7 @@ _LOG = logging.getLogger(__name__)
 
 DEFAULT_PROCESSOR = "Caseta"
 
+
 def response_from_json_file(filename: str) -> Response:
     """Fetch a response from a saved JSON file."""
     responsedir = os.path.join(os.path.split(__file__)[0], "responses")
@@ -340,7 +341,9 @@ class Bridge:
 
         # Read request on /device?where=IsThisDevice:true
         request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/device?where=IsThisDevice:true")
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
+        )
         response.set_result(response_from_json_file("ra3/processor.json"))
         leap.requests.task_done()
 
@@ -355,7 +358,9 @@ class Bridge:
                 communique_type="ReadRequest",
                 url=f"/area/{area_id}/associatedcontrolstation",
             )
-            station_result = response_from_json_file(f"ra3/area/{area_id}/controlstation.json")
+            station_result = response_from_json_file(
+                f"ra3/area/{area_id}/controlstation.json"
+            )
             response.set_result(station_result)
             leap.requests.task_done()
             await self._process_station(station_result, leap, wait)
@@ -364,7 +369,9 @@ class Bridge:
             assert request == Request(
                 communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
             )
-            zone_result = response_from_json_file(f"ra3/area/{area_id}/associatedzone.json")
+            zone_result = response_from_json_file(
+                f"ra3/area/{area_id}/associatedzone.json"
+            )
             response.set_result(zone_result)
             leap.requests.task_done()
 
@@ -434,7 +441,7 @@ async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
 async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a RA3 bridge attached to a fake reader and writer."""
     await bridge_uninit.initialize("RA3")
-    
+
     yield bridge_uninit
 
 
@@ -1358,15 +1365,15 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
     devices = ra3_bridge.target.get_devices()
     expected_devices = {
         "1": {
-            'button_groups': None,
-            'current_state': -1,
-            'device_id': '1',
-            'fan_speed': None,
-            'model': 'JanusProcRA3',
-            'name': 'Equipment Room_Enclosure Device 001_RadioRa3Processor',
-            'serial': 11111111,
-            'type': None,
-            'zone': '1'
+            "button_groups": None,
+            "current_state": -1,
+            "device_id": "1",
+            "fan_speed": None,
+            "model": "JanusProcRA3",
+            "name": "Equipment Room_Enclosure Device 001_RadioRa3Processor",
+            "serial": 11111111,
+            "type": None,
+            "zone": "1",
         },
         "1361": {
             "button_groups": None,
