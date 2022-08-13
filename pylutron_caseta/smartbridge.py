@@ -573,15 +573,16 @@ class Smartbridge:
 
         statuses = response.Body.get("AreaStatuses", {})
         for status in statuses:
-            occgroup_id = id_from_href(status["href"].removesuffix('/status'))
-            # Check to see if the OccupancyStatus Key exists in the reseponse.  
+            occgroup_id = id_from_href(status["href"].removesuffix("/status"))
+            # Check to see if the OccupancyStatus Key exists in the reseponse.
             # Sometimes in just responds swith the CurrentScene key
             if "OccupancyStatus" in status:
                 ostat = status["OccupancyStatus"]
                 if occgroup_id not in self.occupancy_groups:
                     if ostat != OCCUPANCY_GROUP_UNKNOWN:
                         _LOG.warning(
-                            "Occupancy group %s has a status but no sensors", occgroup_id
+                            "Occupancy group %s has a status but no sensors",
+                            occgroup_id,
                         )
                     continue
                 if ostat == OCCUPANCY_GROUP_UNKNOWN:
@@ -1032,7 +1033,7 @@ class Smartbridge:
 
     def _process_ra3_occupancy_group(self, occgroup):
         """Process ra3 occupancy group."""
-        occgroup_id = id_from_href(occgroup["href"].removesuffix('/status'))
+        occgroup_id = id_from_href(occgroup["href"].removesuffix("/status"))
         occsensor_ids = []
         occgroup_area_id = occgroup_id
 

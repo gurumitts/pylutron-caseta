@@ -141,15 +141,17 @@ class Bridge:
         self.leap: _FakeLeap = None
 
         self.button_list_result = response_from_json_file("buttons.json")
+
+        self.button_subscription_data_result = response_from_json_file(
+            "buttonsubscribe.json"
+        )
         self.occupancy_group_list_result = response_from_json_file(
             "occupancygroups.json"
         )
         self.occupancy_group_subscription_data_result = response_from_json_file(
             "occupancygroupsubscribe.json"
         )
-        self.button_subscription_data_result = response_from_json_file(
-            "buttonsubscribe.json"
-        )
+
         self.ra3_button_list = []
 
         async def fake_connect():
@@ -392,6 +394,20 @@ class Bridge:
             )
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
+
+        # Read request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/area/status")
+        response.set_result(response_from_json_file("ra3/area/status.json"))
+        leap.requests.task_done()
+
+        # Subscribe request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/area/status"
+        )
+        response.set_result(response_from_json_file("ra3/area/status-subscribe.json"))
+        leap.requests.task_done()
 
     def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
