@@ -565,6 +565,34 @@ class Smartbridge:
             if occgroup_id in self._occupancy_subscribers:
                 self._occupancy_subscribers[occgroup_id]()
 
+    def _handle_ra3_occupancy_group_status(self, response: Response):
+        _LOG.debug("Handling ra3 occupancy status: %s", response)
+
+        if response.Body is None:
+            return
+
+        statuses = response.Body.get("AreaStatuses", {})
+        for status in statuses:
+            occgroup_id = id_from_href(status["href"].removesuffix('/status'))
+            # Check to see if the OccupancyStatus Key exists in the reseponse.  
+            # Sometimes in just responds swith the CurrentScene key
+            if "OccupancyStatus" in status:
+                ostat = status["OccupancyStatus"]
+                if occgroup_id not in self.occupancy_groups:
+                    if ostat != OCCUPANCY_GROUP_UNKNOWN:
+                        _LOG.warning(
+                            "Occupancy group %s has a status but no sensors", occgroup_id
+                        )
+                    continue
+                if ostat == OCCUPANCY_GROUP_UNKNOWN:
+                    _LOG.warning(
+                        "Occupancy group %s has sensors but no status", occgroup_id
+                    )
+                self.occupancy_groups[occgroup_id]["status"] = ostat
+                # Notify any subscribers of the change to occupancy status
+                if occgroup_id in self._occupancy_subscribers:
+                    self._occupancy_subscribers[occgroup_id]()
+
     def _handle_unsolicited(self, response: Response):
         if (
             response.CommuniqueType == "ReadResponse"
@@ -590,6 +618,8 @@ class Smartbridge:
                 await self._load_ra3_processor()
                 await self._load_ra3_devices()
                 await self._subscribe_to_button_status()
+                await self._load_ra3_occupancy_groups()
+                await self._subscribe_to_ra3_occupancy_groups()
             else:
                 # Caseta Bridge Device detected
                 _LOG.debug("Caseta bridge detected")
@@ -988,6 +1018,54 @@ class Smartbridge:
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
         )
+
+    async def _load_ra3_occupancy_groups(self):
+        """Load the occupancy groups from the bridge."""
+        _LOG.debug("Loading occupancy groups from bridge")
+        occgroup_json = await self._request("ReadRequest", "/area/status")
+        if occgroup_json.Body is None:
+            return
+
+        occgroups = occgroup_json.Body.get("AreaStatuses", {})
+        for occgroup in occgroups:
+            self._process_ra3_occupancy_group(occgroup)
+
+    def _process_ra3_occupancy_group(self, occgroup):
+        """Process ra3 occupancy group."""
+        occgroup_id = id_from_href(occgroup["href"].removesuffix('/status'))
+        occsensor_ids = []
+        occgroup_area_id = occgroup_id
+
+        if occgroup_area_id not in self.areas:
+            _LOG.error(
+                "Unknown parent area for occupancy group %s: %s",
+                occgroup_id,
+                occgroup_area_id,
+            )
+            return
+        self.occupancy_groups.setdefault(
+            occgroup_id,
+            dict(
+                occupancy_group_id=occgroup_id,
+                status=OCCUPANCY_GROUP_UNKNOWN,
+                sensors=occsensor_ids,
+            ),
+        ).update(
+            name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
+        )
+
+    async def _subscribe_to_ra3_occupancy_groups(self):
+        """Subscribe to ra3 occupancy group (area) status updates."""
+        _LOG.debug("Subscribing to occupancy group (ra3: area) status updates")
+        try:
+            response, _ = await self._subscribe(
+                "/area/status", self._handle_ra3_occupancy_group_status
+            )
+            _LOG.debug("Subscribed to occupancygroup status")
+        except BridgeResponseError as ex:
+            _LOG.error("Failed occupancy subscription: %s", ex.response)
+            return
+        self._handle_ra3_occupancy_group_status(response)
 
     async def _subscribe_to_button_status(self):
         """Subscribe to pico button status updates."""
