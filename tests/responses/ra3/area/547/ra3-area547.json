@@ -1,0 +1,36 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/547"
+    },
+    "Body": {
+        "Area": {
+            "href": "/area/547",
+            "Name": "Primary Bath",
+            "Parent": {
+                "href": "/area/3"
+            },
+            "AssociatedZones": [
+                {
+                    "href": "/zone/1361"
+                },
+                {
+                    "href": "/zone/1377"
+                },
+                {
+                    "href": "/zone/1393"
+                }
+            ],
+            "AssociatedControlStations": [
+                {
+                    "href": "/controlstation/1352"
+                },
+                {
+                    "href": "/controlstation/2937"
+                }
+            ]
+        }
+    }
+}

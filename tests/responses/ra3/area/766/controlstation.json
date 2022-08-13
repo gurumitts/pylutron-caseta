@@ -1,0 +1,80 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleControlStationDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/766/associatedcontrolstation"
+    },
+    "Body": {
+        "ControlStations": [
+            {
+                "href": "/controlstation/2001",
+                "Name": "Entry by Door",
+                "AssociatedArea": {
+                    "href": "/area/766"
+                },
+                "SortOrder": 0,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/2003",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 1
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/2084",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 2
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/2100",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 0
+                    }
+                ]
+            },
+            {
+                "href": "/controlstation/2132",
+                "Name": "Entry by Living Room",
+                "AssociatedArea": {
+                    "href": "/area/766"
+                },
+                "SortOrder": 1,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/2139",
+                            "DeviceType": "SunnataKeypad",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 1
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/2171",
+                            "DeviceType": "SunnataKeypad",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 2
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/2203",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 3
+                    }
+                ]
+            }
+        ]
+    }
+}

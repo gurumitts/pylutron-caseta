@@ -20,8 +20,10 @@ from typing import (
 
 import pytest
 
+from pylutron_caseta.leap import id_from_href
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
 from pylutron_caseta import (
+    _LEAP_DEVICE_TYPES,
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
@@ -32,6 +34,9 @@ from pylutron_caseta import (
 
 logging.getLogger().setLevel(logging.DEBUG)
 _LOG = logging.getLogger(__name__)
+
+CASETA_PROCESSOR = "Caseta"
+RA3_PROCESSOR = "RA3"
 
 
 def response_from_json_file(filename: str) -> Response:
@@ -145,6 +150,7 @@ class Bridge:
         self.button_subscription_data_result = response_from_json_file(
             "buttonsubscribe.json"
         )
+        self.ra3_button_list = []
 
         async def fake_connect():
             """Open a fake LEAP connection for the test."""
@@ -154,7 +160,7 @@ class Bridge:
 
         self.target = smartbridge.Smartbridge(fake_connect)
 
-    async def initialize(self):
+    async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
         connect_task = asyncio.get_running_loop().create_task(self.target.connect())
         fake_leap = await self.connections.get()
@@ -172,7 +178,11 @@ class Bridge:
             result = await task
             return result
 
-        await self._accept_connection(fake_leap, wait)
+        if processor == "Caseta":
+            await self._accept_connection(fake_leap, wait)
+        elif processor == "RA3":
+            await self._accept_connection_ra3(fake_leap, wait)
+
         await connect_task
 
         self.leap = fake_leap
@@ -180,43 +190,49 @@ class Bridge:
 
     async def _accept_connection(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
-        # First message should be read request on /device
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/device")
-        response.set_result(response_from_json_file("devices.json"))
-        leap.requests.task_done()
-
-        # Second message should be read request on /button
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/button")
-        response.set_result(self.button_list_result)
-        leap.requests.task_done()
-
-        # Third message should be read request on /server/2/id
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/server/2/id")
-        response.set_result(response_from_json_file("lip.json"))
-        leap.requests.task_done()
-
-        # Fourth message should be read request on /virtualbutton
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
-        response.set_result(response_from_json_file("scenes.json"))
-        leap.requests.task_done()
-
-        # Fifth message should be read request on /areas
+        # Read request on /areas
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(response_from_json_file("areas.json"))
         leap.requests.task_done()
 
-        # Sixth message should be read request on /occupancygroup
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file("project.json"))
+        leap.requests.task_done()
+
+        # Read request on /device
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/device")
+        response.set_result(response_from_json_file("devices.json"))
+        leap.requests.task_done()
+
+        # Read request on /button
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/button")
+        response.set_result(self.button_list_result)
+        leap.requests.task_done()
+
+        # Read request on /server/2/id
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/server/2/id")
+        response.set_result(response_from_json_file("lip.json"))
+        leap.requests.task_done()
+
+        # Read request on /virtualbutton
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
+        response.set_result(response_from_json_file("scenes.json"))
+        leap.requests.task_done()
+
+        # Read request on /occupancygroup
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/occupancygroup")
         response.set_result(self.occupancy_group_list_result)
         leap.requests.task_done()
 
-        # Seventh message should be subscribe request on /occupancygroup/status
+        # Subscribe request on /occupancygroup/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
             communique_type="SubscribeRequest", url="/occupancygroup/status"
@@ -224,7 +240,7 @@ class Bridge:
         response.set_result(self.occupancy_group_subscription_data_result)
         leap.requests.task_done()
 
-        # 8-10th message should be subscribe request on /button/{button}/status/event
+        # Subscribe request on /button/{button}/status/event
         for button in (
             re.sub(r".*/", "", button["href"])
             for button in self.button_list_result.Body.get("Buttons", [])
@@ -236,7 +252,7 @@ class Bridge:
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
 
-        # Finally, we should check the zone status on each zone
+        # Check the zone status on each zone
         requested_zones = []
         for _ in range(0, 4):
             request, response = await wait(leap.requests.get())
@@ -268,6 +284,114 @@ class Bridge:
             "/zone/3/status",
             "/zone/6/status",
         ]
+
+    async def _process_station(self, result, leap, wait):
+        if result.Body is None:
+            return
+
+        for station in result.Body.get("ControlStations", []):
+            for device in station.get("AssociatedGangedDevices", []):
+                device_type = device["Device"]["DeviceType"]
+                if device_type not in _LEAP_DEVICE_TYPES.get("sensor"):
+                    continue
+
+                device_id = re.sub(r".*/", "", device["Device"]["href"])
+                request, response = await wait(leap.requests.get())
+                assert request == Request(
+                    communique_type="ReadRequest",
+                    url=f"/device/{device_id}/buttongroup/expanded",
+                )
+                button_group_result = response_from_json_file(
+                    f"ra3/device/{device_id}/buttongroup.json"
+                )
+                response.set_result(button_group_result)
+                leap.requests.task_done()
+
+                request, response = await wait(leap.requests.get())
+                assert request == Request(
+                    communique_type="ReadRequest", url=f"/device/{device_id}"
+                )
+                response.set_result(
+                    response_from_json_file(f"ra3/device/{device_id}/device.json")
+                )
+                leap.requests.task_done()
+
+                # collect every button for upcoming subscribe tests
+                self.ra3_button_list.extend(
+                    [
+                        id_from_href(button["href"])
+                        for group in button_group_result.Body["ButtonGroupsExpanded"]
+                        for button in group["Buttons"]
+                    ]
+                )
+
+    async def _accept_connection_ra3(self, leap, wait):
+        """Accept a connection from SmartBridge (implementation)."""
+        # Read request on /areas
+        ra3_area_list_result = response_from_json_file("ra3/areas.json")
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/area")
+        response.set_result(ra3_area_list_result)
+        leap.requests.task_done()
+
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file("ra3/project.json"))
+        leap.requests.task_done()
+
+        # Read request on /device?where=IsThisDevice:true
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
+        )
+        response.set_result(response_from_json_file("ra3/processor.json"))
+        leap.requests.task_done()
+
+        # Read request on each area's control stations & zones
+        for area_id in (
+            re.sub(r".*/", "", area["href"])
+            for area in ra3_area_list_result.Body.get("Areas", [])
+            if area["IsLeaf"]
+        ):
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest",
+                url=f"/area/{area_id}/associatedcontrolstation",
+            )
+            station_result = response_from_json_file(
+                f"ra3/area/{area_id}/controlstation.json"
+            )
+            response.set_result(station_result)
+            leap.requests.task_done()
+            await self._process_station(station_result, leap, wait)
+
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
+            )
+            zone_result = response_from_json_file(
+                f"ra3/area/{area_id}/associatedzone.json"
+            )
+            response.set_result(zone_result)
+            leap.requests.task_done()
+
+        # Read request on /zone/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/zone/status"
+        )
+        response.set_result(response_from_json_file("ra3/zonestatus.json"))
+        leap.requests.task_done()
+
+        # Subscribe request on /button/{button}/status/event
+        for button in self.ra3_button_list:
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
+            )
+            response.set_result(self.button_subscription_data_result)
+            leap.requests.task_done()
 
     def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
@@ -309,7 +433,15 @@ async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
 @pytest.fixture(name="bridge")
 async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a bridge attached to a fake reader and writer."""
-    await bridge_uninit.initialize()
+    await bridge_uninit.initialize(CASETA_PROCESSOR)
+
+    yield bridge_uninit
+
+
+@pytest.fixture(name="ra3_bridge")
+async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+    """Create a RA3 bridge attached to a fake reader and writer."""
+    await bridge_uninit.initialize(RA3_PROCESSOR)
 
     yield bridge_uninit
 
@@ -600,10 +732,10 @@ async def test_is_connected(bridge: Bridge):
 async def test_area_list(bridge: Bridge):
     """Test the list of areas loaded by the bridge."""
     expected_areas = {
-        "1": {"name": "root"},
-        "2": {"name": "Hallway"},
-        "3": {"name": "Living Room"},
-        "4": {"name": "Master Bathroom"},
+        "1": {"id": "1", "name": "root"},
+        "2": {"id": "2", "name": "Hallway"},
+        "3": {"id": "3", "name": "Living Room"},
+        "4": {"id": "4", "name": "Master Bathroom"},
     }
 
     assert bridge.target.areas == expected_areas
@@ -1187,3 +1319,468 @@ async def test_reconnect_timeout(event_loop):
     task.cancel()
 
     await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_is_ra3_connected(ra3_bridge: Bridge):
+    """Test the is_connected method returns connection state."""
+    assert ra3_bridge.target.is_connected() is True
+
+    def connect():
+        raise NotImplementedError()
+
+    other = smartbridge.Smartbridge(connect)
+    assert other.is_connected() is False
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_notifications(ra3_bridge: Bridge):
+    """Test notifications are sent to subscribers."""
+    notified = False
+
+    def callback():
+        nonlocal notified
+        notified = True
+
+    ra3_bridge.target.add_subscriber("1377", callback)
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1337/status",
+            ),
+            Body={"ZoneStatus": {"Level": 100, "Zone": {"href": "/zone/1377"}}},
+        )
+    )
+    await asyncio.wait_for(ra3_bridge.leap.requests.join(), 10)
+    assert notified
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_device_list(ra3_bridge: Bridge):
+    """Test methods getting devices."""
+    devices = ra3_bridge.target.get_devices()
+    expected_devices = {
+        "1": {
+            "button_groups": None,
+            "current_state": -1,
+            "device_id": "1",
+            "fan_speed": None,
+            "model": "JanusProcRA3",
+            "name": "Equipment Room_Enclosure Device 001_RadioRa3Processor",
+            "serial": 11111111,
+            "type": None,
+            "zone": "1",
+        },
+        "1361": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1361",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Vanities",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "1361",
+        },
+        "1377": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1377",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Shower & Tub",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "1377",
+        },
+        "1393": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1393",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Vent",
+            "serial": None,
+            "tilt": None,
+            "type": "Switched",
+            "zone": "1393",
+        },
+        "1488": {
+            "button_groups": ["1491"],
+            "current_state": -1,
+            "device_id": "1488",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-A02",
+            "name": "Primary Bath_Entry_Audio Pico_Pico3ButtonRaiseLower",
+            "serial": None,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "2010": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2010",
+            "fan_speed": None,
+            "model": None,
+            "name": "Porch_Porch",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2010",
+        },
+        "2091": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2091",
+            "fan_speed": None,
+            "model": None,
+            "name": "Entry_Overhead",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2091",
+        },
+        "2107": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2107",
+            "fan_speed": None,
+            "model": None,
+            "name": "Entry_Landscape",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2107",
+        },
+        "2139": {
+            "button_groups": ["2148"],
+            "current_state": -1,
+            "device_id": "2139",
+            "fan_speed": None,
+            "model": "RRST-W4B-XX",
+            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad",
+            "serial": None,
+            "type": "SunnataKeypad",
+            "zone": None,
+        },
+        "2171": {
+            "button_groups": ["2180"],
+            "current_state": -1,
+            "device_id": "2171",
+            "fan_speed": None,
+            "model": "RRST-W4B-XX",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad",
+            "serial": None,
+            "type": "SunnataKeypad",
+            "zone": None,
+        },
+        "2939": {
+            "button_groups": ["2942"],
+            "current_state": -1,
+            "device_id": "2939",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-A02",
+            "name": "Primary Bath_Vanity_Audio Pico_Pico3ButtonRaiseLower",
+            "serial": None,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "5341": {
+            "button_groups": ["5344"],
+            "current_state": -1,
+            "device_id": "5341",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-L01",
+            "name": "Equipment Room_TestingPico_TestingPicoDev_Pico3ButtonRaiseLower",
+            "serial": 68130838,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "536": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "536",
+            "fan_speed": None,
+            "model": None,
+            "name": "Equipment Room_Overhead",
+            "serial": None,
+            "tilt": None,
+            "type": "Switched",
+            "zone": "536",
+        },
+    }
+
+    assert devices == expected_devices
+
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1377/status",
+            ),
+            Body={"ZoneStatus": {"Level": 100, "Zone": {"href": "/zone/1377"}}},
+        )
+    )
+
+    devices = ra3_bridge.target.get_devices()
+    assert devices["1377"]["current_state"] == 100
+    assert devices["1488"]["current_state"] == -1
+
+    devices = ra3_bridge.target.get_devices_by_domain("light")
+    assert len(devices) == 5
+    assert devices[0]["device_id"] == "1361"
+
+    devices = ra3_bridge.target.get_devices_by_type("Dimmed")
+    assert len(devices) == 5
+    assert devices[0]["device_id"] == "1361"
+
+    devices = ra3_bridge.target.get_devices_by_types(
+        ("Pico3ButtonRaiseLower", "Dimmed")
+    )
+    assert len(devices) == 8
+
+    device = ra3_bridge.target.get_device_by_id("2939")
+    assert device["device_id"] == "2939"
+
+    devices = ra3_bridge.target.get_devices_by_domain("fan")
+    assert len(devices) == 0
+
+    devices = ra3_bridge.target.get_devices_by_type("CasetaFanSpeedController")
+    assert len(devices) == 0
+
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_area_list(ra3_bridge: Bridge):
+    """Test the list of areas loaded by the bridge."""
+    expected_areas = {
+        "2796": {"id": "2796", "name": "Porch"},
+        "547": {"id": "547", "name": "Primary Bath"},
+        "766": {"id": "766", "name": "Entry"},
+        "83": {"id": "83", "name": "Equipment Room"},
+    }
+
+    assert ra3_bridge.target.areas == expected_areas
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_button_status_change(ra3_bridge: Bridge):
+    """Test that the status is updated when Pico button is pressed."""
+    ra3_bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/2946/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/2946"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
+            },
+        )
+    )
+    new_status = ra3_bridge.target.buttons["2946"]["current_state"]
+    assert new_status == BUTTON_STATUS_PRESSED
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_button_status_change_notification(ra3_bridge: Bridge):
+    """Test that button status changes send notifications."""
+    notified = False
+
+    def notify(status):
+        assert status == BUTTON_STATUS_PRESSED
+        nonlocal notified
+        notified = True
+
+    ra3_bridge.target.add_button_subscriber("2946", notify)
+    ra3_bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/2946/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/2946"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
+            },
+        )
+    )
+    assert notified
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_is_on(ra3_bridge: Bridge):
+    """Test the is_on method returns device state."""
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/2107/status",
+            ),
+            Body={"ZoneStatus": {"Level": 50, "Zone": {"href": "/zone/2107"}}},
+        )
+    )
+
+    assert ra3_bridge.target.is_on("2107") is True
+
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/2107/status",
+            ),
+            Body={"ZoneStatus": {"Level": 0, "Zone": {"href": "/zone/2107"}}},
+        )
+    )
+
+    assert ra3_bridge.target.is_on("2107") is False
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
+    """Test that setting values produces the right commands."""
+    print("BORE1")
+    task = event_loop.create_task(ra3_bridge.target.set_value("2107", 50))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 50}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 50,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        )
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+
+    task = event_loop.create_task(ra3_bridge.target.turn_on("2107"))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 100}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 100,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        ),
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+
+    task = event_loop.create_task(ra3_bridge.target.turn_off("2107"))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 0}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 0,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        ),
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
+    """Test that setting values with fade_time produces the right commands."""
+    task = event_loop.create_task(
+        ra3_bridge.target.set_value("2107", 50, fade_time=timedelta(seconds=4))
+    )
+    command, _ = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToDimmedLevel",
+                "DimmedLevelParameters": {"Level": 50, "FadeTime": "00:00:04"},
+            }
+        },
+    )
+    ra3_bridge.leap.requests.task_done()
+    task.cancel()
+    await ra3_bridge.target.close()

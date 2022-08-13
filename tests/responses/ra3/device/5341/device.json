@@ -1,0 +1,32 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneDeviceDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/5341"
+    },
+    "Body": {
+        "Device": {
+            "href": "/device/5341",
+            "Name": "TestingPicoDev",
+            "Parent": {
+                "href": "/project"
+            },
+            "SerialNumber": 68130838,
+            "ModelNumber": "PJ2-3BRL-XXX-L01",
+            "DeviceType": "Pico3ButtonRaiseLower",
+            "AssociatedArea": {
+                "href": "/area/83"
+            },
+            "LinkNodes": [
+                {
+                    "href": "/device/5341/linknode/5343"
+                }
+            ],
+            "DeviceClass": {
+                "HexadecimalEncoding": "1070201"
+            },
+            "AddressedState": "Addressed"
+        }
+    }
+}

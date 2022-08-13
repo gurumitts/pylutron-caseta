@@ -1,0 +1,51 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleZoneDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/547/associatedzone"
+    },
+    "Body": {
+        "Zones": [
+            {
+                "href": "/zone/1361",
+                "Name": "Vanities",
+                "ControlType": "Dimmed",
+                "Category": {
+                    "Type": "",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/547"
+                },
+                "SortOrder": 0
+            },
+            {
+                "href": "/zone/1377",
+                "Name": "Shower \u0026 Tub",
+                "ControlType": "Dimmed",
+                "Category": {
+                    "Type": "",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/547"
+                },
+                "SortOrder": 1
+            },
+            {
+                "href": "/zone/1393",
+                "Name": "Vent",
+                "ControlType": "Switched",
+                "Category": {
+                    "Type": "ExhaustFan",
+                    "IsLight": false
+                },
+                "AssociatedArea": {
+                    "href": "/area/547"
+                },
+                "SortOrder": 2
+            }
+        ]
+    }
+}

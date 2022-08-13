@@ -1,0 +1,94 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleButtonGroupExpandedDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/2139/buttongroup/expanded"
+    },
+    "Body": {
+        "ButtonGroupsExpanded": [
+            {
+                "href": "/buttongroup/2148",
+                "Parent": {
+                    "href": "/device/2139"
+                },
+                "SortOrder": 0,
+                "ProgrammingType": "Freeform",
+                "Buttons": [
+                    {
+                        "href": "/button/2149",
+                        "ButtonNumber": 1,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/4398",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/2148"
+                        },
+                        "Name": "Button 1",
+                        "Engraving": {
+                            "Text": "Bright"
+                        },
+                        "AssociatedLED": {
+                            "href": "/led/2144"
+                        }
+                    },
+                    {
+                        "href": "/button/2153",
+                        "ButtonNumber": 2,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/4400",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/2148"
+                        },
+                        "Name": "Button 2",
+                        "Engraving": {
+                            "Text": "Entertain"
+                        },
+                        "AssociatedLED": {
+                            "href": "/led/2145"
+                        }
+                    },
+                    {
+                        "href": "/button/2157",
+                        "ButtonNumber": 3,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/4402",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/2148"
+                        },
+                        "Name": "Button 3",
+                        "Engraving": {
+                            "Text": "Dining"
+                        },
+                        "AssociatedLED": {
+                            "href": "/led/2146"
+                        }
+                    },
+                    {
+                        "href": "/button/2161",
+                        "ButtonNumber": 4,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/4404",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/2148"
+                        },
+                        "Name": "Button 4",
+                        "Engraving": {
+                            "Text": "Off"
+                        },
+                        "AssociatedLED": {
+                            "href": "/led/2147"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

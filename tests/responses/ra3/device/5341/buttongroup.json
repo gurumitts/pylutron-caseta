@@ -1,0 +1,100 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleButtonGroupExpandedDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/5341/buttongroup/expanded"
+    },
+    "Body": {
+        "ButtonGroupsExpanded": [
+            {
+                "href": "/buttongroup/5344",
+                "Parent": {
+                    "href": "/device/5341"
+                },
+                "SortOrder": 0,
+                "Category": {
+                    "Type": "Lights"
+                },
+                "ProgrammingType": "Freeform",
+                "Buttons": [
+                    {
+                        "href": "/button/5345",
+                        "ButtonNumber": 0,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/5346",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/5344"
+                        },
+                        "Name": "Button 0",
+                        "Engraving": {
+                            "Text": "On"
+                        }
+                    },
+                    {
+                        "href": "/button/5348",
+                        "ButtonNumber": 1,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/5349",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/5344"
+                        },
+                        "Name": "Button 1",
+                        "Engraving": {
+                            "Text": "Favorite"
+                        }
+                    },
+                    {
+                        "href": "/button/5351",
+                        "ButtonNumber": 2,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/5352",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/5344"
+                        },
+                        "Name": "Button 2",
+                        "Engraving": {
+                            "Text": "Off"
+                        }
+                    },
+                    {
+                        "href": "/button/5354",
+                        "ButtonNumber": 3,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/5355",
+                            "ProgrammingModelType": "SingleSceneRaiseProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/5344"
+                        },
+                        "Name": "Button 3",
+                        "Engraving": {
+                            "Text": "Raise"
+                        }
+                    },
+                    {
+                        "href": "/button/5357",
+                        "ButtonNumber": 4,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/5358",
+                            "ProgrammingModelType": "SingleSceneLowerProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/5344"
+                        },
+                        "Name": "Button 4",
+                        "Engraving": {
+                            "Text": "Lower"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

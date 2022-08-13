@@ -1,0 +1,31 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneDeviceDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/1488"
+    },
+    "Body": {
+        "Device": {
+            "href": "/device/1488",
+            "Name": "Audio Pico",
+            "Parent": {
+                "href": "/project"
+            },
+            "ModelNumber": "PJ2-3BRL-XXX-A02",
+            "DeviceType": "Pico3ButtonRaiseLower",
+            "AssociatedArea": {
+                "href": "/area/547"
+            },
+            "LinkNodes": [
+                {
+                    "href": "/device/1488/linknode/1490"
+                }
+            ],
+            "DeviceClass": {
+                "HexadecimalEncoding": "1070101"
+            },
+            "AddressedState": "Unaddressed"
+        }
+    }
+}

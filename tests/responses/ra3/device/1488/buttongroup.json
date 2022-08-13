@@ -1,0 +1,100 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleButtonGroupExpandedDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/device/1488/buttongroup/expanded"
+    },
+    "Body": {
+        "ButtonGroupsExpanded": [
+            {
+                "href": "/buttongroup/1491",
+                "Parent": {
+                    "href": "/device/1488"
+                },
+                "SortOrder": 0,
+                "Category": {
+                    "Type": "Audio"
+                },
+                "ProgrammingType": "Freeform",
+                "Buttons": [
+                    {
+                        "href": "/button/1492",
+                        "ButtonNumber": 0,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/1493",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/1491"
+                        },
+                        "Name": "Button 0",
+                        "Engraving": {
+                            "Text": "Play/Pause"
+                        }
+                    },
+                    {
+                        "href": "/button/1495",
+                        "ButtonNumber": 1,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/1496",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/1491"
+                        },
+                        "Name": "Button 1",
+                        "Engraving": {
+                            "Text": "Favorite"
+                        }
+                    },
+                    {
+                        "href": "/button/1498",
+                        "ButtonNumber": 2,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/1499",
+                            "ProgrammingModelType": "SingleActionProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/1491"
+                        },
+                        "Name": "Button 2",
+                        "Engraving": {
+                            "Text": "Next Track"
+                        }
+                    },
+                    {
+                        "href": "/button/1501",
+                        "ButtonNumber": 3,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/1502",
+                            "ProgrammingModelType": "SingleSceneRaiseProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/1491"
+                        },
+                        "Name": "Button 3",
+                        "Engraving": {
+                            "Text": "Volume Up"
+                        }
+                    },
+                    {
+                        "href": "/button/1504",
+                        "ButtonNumber": 4,
+                        "ProgrammingModel": {
+                            "href": "/programmingmodel/1505",
+                            "ProgrammingModelType": "SingleSceneLowerProgrammingModel"
+                        },
+                        "Parent": {
+                            "href": "/buttongroup/1491"
+                        },
+                        "Name": "Button 4",
+                        "Engraving": {
+                            "Text": "Volume Down"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

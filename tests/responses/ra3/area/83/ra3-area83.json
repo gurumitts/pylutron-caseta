@@ -1,0 +1,27 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/83"
+    },
+    "Body": {
+        "Area": {
+            "href": "/area/83",
+            "Name": "Equipment Room",
+            "Parent": {
+                "href": "/area/3"
+            },
+            "AssociatedZones": [
+                {
+                    "href": "/zone/536"
+                }
+            ],
+            "AssociatedControlStations": [
+                {
+                    "href": "/controlstation/527"
+                }
+            ]
+        }
+    }
+}

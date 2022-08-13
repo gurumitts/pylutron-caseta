@@ -1,0 +1,22 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/2796"
+    },
+    "Body": {
+        "Area": {
+            "href": "/area/2796",
+            "Name": "Porch",
+            "Parent": {
+                "href": "/area/3"
+            },
+            "AssociatedZones": [
+                {
+                    "href": "/zone/2010"
+                }
+            ]
+        }
+    }
+}

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for RadioRA 3.
+- Support for RadioRA 2 InLineDimmer and InLineSwitch.
+
 ## [0.14.0] - 2022-06-18
 
 ### Added

@@ -5,15 +5,29 @@ from typing import Optional
 from .messages import Response, ResponseStatus
 
 _LEAP_DEVICE_TYPES = {
-    "light": ["WallDimmer", "PlugInDimmer"],
+    "light": [
+        "WallDimmer",
+        "PlugInDimmer",
+        "InLineDimmer",
+        "SunnataDimmer",
+        "TempInWallPaddleDimmer",
+        "WallDimmerWithPreset",
+        "Dimmed",
+    ],
     "switch": [
         "WallSwitch",
         "OutdoorPlugInSwitch",
         "PlugInSwitch",
+        "InLineSwitch",
+        "PowPakSwitch",
+        "SunnataSwitch",
+        "TempInWallPaddleSwitch",
+        "Switched",
     ],
     "fan": [
         "CasetaFanSpeedController",
         "MaestroFanSpeedController",
+        "FanSpeed",
     ],
     "cover": [
         "SerenaHoneycombShade",
@@ -21,6 +35,10 @@ _LEAP_DEVICE_TYPES = {
         "TriathlonHoneycombShade",
         "TriathlonRollerShade",
         "QsWirelessShade",
+        "QsWirelessHorizontalSheerBlind",
+        "QsWirelessWoodBlind",
+        "RightDrawDrape",
+        "Shade",
         "SerenaTiltOnlyWoodBlind",
     ],
     "sensor": [
@@ -34,6 +52,18 @@ _LEAP_DEVICE_TYPES = {
         "Pico4ButtonZone",
         "Pico4Button2Group",
         "FourGroupRemote",
+        "SeeTouchTabletopKeypad",
+        "SunnataKeypad",
+        "SunnataKeypad_2Button",
+        "SunnataKeypad_3ButtonRaiseLower",
+        "SunnataKeypad_4Button",
+        "SeeTouchHybridKeypad",
+        "SeeTouchInternational",
+        "SeeTouchKeypad",
+        "HomeownerKeypad",
+        "GrafikTHybridKeypad",
+        "AlisseKeypad",
+        "PalladiomKeypad",
     ],
 }
 
