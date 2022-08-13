@@ -574,7 +574,7 @@ class Smartbridge:
         statuses = response.Body.get("AreaStatuses", {})
         for status in statuses:
             occgroup_id = id_from_href(status["href"].removesuffix("/status"))
-            # Check to see if the OccupancyStatus Key exists in the reseponse.
+            # Check to see if the OccupancyStatus Key exists in the response.
             # Sometimes in just responds swith the CurrentScene key
             if "OccupancyStatus" in status:
                 ostat = status["OccupancyStatus"]
