@@ -129,7 +129,7 @@ async def lap_pair(address: str, cacert: TextIO, cert: TextIO, key: TextIO):
             "pairing."
         )
 
-    data = await async_pair(address[0], _ready)
+    data = await async_pair(address, _ready)
     cacert.write(data["ca"])
     cert.write(data["cert"])
     key.write(data["key"])
