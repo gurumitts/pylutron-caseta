@@ -35,7 +35,8 @@ from pylutron_caseta import (
 logging.getLogger().setLevel(logging.DEBUG)
 _LOG = logging.getLogger(__name__)
 
-DEFAULT_PROCESSOR = "Caseta"
+CASETA_PROCESSOR = "Caseta"
+RA3_PROCESSOR = "RA3"
 
 
 def response_from_json_file(filename: str) -> Response:
@@ -159,7 +160,7 @@ class Bridge:
 
         self.target = smartbridge.Smartbridge(fake_connect)
 
-    async def initialize(self, processor=DEFAULT_PROCESSOR):
+    async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
         connect_task = asyncio.get_running_loop().create_task(self.target.connect())
         fake_leap = await self.connections.get()
@@ -432,7 +433,7 @@ async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
 @pytest.fixture(name="bridge")
 async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a bridge attached to a fake reader and writer."""
-    await bridge_uninit.initialize("Caseta")
+    await bridge_uninit.initialize(CASETA_PROCESSOR)
 
     yield bridge_uninit
 
@@ -440,7 +441,7 @@ async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
 @pytest.fixture(name="ra3_bridge")
 async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a RA3 bridge attached to a fake reader and writer."""
-    await bridge_uninit.initialize("RA3")
+    await bridge_uninit.initialize(RA3_PROCESSOR)
 
     yield bridge_uninit
 
