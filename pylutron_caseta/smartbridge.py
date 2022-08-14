@@ -939,7 +939,6 @@ class Smartbridge:
         :param button_id: device ID of the associated button
         :param keypad_device: keypad device to which the LED belongs
         """
-        _LOG.debug(f"_load_ra3_button_led, button_led={button_led}, button_id={button_id}")
         button = self.buttons[button_id]
         button_name = button["button_name"]
         station_name = keypad_device["control_station_name"]
