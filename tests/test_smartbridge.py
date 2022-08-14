@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-from telnetlib import RSP
 from typing import (
     AsyncGenerator,
     Awaitable,
