@@ -293,19 +293,15 @@ class Smartbridge:
         new value (only valid for lights)
         """
         device = self.devices[device_id]
-        
+
         # Handle keypad LEDs which don't have a zone ID associated
         if device.get("type") == "KeypadLED":
             target_state = "On" if value > 0 else "Off"
             await self._request(
-                    "UpdateRequest",
-                    f"/led/{device_id}/status",
-                    {
-                        "LEDStatus": {
-                            "State": target_state
-                        }
-                    },
-                )
+                "UpdateRequest",
+                f"/led/{device_id}/status",
+                {"LEDStatus": {"State": target_state}},
+            )
             return
 
         # All other device types must have an associated zone ID
@@ -336,9 +332,7 @@ class Smartbridge:
                     {
                         "Command": {
                             "CommandType": "GoToSpectrumTuningLevel",
-                            "SpectrumTuningLevelParameters": {
-                                "Level": value
-                            },
+                            "SpectrumTuningLevelParameters": {"Level": value},
                         }
                     },
                 )
@@ -570,7 +564,7 @@ class Smartbridge:
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
         if level >= 0:
-             device["current_state"] = level
+            device["current_state"] = level
         device["fan_speed"] = fan_speed
         device["tilt"] = tilt
         if device["device_id"] in self._subscribers:
@@ -604,7 +598,7 @@ class Smartbridge:
 
         status = response.Body["LEDStatus"]
         button_led_id = id_from_href(status["LED"]["href"])
-        state = 1 if  status["State"] == "On" else 0
+        state = 1 if status["State"] == "On" else 0
 
         if button_led_id in self.devices:
             self.devices[button_led_id]["current_state"] = state
@@ -667,9 +661,11 @@ class Smartbridge:
             project_json = await self._request("ReadRequest", "/project")
             project = project_json.Body["Project"]
 
-            if (project["ProductType"] == "Lutron RadioRA 3 Project"
-                or project["ProductType"] == "Lutron HWQS Project"):
-                
+            if (
+                project["ProductType"] == "Lutron RadioRA 3 Project"
+                or project["ProductType"] == "Lutron HWQS Project"
+            ):
+
                 # RadioRa3 or HomeWorks QSX Processor device detected
                 _LOG.debug("RA3 or QSX processor detected")
 
@@ -905,7 +901,7 @@ class Smartbridge:
         button_led = None
         button_led_obj = button_json.get("AssociatedLED", None)
         if button_led_obj is not None:
-            button_led = id_from_href(button_led_obj["href"])        
+            button_led = id_from_href(button_led_obj["href"])
         if button_engraving is not None:
             button_name = button_engraving["Text"].replace("\n", " ")
         else:
@@ -926,11 +922,11 @@ class Smartbridge:
             button_name=button_name,
             button_led=button_led,
         )
-        
+
         # Load the button LED details
         if button_led is not None:
             await self._load_ra3_button_led(button_led, button_id, keypad_device)
-        
+
     async def _load_ra3_button_led(self, button_led, button_id, keypad_device):
         """
         Creates an LED device from a given LEAP button ID.
@@ -954,7 +950,9 @@ class Smartbridge:
             name="_".join((station_name, f"{button_name} LED")),
             type="KeypadLED",
             model="KeypadLED",
-            serial="_".join(("lcra3",str(self.devices["1"]["serial"]),str(button_led))),
+            serial="_".join(
+                ("lcra3", str(self.devices["1"]["serial"]), str(button_led))
+            ),
             zone=None,
         )
         led_name = "_".join((station_name, f"{button_name} LED"))
@@ -1143,10 +1141,12 @@ class Smartbridge:
         except BridgeResponseError as ex:
             _LOG.error("Failed device status subscription: %s", ex.response)
             return
-        
+
     async def _subscribe_to_button_led_status(self, button_led_id):
         """Subscribe to button LED status updates."""
-        _LOG.debug(f"Subscribing to button LED status updates for LED ID {button_led_id}")
+        _LOG.debug(
+            f"Subscribing to button LED status updates for LED ID {button_led_id}"
+        )
         try:
             response, _ = await self._subscribe(
                 f"/led/{button_led_id}/status",
@@ -1157,7 +1157,6 @@ class Smartbridge:
         except BridgeResponseError as ex:
             _LOG.error("Failed device status subscription: %s", ex.response)
             return
-
 
     async def _subscribe_to_occupancy_groups(self):
         """Subscribe to occupancy group status updates."""
