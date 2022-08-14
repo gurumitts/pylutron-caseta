@@ -1,0 +1,71 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device?where=IsThisDevice:true",
+    "MessageBodyType": "MultipleDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Devices": [
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "HWQSProcessor",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "href": "/device/799",
+        "SerialNumber": 12345678,
+        "NetworkInterfaces": [
+          {
+            "MACAddress": "aa:bb:cc:dd:ee:ff"
+          }
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQP7-1",
+        "OwnedLinks": [
+          {
+            "href": "/link/835",
+            "LinkType": "QS"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/799/linknode/800"
+          }
+        ],
+        "FirmwareImage": {
+          "Firmware": {
+            "DisplayName": "22.02.17f000"
+          },
+          "Installed": {
+            "Year": 2022,
+            "Month": 7,
+            "Day": 1,
+            "Hour": 15,
+            "Minute": 55,
+            "Second": 38,
+            "Utc": "-7:00:00"
+          }
+        },
+        "DeviceFirmwarePackage": {
+          "Package": {
+            "DisplayName": "002.002.003r000"
+          }
+        },
+        "Databases": [
+          {
+            "href": "/database/@Project",
+            "Type": "Project"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "8110201"
+        },
+        "AddressedState": "Addressed",
+        "IsThisDevice": true
+      }
+    ]
+  }
+}

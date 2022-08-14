@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1409",
+    "MessageBodyType": "OneDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Device": {
+      "Name": "Ho Kpd",
+      "DeviceType": "HomeownerKeypad",
+      "AssociatedArea": {
+        "href": "/area/32"
+      },
+      "AssociatedControlStation": {
+        "href": "/controlstation/1407",
+        "Name": "Homeowner Keypad Loc"
+      },
+      "href": "/device/1409",
+      "Parent": {
+        "href": "/project"
+      },
+      "ModelNumber": "Homeowner Keypad",
+      "LinkNodes": [
+        {
+          "href": "/device/1409/linknode/1411"
+        }
+      ],
+      "DeviceClass": {
+        "HexadecimalEncoding": "11f0101"
+      },
+      "AddressedState": "Unaddressed"
+    }
+  }
+}

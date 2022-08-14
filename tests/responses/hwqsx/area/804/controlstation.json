@@ -1,0 +1,38 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/804/associatedcontrolstation",
+    "MessageBodyType": "MultipleControlStationDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ControlStations": [
+      {
+        "href": "/controlstation/849",
+        "Name": "Front Door",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "SortOrder": 0,
+        "AssociatedGangedDevices": [
+          {
+            "Device": {
+              "DeviceType": "PalladiomKeypad",
+              "href": "/device/851",
+              "AddressedState": "Unaddressed"
+            },
+            "GangPosition": 0
+          },
+          {
+            "Device": {
+              "DeviceType": "PalladiomKeypad",
+              "href": "/device/1512",
+              "AddressedState": "Unaddressed"
+            },
+            "GangPosition": 1
+          }
+        ]
+      }
+    ]
+  }
+}

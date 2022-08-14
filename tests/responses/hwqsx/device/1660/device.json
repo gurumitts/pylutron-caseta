@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1660",
+    "MessageBodyType": "OneDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Device": {
+      "Name": "Device 1",
+      "DeviceType": "PalladiomKeypad",
+      "AssociatedArea": {
+        "href": "/area/1032"
+      },
+      "AssociatedControlStation": {
+        "href": "/controlstation/1658",
+        "Name": "Entryway"
+      },
+      "href": "/device/1660",
+      "Parent": {
+        "href": "/project"
+      },
+      "ModelNumber": "HQWT-U-P4W",
+      "LinkNodes": [
+        {
+          "href": "/device/1660/linknode/1662"
+        }
+      ],
+      "DeviceClass": {
+        "HexadecimalEncoding": "1210101"
+      },
+      "AddressedState": "Unaddressed"
+    }
+  }
+}

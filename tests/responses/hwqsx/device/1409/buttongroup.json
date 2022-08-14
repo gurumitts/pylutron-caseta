@@ -1,0 +1,148 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1409/buttongroup/expanded",
+    "MessageBodyType": "MultipleButtonGroupExpandedDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ButtonGroupsExpanded": [
+      {
+        "href": "/buttongroup/1421",
+        "Parent": {
+          "href": "/device/1409"
+        },
+        "SortOrder": 0,
+        "ProgrammingType": "Freeform",
+        "Buttons": [
+          {
+            "href": "/button/1422",
+            "ButtonNumber": 1,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1423",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 1",
+            "Engraving": {
+              "Text": "Button 1"
+            },
+            "AssociatedLED": {
+              "href": "/led/1414"
+            }
+          },
+          {
+            "href": "/button/1425",
+            "ButtonNumber": 2,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1426",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 2",
+            "Engraving": {
+              "Text": "Button 2"
+            },
+            "AssociatedLED": {
+              "href": "/led/1415"
+            }
+          },
+          {
+            "href": "/button/1428",
+            "ButtonNumber": 3,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1429",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 3",
+            "Engraving": {
+              "Text": "Button 3"
+            },
+            "AssociatedLED": {
+              "href": "/led/1416"
+            }
+          },
+          {
+            "href": "/button/1431",
+            "ButtonNumber": 4,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1432",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 4",
+            "Engraving": {
+              "Text": "Button 4"
+            },
+            "AssociatedLED": {
+              "href": "/led/1417"
+            }
+          },
+          {
+            "href": "/button/1434",
+            "ButtonNumber": 5,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1435",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 5",
+            "Engraving": {
+              "Text": "Button 5"
+            },
+            "AssociatedLED": {
+              "href": "/led/1418"
+            }
+          },
+          {
+            "href": "/button/1437",
+            "ButtonNumber": 6,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1496",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 6",
+            "Engraving": {
+              "Text": "Button 6"
+            },
+            "AssociatedLED": {
+              "href": "/led/1419"
+            }
+          },
+          {
+            "href": "/button/1440",
+            "ButtonNumber": 7,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1454",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1421"
+            },
+            "Name": "Button 7",
+            "Engraving": {
+              "Text": "Vacation Mode"
+            },
+            "AssociatedLED": {
+              "href": "/led/1420"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
