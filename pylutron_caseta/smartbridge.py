@@ -6,7 +6,7 @@ import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -311,31 +311,19 @@ class Smartbridge:
 
         # Handle Ketra lamps
         if device.get("type") == "SpectrumTune":
+            params = {"Level": value}  # type: Dict[str, Union[str, int]]
             if fade_time is not None:
-                await self._request(
-                    "CreateRequest",
-                    f"/zone/{zone_id}/commandprocessor",
-                    {
-                        "Command": {
-                            "CommandType": "GoToSpectrumTuningLevel",
-                            "SpectrumTuningLevelParameters": {
-                                "Level": value,
-                                "FadeTime": _format_duration(fade_time),
-                            },
-                        }
-                    },
-                )
-            else:
-                await self._request(
-                    "CreateRequest",
-                    f"/zone/{zone_id}/commandprocessor",
-                    {
-                        "Command": {
-                            "CommandType": "GoToSpectrumTuningLevel",
-                            "SpectrumTuningLevelParameters": {"Level": value},
-                        }
-                    },
-                )
+                params["FadeTime"] = _format_duration(fade_time)
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToSpectrumTuningLevel",
+                        "SpectrumTuningLevelParameters": params,
+                    }
+                },
+            )
             return
 
         if device.get("type") in _LEAP_DEVICE_TYPES["light"] and fade_time is not None:
