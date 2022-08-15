@@ -471,7 +471,7 @@ class Smartbridge:
 
     async def tap_button(self, button_id: str):
         """
-        Sends a press and release message for the given button ID.
+        Send a press and release message for the given button ID.
 
         :param button_id: button ID, e.g. 23
         """
@@ -587,7 +587,7 @@ class Smartbridge:
 
     def _handle_button_led_status(self, response: Response):
         """
-        Handle events for button LED status changes
+        Handle events for button LED status changes.
 
         :param response: processor response with event
         """
@@ -806,8 +806,7 @@ class Smartbridge:
 
     async def _load_ra3_control_stations(self, area):
         """
-        Given the JSON for an area, load and process the control stations
-        associated with that area
+        Load and process the control stations for an area.
 
         :param area: data structure describing the area
         """
@@ -830,8 +829,7 @@ class Smartbridge:
 
     async def _load_ra3_station_device(self, control_station_name, device_json):
         """
-        Given the JSON for a control station device, load the associated
-        button group(s), then load each button from the button group(s)
+        Load button groups and buttons for a control station device.
 
         :param control_station_name: the name of the control station
         :param device_json: data structure describing the station device
@@ -888,8 +886,7 @@ class Smartbridge:
 
     async def _load_ra3_button(self, button_json, keypad_device):
         """
-        Creates a button device from a JSON data structure, as well as
-        loading data about any associated button LEDs.
+        Create button device and load associated button LEDs.
 
         :param button_json: data structure describing this button
         :param device: data structure describing the keypad device
@@ -929,7 +926,7 @@ class Smartbridge:
 
     async def _load_ra3_button_led(self, button_led, button_id, keypad_device):
         """
-        Creates an LED device from a given LEAP button ID.
+        Create an LED device from a given LEAP button ID.
 
         :param button_led: LED ID of the button LED
         :param button_id: device ID of the associated button
@@ -955,7 +952,6 @@ class Smartbridge:
             ),
             zone=None,
         )
-        led_name = "_".join((station_name, f"{button_name} LED"))
         await self._subscribe_to_button_led_status(button_led)
 
     async def _load_ra3_zones(self, area):
@@ -1145,7 +1141,7 @@ class Smartbridge:
     async def _subscribe_to_button_led_status(self, button_led_id):
         """Subscribe to button LED status updates."""
         _LOG.debug(
-            f"Subscribing to button LED status updates for LED ID {button_led_id}"
+            "Subscribing to button LED status updates for LED ID %s", button_led_id
         )
         try:
             response, _ = await self._subscribe(

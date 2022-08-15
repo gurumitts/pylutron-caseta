@@ -308,8 +308,9 @@ class Bridge:
 
         for station in result.Body.get("ControlStations", []):
             for device in station.get("AssociatedGangedDevices", []):
-                device_type = device["Device"]["DeviceType"]
-                if device_type not in _LEAP_DEVICE_TYPES.get("sensor"):
+                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get(
+                    "sensor"
+                ):
                     continue
 
                 device_id = re.sub(r".*/", "", device["Device"]["href"])
@@ -347,32 +348,51 @@ class Bridge:
                             response.set_result(self.button_subscription_data_result)
                             leap.requests.task_done()
 
-                # collect every button for upcoming subscribe tests
-                buttons = []
-                buttons.extend(
-                    [
-                        id_from_href(button["href"])
-                        for group in button_group_result.Body["ButtonGroupsExpanded"]
-                        for button in group["Buttons"]
-                    ]
+                self._populate_button_list_from_buttongroups(
+                    button_group_result.Body["ButtonGroupsExpanded"], bridge_type
                 )
-                if bridge_type == RA3_PROCESSOR:
-                    self.ra3_button_list.extend(buttons)
-                elif bridge_type == HWQSX_PROCESSOR:
-                    self.qsx_button_list.extend(buttons)
+                self._populate_button_led_list_from_buttongroups(
+                    button_group_result.Body["ButtonGroupsExpanded"], bridge_type
+                )
 
-                # collect every button LED for upcoming subscribe tests
-                button_leds = []
-                for group in button_group_result.Body["ButtonGroupsExpanded"]:
-                    for button in group["Buttons"]:
-                        if button.get("AssociatedLED", None) is not None:
-                            button_leds.append(
-                                id_from_href(button["AssociatedLED"]["href"])
-                            )
-                if bridge_type == RA3_PROCESSOR:
-                    self.ra3_button_led_list.extend(button_leds)
-                elif bridge_type == HWQSX_PROCESSOR:
-                    self.qsx_button_led_list.extend(button_leds)
+    def _populate_button_list_from_buttongroups(self, buttongroups, bridge_type):
+        """Add buttons from a set of buttongroups to the proper processor list
+        to support subscribe tests
+
+        Args:
+            buttongroups: A set of buttongroups
+            bridge_type: The bridge or processor type
+        """
+        buttons = []
+        buttons.extend(
+            [
+                id_from_href(button["href"])
+                for group in buttongroups
+                for button in group["Buttons"]
+            ]
+        )
+        if bridge_type == RA3_PROCESSOR:
+            self.ra3_button_list.extend(buttons)
+        elif bridge_type == HWQSX_PROCESSOR:
+            self.qsx_button_list.extend(buttons)
+
+    def _populate_button_led_list_from_buttongroups(self, buttongroups, bridge_type):
+        """Add button LEDs from a set of buttongroups to the proper processor list
+        to support subscribe tests
+
+        Args:
+            buttongroups: A set of buttongroups
+            bridge_type: The bridge or processor type
+        """
+        button_leds = []
+        for group in buttongroups:
+            for button in group["Buttons"]:
+                if button.get("AssociatedLED", None) is not None:
+                    button_leds.append(id_from_href(button["AssociatedLED"]["href"]))
+        if bridge_type == RA3_PROCESSOR:
+            self.ra3_button_led_list.extend(button_leds)
+        elif bridge_type == HWQSX_PROCESSOR:
+            self.qsx_button_led_list.extend(button_leds)
 
     async def _accept_connection_ra3(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
@@ -2031,7 +2051,10 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
 
 @pytest.mark.asyncio
 async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
-    """Test that setting the level of a Ketra lamp without a fade time produces the right command."""
+    """
+    Test that setting the level of a Ketra lamp without a fade time produces the
+    right command.
+    """
     task = event_loop.create_task(qsx_processor.target.set_value("985", 50))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
@@ -2051,7 +2074,10 @@ async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
 
 @pytest.mark.asyncio
 async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
-    """Test that setting the level of a Ketra lamp with a fade time produces the right command."""
+    """
+    Test that setting the level of a Ketra lamp with a fade time produces the
+    right command.
+    """
     task = event_loop.create_task(
         qsx_processor.target.set_value("985", 50, fade_time=timedelta(seconds=4))
     )
