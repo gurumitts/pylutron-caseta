@@ -141,17 +141,15 @@ class Bridge:
         self.leap: _FakeLeap = None
 
         self.button_list_result = response_from_json_file("buttons.json")
-
-        self.button_subscription_data_result = response_from_json_file(
-            "buttonsubscribe.json"
-        )
         self.occupancy_group_list_result = response_from_json_file(
             "occupancygroups.json"
         )
         self.occupancy_group_subscription_data_result = response_from_json_file(
             "occupancygroupsubscribe.json"
         )
-
+        self.button_subscription_data_result = response_from_json_file(
+            "buttonsubscribe.json"
+        )
         self.ra3_button_list = []
 
         async def fake_connect():
