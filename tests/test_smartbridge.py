@@ -1802,6 +1802,7 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
     task.cancel()
     await ra3_bridge.target.close()
 
+
 @pytest.mark.asyncio
 async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
     """Test the list of occupancy groups loaded by the bridge."""
@@ -1811,7 +1812,7 @@ async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
             "occupancy_group_id": "766",
             "name": "Entry Occupancy",
             "status": OCCUPANCY_GROUP_UNKNOWN,
-            "sensors": ["1870","1888"],
+            "sensors": ["1870", "1888"],
         },
         "2796": {
             "occupancy_group_id": "2796",
