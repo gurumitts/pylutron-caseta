@@ -27,6 +27,7 @@ from pylutron_caseta import (
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
+    OCCUPANCY_GROUP_UNKNOWN,
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
     smartbridge,
@@ -393,10 +394,12 @@ class Bridge:
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
 
-        # Read request on /area/status
+        # Read request on /device?where=IsThisDevice:false
         request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/area/status")
-        response.set_result(response_from_json_file("ra3/area/status.json"))
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
+        )
+        response.set_result(response_from_json_file("ra3/device-list.json"))
         leap.requests.task_done()
 
         # Subscribe request on /area/status
@@ -1798,3 +1801,24 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
     ra3_bridge.leap.requests.task_done()
     task.cancel()
     await ra3_bridge.target.close()
+
+@pytest.mark.asyncio
+async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
+    """Test the list of occupancy groups loaded by the bridge."""
+    # Occupancy group 766 has multiple sensor devices, but should only appear once
+    expected_groups = {
+        "766": {
+            "occupancy_group_id": "766",
+            "name": "Entry Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1870","1888"],
+        },
+        "2796": {
+            "occupancy_group_id": "2796",
+            "name": "Porch Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1970"],
+        },
+    }
+
+    assert ra3_bridge.target.occupancy_groups == expected_groups
