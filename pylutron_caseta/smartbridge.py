@@ -18,6 +18,7 @@ from . import (
     _LEAP_DEVICE_TYPES,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
+    RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
     BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
@@ -1023,13 +1024,15 @@ class Smartbridge:
     async def _load_ra3_occupancy_groups(self):
         """Load the devices from the bridge and filter for occupancy sensors."""
         _LOG.debug("Finding occupancy sensors from bridge")
-        occdevice_json = await self._request("ReadRequest", "/device?where=IsThisDevice:false")
+        occdevice_json = await self._request(
+            "ReadRequest", "/device?where=IsThisDevice:false"
+        )
         if occdevice_json.Body is None:
             return
 
         occdevices = occdevice_json.Body.get("Devices", {})
         for occdevice in occdevices:
-            if occdevice["DeviceType"] == "RPSOccupancySensor":
+            if occdevice["DeviceType"] in RA3_OCCUPANCY_SENSOR_DEVICE_TYPES:
                 self._process_ra3_occupancy_group(occdevice)
 
     def _process_ra3_occupancy_group(self, occdevice):
@@ -1051,7 +1054,7 @@ class Smartbridge:
             _LOG.debug(
                 "Occupancy area %s already registered, append sensor %s",
                 occgroup_area_id,
-                occdevice_id
+                occdevice_id,
             )
             self.occupancy_groups[occgroup_area_id]["sensors"].append(occdevice_id)
             return
