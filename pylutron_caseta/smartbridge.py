@@ -1021,33 +1021,47 @@ class Smartbridge:
         )
 
     async def _load_ra3_occupancy_groups(self):
-        """Load the occupancy groups from the bridge."""
-        _LOG.debug("Loading occupancy groups from bridge")
-        occgroup_json = await self._request("ReadRequest", "/area/status")
-        if occgroup_json.Body is None:
+        """Load the devices from the bridge and filter for occupancy sensors."""
+        _LOG.debug("Finding occupancy sensors from bridge")
+        occdevice_json = await self._request("ReadRequest", "/device?where=IsThisDevice:false")
+        if occdevice_json.Body is None:
             return
 
-        occgroups = occgroup_json.Body.get("AreaStatuses", {})
-        for occgroup in occgroups:
-            self._process_ra3_occupancy_group(occgroup)
+        occdevices = occdevice_json.Body.get("Devices", {})
+        for occdevice in occdevices:
+            if occdevice["DeviceType"] == "RPSOccupancySensor":
+                self._process_ra3_occupancy_group(occdevice)
 
-    def _process_ra3_occupancy_group(self, occgroup):
+    def _process_ra3_occupancy_group(self, occdevice):
         """Process ra3 occupancy group."""
-        occgroup_id = id_from_href(occgroup["href"].removesuffix("/status"))
+        occdevice_id = id_from_href(occdevice["href"])
         occsensor_ids = []
-        occgroup_area_id = occgroup_id
+        associated_area = occdevice["AssociatedArea"]
+        occgroup_area_id = id_from_href(associated_area["href"])
 
         if occgroup_area_id not in self.areas:
             _LOG.error(
                 "Unknown parent area for occupancy group %s: %s",
-                occgroup_id,
+                occdevice_id,
                 occgroup_area_id,
             )
             return
+
+        if occgroup_area_id in self.occupancy_groups:
+            _LOG.debug(
+                "Occupancy area %s already registered, append sensor %s",
+                occgroup_area_id,
+                occdevice_id
+            )
+            self.occupancy_groups[occgroup_area_id]["sensors"].append(occdevice_id)
+            return
+
+        occsensor_ids.append(occdevice_id)
+
         self.occupancy_groups.setdefault(
-            occgroup_id,
+            occgroup_area_id,
             dict(
-                occupancy_group_id=occgroup_id,
+                occupancy_group_id=occgroup_area_id,
                 status=OCCUPANCY_GROUP_UNKNOWN,
                 sensors=occsensor_ids,
             ),
