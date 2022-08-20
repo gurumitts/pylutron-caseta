@@ -583,7 +583,7 @@ class Smartbridge:
                 ostat = status["OccupancyStatus"]
                 if occgroup_id not in self.occupancy_groups:
                     if ostat != OCCUPANCY_GROUP_UNKNOWN:
-                        _LOG.warning(
+                        _LOG.debug(
                             "Occupancy group %s has a status but no sensors",
                             occgroup_id,
                         )
