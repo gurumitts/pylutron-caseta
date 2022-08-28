@@ -572,7 +572,7 @@ class Smartbridge:
         if response.Body is None:
             return
 
-        statuses = response.Body.get("AreaStatuses", {})
+        statuses = response.Body.get("AreaStatuses", [])
         for status in statuses:
             occgroup_id = id_from_href(status["href"])
             if occgroup_id.endswith("/status"):
