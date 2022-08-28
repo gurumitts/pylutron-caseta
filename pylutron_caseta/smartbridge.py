@@ -1040,7 +1040,6 @@ class Smartbridge:
     def _process_ra3_occupancy_group(self, occdevice):
         """Process ra3 occupancy group."""
         occdevice_id = id_from_href(occdevice["href"])
-        occsensor_ids = []
         associated_area = occdevice["AssociatedArea"]
         occgroup_area_id = id_from_href(associated_area["href"])
 
@@ -1052,27 +1051,16 @@ class Smartbridge:
             )
             return
 
-        if occgroup_area_id in self.occupancy_groups:
-            _LOG.debug(
-                "Occupancy area %s already registered, append sensor %s",
-                occgroup_area_id,
-                occdevice_id,
-            )
-            self.occupancy_groups[occgroup_area_id]["sensors"].append(occdevice_id)
-            return
-
-        occsensor_ids.append(occdevice_id)
-
-        self.occupancy_groups.setdefault(
+        occgroup = self.occupancy_groups.setdefault(
             occgroup_area_id,
             dict(
                 occupancy_group_id=occgroup_area_id,
                 status=OCCUPANCY_GROUP_UNKNOWN,
-                sensors=occsensor_ids,
+                sensors=[],
+                name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
             ),
-        ).update(
-            name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
         )
+        occgroup["sensors"].append(occdevice_id)
 
     async def _subscribe_to_ra3_occupancy_groups(self):
         """Subscribe to ra3 occupancy group (area) status updates."""
