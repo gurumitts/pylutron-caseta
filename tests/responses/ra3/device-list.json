@@ -1,0 +1,111 @@
+{
+    "CommuniqueType":"ReadResponse",
+    "Header":{
+       "MessageBodyType":"MultipleDeviceDefinition",
+       "StatusCode":"200 OK",
+       "Url":"/device?where=IsThisDevice:false"
+    },
+    "Body":{
+       "Devices":[
+          {
+             "Name":"Position 1",
+             "DeviceType":"RPSOccupancySensor",
+             "AssociatedArea":{
+                "href":"/area/766"
+             },
+             "AssociatedControlStation":{
+                "href":"/controlstation/1868"
+             },
+             "href":"/device/1870",
+             "SerialNumber":52679166,
+             "Parent":{
+                "href":"/project"
+             },
+             "ModelNumber":"LRF2-OKLB-P",
+             "LinkNodes":[
+                {
+                   "href":"/device/1870/linknode/1872"
+                }
+             ],
+             "DeviceClass":{
+                "HexadecimalEncoding":"6080101"
+             },
+             "AddressedState":"Addressed"
+          },
+          {
+            "Name":"Position 2",
+            "DeviceType":"RPSOccupancySensor",
+            "AssociatedArea":{
+               "href":"/area/766"
+            },
+            "AssociatedControlStation":{
+               "href":"/controlstation/1868"
+            },
+            "href":"/device/1888",
+            "SerialNumber":52671036,
+            "Parent":{
+               "href":"/project"
+            },
+            "ModelNumber":"LRF2-OKLB-P",
+            "LinkNodes":[
+               {
+                  "href":"/device/1868/linknode/1870"
+               }
+            ],
+            "DeviceClass":{
+               "HexadecimalEncoding":"6080101"
+            },
+            "AddressedState":"Addressed"
+         },
+         {
+            "Name":"Position 3",
+            "DeviceType":"RPSOccupancySensor",
+            "AssociatedArea":{
+               "href":"/area/2796"
+            },
+            "AssociatedControlStation":{
+               "href":"/controlstation/1868"
+            },
+            "href":"/device/1970",
+            "SerialNumber":52671033,
+            "Parent":{
+               "href":"/project"
+            },
+            "ModelNumber":"LRF2-OKLB-P",
+            "LinkNodes":[
+               {
+                  "href":"/device/1970/linknode/1972"
+               }
+            ],
+            "DeviceClass":{
+               "HexadecimalEncoding":"6080101"
+            },
+            "AddressedState":"Addressed"
+         },
+         {
+            "href": "/device/2139",
+            "Name": "Scene Keypad",
+            "Parent": {
+                "href": "/project"
+            },
+            "ModelNumber": "RRST-W4B-XX",
+            "DeviceType": "SunnataKeypad",
+            "AssociatedArea": {
+                "href": "/area/766"
+            },
+            "LinkNodes": [
+                {
+                    "href": "/device/2139/linknode/2141"
+                }
+            ],
+            "FirmwareImage": {
+                "href": "/firmwareimage/2139"
+            },
+            "DeviceClass": {
+                "HexadecimalEncoding": "1270101"
+            },
+            "AddressedState": "Unaddressed"
+         }
+       ]
+    }
+ }
