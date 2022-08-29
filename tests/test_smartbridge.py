@@ -399,9 +399,7 @@ class Bridge:
         ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
 
         # Read request on /areas
-        ra3_area_list_result = response_from_json_file(
-            f"{ra3_response_path}areas.json"
-        )
+        ra3_area_list_result = response_from_json_file(f"{ra3_response_path}areas.json")
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(ra3_area_list_result)
@@ -410,9 +408,7 @@ class Bridge:
         # Read request on /project
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/project")
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}project.json")
-        )
+        response.set_result(response_from_json_file(f"{ra3_response_path}project.json"))
         leap.requests.task_done()
 
         # Read request on /device?where=IsThisDevice:true
