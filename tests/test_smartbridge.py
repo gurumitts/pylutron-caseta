@@ -397,7 +397,7 @@ class Bridge:
     async def _accept_connection_ra3(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
         ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
-        
+
         # Read request on /areas
         ra3_area_list_result = response_from_json_file(
             f"{ra3_response_path}areas.json"
@@ -475,7 +475,7 @@ class Bridge:
     async def _accept_connection_qsx(self, leap, wait):
         """Accept a connection as a mock QSX processor (implementation)."""
         hwqsx_response_path = RESPONSE_PATH[HWQSX_PROCESSOR]
-        
+
         # Read request on /areas
         qsx_area_list_result = response_from_json_file(
             f"{hwqsx_response_path}areas.json"
