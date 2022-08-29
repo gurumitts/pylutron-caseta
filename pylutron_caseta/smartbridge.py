@@ -586,7 +586,7 @@ class Smartbridge:
 
         status = response.Body["LEDStatus"]
         button_led_id = id_from_href(status["LED"]["href"])
-        state = 1 if status["State"] == "On" else 0
+        state = 100 if status["State"] == "On" else 0
 
         if button_led_id in self.devices:
             self.devices[button_led_id]["current_state"] = state
@@ -935,9 +935,7 @@ class Smartbridge:
             name="_".join((station_name, f"{button_name} LED")),
             type="KeypadLED",
             model="KeypadLED",
-            serial="_".join(
-                ("lcra3", str(self.devices["1"]["serial"]), str(button_led))
-            ),
+            serial=None,
             zone=None,
         )
         await self._subscribe_to_button_led_status(button_led)

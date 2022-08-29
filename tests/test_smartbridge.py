@@ -396,9 +396,11 @@ class Bridge:
 
     async def _accept_connection_ra3(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
+        ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
+        
         # Read request on /areas
         ra3_area_list_result = response_from_json_file(
-            f"{RESPONSE_PATH[RA3_PROCESSOR]}areas.json"
+            f"{ra3_response_path}areas.json"
         )
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
@@ -409,7 +411,7 @@ class Bridge:
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/project")
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[RA3_PROCESSOR]}project.json")
+            response_from_json_file(f"{ra3_response_path}project.json")
         )
         leap.requests.task_done()
 
@@ -419,7 +421,7 @@ class Bridge:
             communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
         )
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[RA3_PROCESSOR]}/processor.json")
+            response_from_json_file(f"{ra3_response_path}/processor.json")
         )
         leap.requests.task_done()
 
@@ -435,7 +437,7 @@ class Bridge:
                 url=f"/area/{area_id}/associatedcontrolstation",
             )
             station_result = response_from_json_file(
-                f"{RESPONSE_PATH[RA3_PROCESSOR]}area/{area_id}/controlstation.json"
+                f"{ra3_response_path}area/{area_id}/controlstation.json"
             )
             response.set_result(station_result)
             leap.requests.task_done()
@@ -446,7 +448,7 @@ class Bridge:
                 communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
             )
             zone_result = response_from_json_file(
-                f"{RESPONSE_PATH[RA3_PROCESSOR]}area/{area_id}/associatedzone.json"
+                f"{ra3_response_path}area/{area_id}/associatedzone.json"
             )
             response.set_result(zone_result)
             leap.requests.task_done()
@@ -457,7 +459,7 @@ class Bridge:
             communique_type="SubscribeRequest", url="/zone/status"
         )
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[RA3_PROCESSOR]}zonestatus.json")
+            response_from_json_file(f"{ra3_response_path}zonestatus.json")
         )
         leap.requests.task_done()
 
@@ -472,9 +474,11 @@ class Bridge:
 
     async def _accept_connection_qsx(self, leap, wait):
         """Accept a connection as a mock QSX processor (implementation)."""
+        hwqsx_response_path = RESPONSE_PATH[HWQSX_PROCESSOR]
+        
         # Read request on /areas
         qsx_area_list_result = response_from_json_file(
-            f"{RESPONSE_PATH[HWQSX_PROCESSOR]}areas.json"
+            f"{hwqsx_response_path}areas.json"
         )
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
@@ -485,7 +489,7 @@ class Bridge:
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/project")
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[HWQSX_PROCESSOR]}project.json")
+            response_from_json_file(f"{hwqsx_response_path}project.json")
         )
         leap.requests.task_done()
 
@@ -495,7 +499,7 @@ class Bridge:
             communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
         )
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[HWQSX_PROCESSOR]}processor.json")
+            response_from_json_file(f"{hwqsx_response_path}processor.json")
         )
         leap.requests.task_done()
 
@@ -511,7 +515,7 @@ class Bridge:
                 url=f"/area/{area_id}/associatedcontrolstation",
             )
             station_result = response_from_json_file(
-                f"{RESPONSE_PATH[HWQSX_PROCESSOR]}area/{area_id}/controlstation.json"
+                f"{hwqsx_response_path}area/{area_id}/controlstation.json"
             )
             response.set_result(station_result)
             leap.requests.task_done()
@@ -524,7 +528,7 @@ class Bridge:
                 communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
             )
             zone_result = response_from_json_file(
-                f"{RESPONSE_PATH[HWQSX_PROCESSOR]}area/{area_id}/associatedzone.json"
+                f"{hwqsx_response_path}area/{area_id}/associatedzone.json"
             )
             response.set_result(zone_result)
             leap.requests.task_done()
@@ -534,7 +538,7 @@ class Bridge:
             communique_type="SubscribeRequest", url="/zone/status"
         )
         response.set_result(
-            response_from_json_file(f"{RESPONSE_PATH[HWQSX_PROCESSOR]}zonestatus.json")
+            response_from_json_file(f"{hwqsx_response_path}zonestatus.json")
         )
         leap.requests.task_done()
 
@@ -1640,7 +1644,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Bright LED",
-            "serial": "lcra3_11111111_2144",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1650,7 +1654,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Entertain LED",
-            "serial": "lcra3_11111111_2145",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1660,7 +1664,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Dining LED",
-            "serial": "lcra3_11111111_2146",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1670,7 +1674,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Off LED",
-            "serial": "lcra3_11111111_2147",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1692,7 +1696,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Fan High LED",
-            "serial": "lcra3_11111111_2176",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1702,7 +1706,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Medium LED",
-            "serial": "lcra3_11111111_2177",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1712,7 +1716,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Low LED",
-            "serial": "lcra3_11111111_2178",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
@@ -1722,7 +1726,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "fan_speed": None,
             "model": "KeypadLED",
             "name": "Entry_Entry by Living Room_Off LED",
-            "serial": "lcra3_11111111_2179",
+            "serial": None,
             "type": "KeypadLED",
             "zone": None,
         },
