@@ -27,6 +27,7 @@ from pylutron_caseta import (
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
+    OCCUPANCY_GROUP_UNKNOWN,
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
     smartbridge,
@@ -468,6 +469,22 @@ class Bridge:
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
 
+        # Read request on /device?where=IsThisDevice:false
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
+        )
+        response.set_result(response_from_json_file("ra3/device-list.json"))
+        leap.requests.task_done()
+
+        # Subscribe request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/area/status"
+        )
+        response.set_result(response_from_json_file("ra3/area/status-subscribe.json"))
+        leap.requests.task_done()
+
     async def _accept_connection_qsx(self, leap, wait):
         """Accept a connection as a mock QSX processor (implementation)."""
         hwqsx_response_path = RESPONSE_PATH[HWQSX_PROCESSOR]
@@ -546,6 +563,7 @@ class Bridge:
             )
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
+
 
     def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
@@ -2471,3 +2489,25 @@ async def test_qsx_get_devices_for_invalid_zone(qsx_processor: Bridge):
         assert False
     except KeyError:
         assert True
+
+
+@pytest.mark.asyncio
+async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
+    """Test the list of occupancy groups loaded by the bridge."""
+    # Occupancy group 766 has multiple sensor devices, but should only appear once
+    expected_groups = {
+        "766": {
+            "occupancy_group_id": "766",
+            "name": "Entry Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1870", "1888"],
+        },
+        "2796": {
+            "occupancy_group_id": "2796",
+            "name": "Porch Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1970"],
+        },
+    }
+
+    assert ra3_bridge.target.occupancy_groups == expected_groups
