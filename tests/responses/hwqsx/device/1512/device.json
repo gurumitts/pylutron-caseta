@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1512",
+    "MessageBodyType": "OneDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Device": {
+      "Name": "Keypad 2",
+      "DeviceType": "PalladiomKeypad",
+      "AssociatedArea": {
+        "href": "/area/804"
+      },
+      "AssociatedControlStation": {
+        "href": "/controlstation/849",
+        "Name": "Front Door"
+      },
+      "href": "/device/1512",
+      "Parent": {
+        "href": "/project"
+      },
+      "ModelNumber": "HQWT-U-P2W",
+      "LinkNodes": [
+        {
+          "href": "/device/1512/linknode/1514"
+        }
+      ],
+      "DeviceClass": {
+        "HexadecimalEncoding": "1210101"
+      },
+      "AddressedState": "Unaddressed"
+    }
+  }
+}

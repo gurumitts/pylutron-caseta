@@ -1,0 +1,94 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/851/buttongroup/expanded",
+    "MessageBodyType": "MultipleButtonGroupExpandedDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ButtonGroupsExpanded": [
+      {
+        "href": "/buttongroup/860",
+        "Parent": {
+          "href": "/device/851"
+        },
+        "SortOrder": 0,
+        "ProgrammingType": "Freeform",
+        "Buttons": [
+          {
+            "href": "/button/861",
+            "ButtonNumber": 1,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/862",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/860"
+            },
+            "Name": "Button 1",
+            "Engraving": {
+              "Text": "Foyer"
+            },
+            "AssociatedLED": {
+              "href": "/led/856"
+            }
+          },
+          {
+            "href": "/button/865",
+            "ButtonNumber": 2,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1876",
+              "ProgrammingModelType": "OpenStopCloseStopProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/860"
+            },
+            "Name": "Button 2",
+            "Engraving": {
+              "Text": "Shades"
+            },
+            "AssociatedLED": {
+              "href": "/led/857"
+            }
+          },
+          {
+            "href": "/button/869",
+            "ButtonNumber": 3,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/929",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/860"
+            },
+            "Name": "Button 3",
+            "Engraving": {
+              "Text": "Entertain"
+            },
+            "AssociatedLED": {
+              "href": "/led/858"
+            }
+          },
+          {
+            "href": "/button/873",
+            "ButtonNumber": 4,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/926",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/860"
+            },
+            "Name": "Button 4",
+            "Engraving": {
+              "Text": "Dimmed"
+            },
+            "AssociatedLED": {
+              "href": "/led/859"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

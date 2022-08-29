@@ -1,0 +1,30 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/32/associatedcontrolstation",
+    "MessageBodyType": "MultipleControlStationDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ControlStations": [
+      {
+        "href": "/controlstation/1407",
+        "Name": "Homeowner Keypad Loc",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "SortOrder": 0,
+        "AssociatedGangedDevices": [
+          {
+            "Device": {
+              "DeviceType": "HomeownerKeypad",
+              "href": "/device/1409",
+              "AddressedState": "Unaddressed"
+            },
+            "GangPosition": 0
+          }
+        ]
+      }
+    ]
+  }
+}

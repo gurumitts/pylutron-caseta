@@ -1,0 +1,38 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/1020/associatedzone",
+    "MessageBodyType": "MultipleZoneDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Zones": [
+      {
+        "href": "/zone/1744",
+        "Name": "Downlights",
+        "ControlType": "Dimmed",
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "SortOrder": 3
+      },
+      {
+        "href": "/zone/1313",
+        "Name": "Shade Group 1",
+        "ControlType": "Shade",
+        "Category": {
+          "Type": "",
+          "IsLight": false
+        },
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "SortOrder": 0
+      }
+    ]
+  }
+}
