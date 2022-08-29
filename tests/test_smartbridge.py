@@ -578,7 +578,7 @@ class Bridge:
             response_from_json_file(f"{hwqsx_response_path}device-list.json")
         )
         leap.requests.task_done()
-        
+
         # Subscribe request on /area/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
