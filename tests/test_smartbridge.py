@@ -474,7 +474,9 @@ class Bridge:
         assert request == Request(
             communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
         )
-        response.set_result(response_from_json_file("ra3/device-list.json"))
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}device-list.json")
+        )
         leap.requests.task_done()
 
         # Subscribe request on /area/status
@@ -482,7 +484,9 @@ class Bridge:
         assert request == Request(
             communique_type="SubscribeRequest", url="/area/status"
         )
-        response.set_result(response_from_json_file("ra3/area/status-subscribe.json"))
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}area/status-subscribe.json")
+        )
         leap.requests.task_done()
 
     async def _accept_connection_qsx(self, leap, wait):
@@ -545,6 +549,7 @@ class Bridge:
             )
             response.set_result(zone_result)
             leap.requests.task_done()
+
         # Read request on /zone/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
@@ -564,6 +569,25 @@ class Bridge:
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
 
+        # Read request on /device?where=IsThisDevice:false
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}device-list.json")
+        )
+        leap.requests.task_done()
+        
+        # Subscribe request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/area/status"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}area/status-subscribe.json")
+        )
+        leap.requests.task_done()
 
     def disconnect(self, exception=None):
         """Disconnect SmartBridge."""

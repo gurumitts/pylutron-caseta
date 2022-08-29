@@ -1,0 +1,59 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/status",
+    "MessageBodyType": "MultipleAreaStatus"
+  },
+  "CommuniqueType": "SubscribeResponse",
+  "Body": {
+    "AreaStatuses": [
+      {
+        "href": "/area/3/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/32/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/804/status",
+        "Level": 50,
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": {
+          "href": "/areascene/811"
+        }
+      },
+      {
+        "href": "/area/1008/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/1020/status",
+        "Level": 25,
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": {
+          "href": "/areascene/1028"
+        }
+      },
+      {
+        "href": "/area/1032/status",
+        "Level": 75,
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": {
+          "href": "/areascene/1038"
+        }
+      },
+      {
+        "href": "/area/1578/status",
+        "Level": 50,
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": {
+          "href": "/areascene/1585"
+        }
+      }
+    ]
+  }
+}

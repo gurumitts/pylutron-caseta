@@ -1,0 +1,683 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device?where=IsThisDevice:false",
+    "MessageBodyType": "MultipleDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Devices": [
+      {
+        "Name": "1",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1693",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1693/linknode/1698"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "6",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1728",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1728/linknode/1733"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "href": "/device/1397",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1397/linknode/1398"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "9110101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1830",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1830/linknode/1831"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Ho Kpd",
+        "DeviceType": "HomeownerKeypad",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/1407",
+          "Name": "Homeowner Keypad Loc"
+        },
+        "href": "/device/1409",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "Homeowner Keypad",
+        "LinkNodes": [
+          {
+            "href": "/device/1409/linknode/1411"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "11f0101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "3",
+        "DeviceType": "KetraA20",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "href": "/device/986",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-A20XXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/985"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/986/linknode/991"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Keypad 1",
+        "DeviceType": "PalladiomKeypad",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/849",
+          "Name": "Front Door"
+        },
+        "href": "/device/851",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQWT-U-P4W",
+        "LinkNodes": [
+          {
+            "href": "/device/851/linknode/853"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Keypad 2",
+        "DeviceType": "PalladiomKeypad",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/849",
+          "Name": "Front Door"
+        },
+        "href": "/device/1512",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQWT-U-P2W",
+        "LinkNodes": [
+          {
+            "href": "/device/1512/linknode/1514"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Device 1",
+        "DeviceType": "PalladiomKeypad",
+        "AssociatedArea": {
+          "href": "/area/1032"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/1658",
+          "Name": "Entryway"
+        },
+        "href": "/device/1660",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQWT-U-P4W",
+        "LinkNodes": [
+          {
+            "href": "/device/1660/linknode/1662"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1846",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1846/linknode/1847"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1838",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1838/linknode/1839"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1324",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1324/linknode/1325"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Clear Connect X Gateway 001",
+        "DeviceType": "HWQSProcessor",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "href": "/device/982",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQP7-RF",
+        "OwnedLinks": [
+          {
+            "href": "/link/984",
+            "LinkType": "ClearConnectTypeX"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/982/linknode/983"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "8100101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1842",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1842/linknode/1843"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Device 1",
+        "DeviceType": "PalladiomKeypad",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/1590",
+          "Name": "Entryway"
+        },
+        "href": "/device/1592",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQWT-U-P4W",
+        "LinkNodes": [
+          {
+            "href": "/device/1592/linknode/1594"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Device 1",
+        "DeviceType": "PalladiomKeypad",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/1624",
+          "Name": "Entryway"
+        },
+        "href": "/device/1626",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HQWT-U-P4W",
+        "LinkNodes": [
+          {
+            "href": "/device/1626/linknode/1628"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1811",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1811/linknode/1812"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "4",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1716",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1716/linknode/1721"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "5",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1722",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1722/linknode/1727"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "href": "/device/1373",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1373/linknode/1374"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1834",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1834/linknode/1835"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1850",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1850/linknode/1851"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "0"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "2",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1704",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1704/linknode/1709"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "href": "/device/829",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/829/linknode/830"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "9210101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1338",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1338/linknode/1339"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1797",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1797/linknode/1798"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "3",
+        "DeviceType": "KetraD3",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "href": "/device/1710",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HW-D3XXXXXXXXXXXXXXXXXXXX",
+        "LocalZones": [
+          {
+            "href": "/zone/1692"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/1710/linknode/1715"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "1b030101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Shade",
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "href": "/device/1352",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QS Shade",
+        "LinkNodes": [
+          {
+            "href": "/device/1352/linknode/1353"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "3010101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "Unknown",
+        "AssociatedArea": {
+          "href": "/area/32"
+        },
+        "href": "/device/1267",
+        "Parent": {
+          "href": "/project"
+        },
+        "LinkNodes": [
+          {
+            "href": "/device/1267/linknode/1268"
+          },
+          {
+            "href": "/device/1267/linknode/1270"
+          },
+          {
+            "href": "/device/1267/linknode/1272"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "92f0102"
+        },
+        "AddressedState": "Unaddressed"
+      }
+    ]
+  }
+}
