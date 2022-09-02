@@ -921,7 +921,7 @@ class Smartbridge:
         button_led_obj = button_json.get("AssociatedLED", None)
         if button_led_obj is not None:
             button_led = id_from_href(button_led_obj["href"])
-        if button_engraving is not None:
+        if button_engraving is not None and button_engraving["Text"]:
             button_name = button_engraving["Text"].replace("\n", " ")
         else:
             button_name = button_json["Name"]
@@ -956,7 +956,7 @@ class Smartbridge:
         """
         button = self.buttons[button_id]
         button_name = button["button_name"]
-        station_name = keypad_device["control_station_name"]
+        keypad_name = keypad_device["name"]
 
         self.devices.setdefault(
             button_led,
@@ -966,7 +966,7 @@ class Smartbridge:
                 "fan_speed": None,
             },
         ).update(
-            name="_".join((station_name, f"{button_name} LED")),
+            name="_".join((keypad_name, f"{button_name} LED")),
             type="KeypadLED",
             model="KeypadLED",
             serial=None,
