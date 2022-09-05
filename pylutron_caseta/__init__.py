@@ -67,6 +67,30 @@ _LEAP_DEVICE_TYPES = {
         "AlisseKeypad",
         "PalladiomKeypad",
     ],
+    "keypad": [
+        "SunnataKeypad",
+        "SeeTouchHybridKeypad",
+        "SeeTouchInternational",
+        "SeeTouchKeypad",
+        "HomeownerKeypad",
+        "GrafikTHybridKeypad",
+        "AlisseKeypad",
+        "PalladiomKeypad",
+    ],
+}
+
+KEYPAD_LED_STATE_UNKNOWN = -1
+KEYPAD_LED_STATE_ON = 100
+KEYPAD_LED_STATE_OFF = 0
+
+BUTTON_TYPE_RAISE = "Raise"
+BUTTON_TYPE_LOWER = "Lower"
+
+_KEYPAD_SPECIAL_BUTTON_MAP = {
+    "HQWT-U-PRW": {
+        16: BUTTON_TYPE_RAISE,
+        17: BUTTON_TYPE_LOWER,
+    },
 }
 
 FAN_OFF = "Off"
