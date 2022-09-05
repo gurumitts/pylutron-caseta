@@ -443,14 +443,13 @@ class Smartbridge:
         self, keypad_device_id: str, button_group_id: str, button_id: str, value: int
     ):
         """
-        Will set the value for a device with the given ID.
+        Set the value for a keypad LED with the given ID.
 
         :param device_id: device id to set the value on
         :param value: integer value from 0 to 100 to set
         :param fade_time: duration for the light to fade from its current value to the
         new value (only valid for lights)
         """
-
         keypad_device = self.devices.get(keypad_device_id)
         if keypad_device is not None:
             button_group = keypad_device["button_groups"].get(button_group_id)
@@ -469,14 +468,16 @@ class Smartbridge:
                         return
 
         _LOG.error(
-            f"received a set_led_value request for button ID {button_id} which doesn't exist or doesn't have an LED associated"
+            "received a set_led_value request for button ID %s "
+            "which doesn't exist or doesn't have an LED associated",
+            button_id,
         )
 
     async def turn_led_on(
         self, keypad_device_id: str, button_group_id: str, button_id: str
     ):
         """
-        Will turn 'on' the device with the given ID.
+        Turn 'on' the keypad LED with the given ID.
 
         :param device_id: device id to turn on
         :param **kwargs: additional parameters for set_value
@@ -487,7 +488,7 @@ class Smartbridge:
         self, keypad_device_id: str, button_group_id: str, button_id: str
     ):
         """
-        Will turn 'off' the device with the given ID.
+        Turn 'off' the keypad LED with the given ID.
 
         :param device_id: device id to turn off
         :param **kwargs: additional parameters for set_value
@@ -529,7 +530,7 @@ class Smartbridge:
                     )
                     return
 
-        _LOG.error(f"received a tap_button request for unknown button ID {button_id}")
+        _LOG.error("received a tap_button request for unknown button ID %s", button_id)
 
     def _get_zone_id(self, device_id: str) -> Optional[str]:
         """
@@ -650,36 +651,48 @@ class Smartbridge:
         state = KEYPAD_LED_STATE_ON if status["State"] == "On" else KEYPAD_LED_STATE_OFF
 
         if button_led_id not in self._led_device_map:
-            _LOG.error(f"received LED status update for unknown LED id {button_led_id}")
+            _LOG.error(
+                "received LED status update for unknown LED id %s", button_led_id
+            )
             return
-
-
-        
 
         device_id = self._led_device_map[button_led_id].get("keypad_device_id")
         button_group_id = self._led_device_map[button_led_id].get("button_group_id")
         button_id = self._led_device_map[button_led_id].get("button_id")
-        
+
         if device_id is None or button_group_id is None or button_id is None:
             _LOG.error(
-                f"_led_device_map consistency error: button_led_id = {button_led_id}, "
-                f"device_id = {device_id}, button_group_id = {button_group_id}, "
-                f"button_id = {button_id}"
+                "_led_device_map consistency error: button_led_id = %s, "
+                "device_id = %s, button_group_id = %s, button_id = %s",
+                button_led_id,
+                device_id,
+                button_group_id,
+                button_id,
             )
             return
-        
+
         device = self.devices.get(device_id)
-        
+
         if device is None:
-            _LOG.error(f"*** UNABLE TO FIND DEVICE ID {device_id}")
+            _LOG.error(
+                "unable to find device ID %s when handling button " "LED status update",
+                device_id,
+            )
             return
 
         if device["button_groups"].get(button_group_id) is None:
-            _LOG.error(f"*** UNABLE TO FIND BUTTON GROUP ID {button_group_id}")
+            _LOG.error(
+                "unable to find button group ID %s when handling "
+                "button LED status update",
+                button_group_id,
+            )
             return
-        
+
         if device["button_groups"][button_group_id]["buttons"].get(button_id) is None:
-            _LOG.error(f"*** UNABLE TO FIND BUTTON ID {button_id}")
+            _LOG.error(
+                "unable to find button ID %s when handling button LED status update",
+                button_id,
+            )
             return
 
         # Update state
@@ -956,11 +969,11 @@ class Smartbridge:
         :param station_name: name of this control station
         :param device_json: data structure describing the station device
         """
-        device_id = id_from_href(device_json["Device"]["href"])
-        device_type = device_json["Device"]["DeviceType"]
+        device_data = device_json.Body["Device"]
+        device_id = id_from_href(device_data["href"])
 
         # ignore non-keypad devices
-        if device_type not in _LEAP_DEVICE_TYPES.get("keypad"):
+        if device_data["DeviceType"] not in _LEAP_DEVICE_TYPES.get("keypad"):
             return
 
         # fetch button details for this device
@@ -972,19 +985,12 @@ class Smartbridge:
         if button_group_json.Body is None:
             return
 
-        device_json = await self._request("ReadRequest", f"/device/{device_id}")
-        device_name = device_json.Body["Device"]["Name"]
-        device_model = device_json.Body["Device"]["ModelNumber"]
-
-        if "SerialNumber" in device_json.Body["Device"]:
-            device_serial = device_json.Body["Device"]["SerialNumber"]
-        else:
-            device_serial = None
-
         button_groups = {}
         for group in button_group_json.Body["ButtonGroupsExpanded"]:
             button_group_id = id_from_href(group["href"])
-            buttons = await self._get_ra3_buttons_from_group(device_id, device_model, group)
+            buttons = await self._get_ra3_buttons_from_group(
+                device_id, device_data["ModelNumber"], group
+            )
             button_groups[button_group_id] = {
                 "button_group_id": button_group_id,
                 "buttons": buttons,
@@ -999,15 +1005,17 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name=device_name,  # ex: "Keypad 1"
+            name=device_data["Name"],  # ex: "Keypad 1"
             area_name=area_name,  # ex: "Foyer"
             control_station_name=station_name,  # ex: "Front Door Entry Wall"
             button_groups=button_groups,
-            type=device_type,  # ex: "PalladiomKeypad"
-            model=device_model,  # ex: "HQWT-U-P4W"
-            serial=device_serial,
+            type=device_data["DeviceType"],  # ex: "PalladiomKeypad"
+            model=device_data["ModelNumber"],  # ex: "HQWT-U-P4W"
+            serial=device_data["SerialNumber"]
+            if "SerialNumber" in device_data
+            else None,
         )
-        
+
         # Subscribe to button LEDs
         for button_group in button_groups.values():
             for button in button_group["buttons"].values():
@@ -1020,9 +1028,9 @@ class Smartbridge:
     ) -> Dict:
         """Create a dictionary of button data and associated LEDs.
 
-        :param keypad_device_id (str): Device ID of the keypad to which this button belongs
-        :param device_model (str): Model of the keypad to which this button belongs
-        :param button_group (Dict): Buttons in a button group
+        :param keypad_device_id (str): Device ID of the keypad for these buttons
+        :param device_model (str): Model of the keypad for these buttons
+        :param button_group (Dict): Button group
 
         Returns:
             buttons (Dict): Buttons with associated LEDs if applicable
