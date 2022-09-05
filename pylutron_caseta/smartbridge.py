@@ -969,8 +969,9 @@ class Smartbridge:
         :param station_name: name of this control station
         :param device_json: data structure describing the station device
         """
-        device_data = device_json.Body["Device"]
-        device_id = id_from_href(device_data["href"])
+        device_id = id_from_href(device_json["Device"]["href"])
+        keypad_device_json = await self._request("ReadRequest", f"/device/{device_id}")
+        device_data = keypad_device_json.Body["Device"]
 
         # ignore non-keypad devices
         if device_data["DeviceType"] not in _LEAP_DEVICE_TYPES.get("keypad"):
