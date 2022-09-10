@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2022-09-10
+
+### Changed
+- To match the previous behavior with Caseta, the `name` field on the button devices created for QSX and RadioRA 3 no longer contains the button name. The button name is still available in the `button_name` field.
+
 ## [0.15.0] - 2022-09-10
 
 ### Added
@@ -229,7 +234,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.0...v0.13.1
