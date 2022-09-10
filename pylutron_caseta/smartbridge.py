@@ -934,7 +934,7 @@ class Smartbridge:
                 "button_group": parent_id,
             },
         ).update(
-            name="_".join((keypad_device["name"], button_name)),
+            name=keypad_device["name"],
             type=keypad_device["type"],
             model=keypad_device["model"],
             serial=keypad_device["serial"],
