@@ -1,0 +1,70 @@
+{
+    "CommuniqueType": "SubscribeResponse",
+    "Header": {
+        "MessageBodyType": "MultipleZoneStatus",
+        "StatusCode": "200 OK",
+        "Url": "/zone/status"
+    },
+    "Body": {
+        "ZoneStatuses": [
+            {
+                "href": "/zone/536/status",
+                "Level": 0,
+                "SwitchedLevel": "Off",
+                "Zone": {
+                    "href": "/zone/536"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/1361/status",
+                "Level": 0,
+                "Zone": {
+                    "href": "/zone/1361"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/1377/status",
+                "Level": 0,
+                "Zone": {
+                    "href": "/zone/1377"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/1393/status",
+                "Level": 0,
+                "SwitchedLevel": "Off",
+                "Zone": {
+                    "href": "/zone/1393"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/2091/status",
+                "Level": 0,
+                "Zone": {
+                    "href": "/zone/2091"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/2107/status",
+                "Level": 0,
+                "Zone": {
+                    "href": "/zone/2107"
+                },
+                "StatusAccuracy": "Good"
+            },
+            {
+                "href": "/zone/2010/status",
+                "Level": 0,
+                "Zone": {
+                    "href": "/zone/2010"
+                },
+                "StatusAccuracy": "Good"
+            }
+        ]
+    }
+}

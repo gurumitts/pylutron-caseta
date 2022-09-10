@@ -1,0 +1,25 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleZoneDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/2796/associatedzone"
+    },
+    "Body": {
+        "Zones": [
+            {
+                "href": "/zone/2010",
+                "Name": "Porch",
+                "ControlType": "Dimmed",
+                "Category": {
+                    "Type": "",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/2796"
+                },
+                "SortOrder": 0
+            }
+        ]
+    }
+}

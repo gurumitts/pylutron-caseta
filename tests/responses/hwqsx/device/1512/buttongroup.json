@@ -1,0 +1,58 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1512/buttongroup/expanded",
+    "MessageBodyType": "MultipleButtonGroupExpandedDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ButtonGroupsExpanded": [
+      {
+        "href": "/buttongroup/1519",
+        "Parent": {
+          "href": "/device/1512"
+        },
+        "SortOrder": 0,
+        "ProgrammingType": "Freeform",
+        "Buttons": [
+          {
+            "href": "/button/1520",
+            "ButtonNumber": 1,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1913",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1519"
+            },
+            "Name": "Button 1",
+            "Engraving": {
+              "Text": "Welcome"
+            },
+            "AssociatedLED": {
+              "href": "/led/1517"
+            }
+          },
+          {
+            "href": "/button/1524",
+            "ButtonNumber": 4,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1916",
+              "ProgrammingModelType": "SingleActionProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1519"
+            },
+            "Name": "Button 4",
+            "Engraving": {
+              "Text": "Goodbye"
+            },
+            "AssociatedLED": {
+              "href": "/led/1518"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

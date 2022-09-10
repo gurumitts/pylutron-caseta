@@ -1,0 +1,125 @@
+{
+  "ZoneStatuses": [
+    {
+      "href": "/zone/816/status",
+      "Level": 0,
+      "Zone": {
+        "href": "/zone/816"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/838/status",
+      "Level": 0,
+      "Zone": {
+        "href": "/zone/838"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1150/status",
+      "Level": 75,
+      "Zone": {
+        "href": "/zone/1150"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1387/status",
+      "Level": 100,
+      "SwitchedLevel": "On",
+      "Zone": {
+        "href": "/zone/1387"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1735/status",
+      "Level": 50,
+      "Zone": {
+        "href": "/zone/1735"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1744/status",
+      "Level": 25,
+      "Zone": {
+        "href": "/zone/1744"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1313/status",
+      "Level": 50,
+      "Zone": {
+        "href": "/zone/1313"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1362/status",
+      "Level": 0,
+      "Zone": {
+        "href": "/zone/1362"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1786/status",
+      "Level": 0,
+      "Zone": {
+        "href": "/zone/1786"
+      },
+      "StatusAccuracy": "Bad"
+    },
+    {
+      "href": "/zone/985/status",
+      "Level": 0,
+      "Vibrancy": 25,
+      "ColorTuningStatus": {
+        "XYTuningLevel": {
+          "X": 0.5745,
+          "Y": 0.3984
+        },
+        "HSVTuningLevel": {
+          "Hue": 32,
+          "Saturation": 81
+        },
+        "CurveDimming": {
+          "Curve": {
+            "href": "/curve/1"
+          }
+        }
+      },
+      "Zone": {
+        "href": "/zone/985"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/1692/status",
+      "Level": 50,
+      "Vibrancy": 25,
+      "ColorTuningStatus": {
+        "XYTuningLevel": {
+          "X": 0.482,
+          "Y": 0.4152
+        },
+        "HSVTuningLevel": {
+          "Hue": 39,
+          "Saturation": 56
+        },
+        "CurveDimming": {
+          "Curve": {
+            "href": "/curve/1"
+          }
+        }
+      },
+      "Zone": {
+        "href": "/zone/1692"
+      },
+      "StatusAccuracy": "Good"
+    }
+  ]
+}

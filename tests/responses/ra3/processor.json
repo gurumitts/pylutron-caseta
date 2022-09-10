@@ -1,0 +1,49 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "MessageBodyType": "MultipleDeviceDefinition",
+    "StatusCode": "200 OK",
+    "Url": "/device?where=IsThisDevice:true"
+  },
+  "Body": {
+    "Devices": [
+      {
+        "href": "/device/104",
+        "Name": "Enclosure Device 001",
+        "Parent": { "href": "/project" },
+        "SerialNumber": 11111111,
+        "ModelNumber": "JanusProcRA3",
+        "DeviceType": "RadioRa3Processor",
+        "AssociatedArea": { "href": "/area/83" },
+        "OwnedLinks": [
+          { "href": "/link/108", "LinkType": "RF" },
+          { "href": "/link/106", "LinkType": "ClearConnectTypeX" }
+        ],
+        "LinkNodes": [
+          { "href": "/device/104/linknode/107" },
+          { "href": "/device/104/linknode/105" }
+        ],
+        "FirmwareImage": {
+          "Firmware": { "DisplayName": "21.07.18f000" },
+          "Installed": {
+            "Year": 2022,
+            "Month": 1,
+            "Day": 1,
+            "Hour": 0,
+            "Minute": 0,
+            "Second": 0,
+            "Utc": "-5:00:00"
+          }
+        },
+        "DeviceFirmwarePackage": {
+          "Package": { "DisplayName": "001.016.000r000" }
+        },
+        "NetworkInterfaces": [{ "MACAddress": "00:00:00:00:00:00" }],
+        "Databases": [{ "href": "/database/@Project", "Type": "Project" }],
+        "DeviceClass": { "HexadecimalEncoding": "81b0101" },
+        "AddressedState": "Addressed",
+        "IsThisDevice": true
+      }
+    ]
+  }
+}

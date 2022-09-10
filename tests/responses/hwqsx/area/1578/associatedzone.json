@@ -1,0 +1,57 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/1578/associatedzone",
+    "MessageBodyType": "MultipleZoneDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Zones": [
+      {
+        "href": "/zone/1735",
+        "Name": "Sconces",
+        "ControlType": "Dimmed",
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "SortOrder": 1
+      },
+      {
+        "href": "/zone/1786",
+        "Name": "Shade Group 1",
+        "ControlType": "Shade",
+        "Category": {
+          "Type": "",
+          "IsLight": false
+        },
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "SortOrder": 0
+      },
+      {
+        "href": "/zone/1692",
+        "Name": "Downlights",
+        "ControlType": "SpectrumTune",
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "SortOrder": 0,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1400,
+            "Max": 10000
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleZoneDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/83/associatedzone"
+    },
+    "Body": {
+        "Zones": [
+            {
+                "href": "/zone/536",
+                "Name": "Overhead",
+                "ControlType": "Switched",
+                "Category": {
+                    "Type": "OtherAmbient",
+                    "IsLight": true
+                },
+                "AssociatedArea": {
+                    "href": "/area/83"
+                },
+                "SortOrder": 0
+            }
+        ]
+    }
+}

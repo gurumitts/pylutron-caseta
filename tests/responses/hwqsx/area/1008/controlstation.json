@@ -1,0 +1,9 @@
+{
+  "Header": {
+    "StatusCode": "204 NoContent",
+    "Url": "/area/1008/associatedcontrolstation",
+    "MessageBodyType": null
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": null
+}

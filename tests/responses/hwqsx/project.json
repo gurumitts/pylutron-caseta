@@ -1,0 +1,42 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/project",
+    "MessageBodyType": "OneProjectDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Project": {
+      "href": "/project",
+      "Name": "LEAP Testing",
+      "ProductType": "Lutron HWQS Project",
+      "MasterDeviceList": {
+        "Devices": [
+          {
+            "href": "/device/799"
+          },
+          {
+            "href": "/device/982"
+          }
+        ]
+      },
+      "Contacts": [
+        {
+          "href": "/contactinfo/89"
+        }
+      ],
+      "TimeclockEventRules": {
+        "href": "/project/timeclockeventrules"
+      },
+      "ProjectModifiedTimestamp": {
+        "Year": 2022,
+        "Month": 8,
+        "Day": 13,
+        "Hour": 22,
+        "Minute": 58,
+        "Second": 16,
+        "Utc": "0"
+      }
+    }
+  }
+}

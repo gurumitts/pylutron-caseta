@@ -20,11 +20,14 @@ from typing import (
 
 import pytest
 
+from pylutron_caseta.leap import id_from_href
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
 from pylutron_caseta import (
+    _LEAP_DEVICE_TYPES,
     FAN_MEDIUM,
     OCCUPANCY_GROUP_OCCUPIED,
     OCCUPANCY_GROUP_UNOCCUPIED,
+    OCCUPANCY_GROUP_UNKNOWN,
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
     smartbridge,
@@ -32,6 +35,16 @@ from pylutron_caseta import (
 
 logging.getLogger().setLevel(logging.DEBUG)
 _LOG = logging.getLogger(__name__)
+
+CASETA_PROCESSOR = "Caseta"
+RA3_PROCESSOR = "RA3"
+HWQSX_PROCESSOR = "QSX"
+
+RESPONSE_PATH = {
+    CASETA_PROCESSOR: "",
+    RA3_PROCESSOR: "ra3/",
+    HWQSX_PROCESSOR: "hwqsx/",
+}
 
 
 def response_from_json_file(filename: str) -> Response:
@@ -145,6 +158,13 @@ class Bridge:
         self.button_subscription_data_result = response_from_json_file(
             "buttonsubscribe.json"
         )
+        self.button_led_subscription_data_result = response_from_json_file(
+            f"{RESPONSE_PATH[HWQSX_PROCESSOR]}ledsubscribe.json"
+        )
+        self.ra3_button_list = []
+        self.ra3_button_led_list = []
+        self.qsx_button_list = []
+        self.qsx_button_led_list = []
 
         async def fake_connect():
             """Open a fake LEAP connection for the test."""
@@ -154,7 +174,7 @@ class Bridge:
 
         self.target = smartbridge.Smartbridge(fake_connect)
 
-    async def initialize(self):
+    async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
         connect_task = asyncio.get_running_loop().create_task(self.target.connect())
         fake_leap = await self.connections.get()
@@ -172,7 +192,13 @@ class Bridge:
             result = await task
             return result
 
-        await self._accept_connection(fake_leap, wait)
+        if processor == CASETA_PROCESSOR:
+            await self._accept_connection(fake_leap, wait)
+        elif processor == RA3_PROCESSOR:
+            await self._accept_connection_ra3(fake_leap, wait)
+        elif processor == HWQSX_PROCESSOR:
+            await self._accept_connection_qsx(fake_leap, wait)
+
         await connect_task
 
         self.leap = fake_leap
@@ -180,43 +206,49 @@ class Bridge:
 
     async def _accept_connection(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
-        # First message should be read request on /device
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/device")
-        response.set_result(response_from_json_file("devices.json"))
-        leap.requests.task_done()
-
-        # Second message should be read request on /button
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/button")
-        response.set_result(self.button_list_result)
-        leap.requests.task_done()
-
-        # Third message should be read request on /server/2/id
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/server/2/id")
-        response.set_result(response_from_json_file("lip.json"))
-        leap.requests.task_done()
-
-        # Fourth message should be read request on /virtualbutton
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
-        response.set_result(response_from_json_file("scenes.json"))
-        leap.requests.task_done()
-
-        # Fifth message should be read request on /areas
+        # Read request on /areas
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
         response.set_result(response_from_json_file("areas.json"))
         leap.requests.task_done()
 
-        # Sixth message should be read request on /occupancygroup
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file("project.json"))
+        leap.requests.task_done()
+
+        # Read request on /device
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/device")
+        response.set_result(response_from_json_file("devices.json"))
+        leap.requests.task_done()
+
+        # Read request on /button
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/button")
+        response.set_result(self.button_list_result)
+        leap.requests.task_done()
+
+        # Read request on /server/2/id
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/server/2/id")
+        response.set_result(response_from_json_file("lip.json"))
+        leap.requests.task_done()
+
+        # Read request on /virtualbutton
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/virtualbutton")
+        response.set_result(response_from_json_file("scenes.json"))
+        leap.requests.task_done()
+
+        # Read request on /occupancygroup
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/occupancygroup")
         response.set_result(self.occupancy_group_list_result)
         leap.requests.task_done()
 
-        # Seventh message should be subscribe request on /occupancygroup/status
+        # Subscribe request on /occupancygroup/status
         request, response = await wait(leap.requests.get())
         assert request == Request(
             communique_type="SubscribeRequest", url="/occupancygroup/status"
@@ -224,7 +256,7 @@ class Bridge:
         response.set_result(self.occupancy_group_subscription_data_result)
         leap.requests.task_done()
 
-        # 8-10th message should be subscribe request on /button/{button}/status/event
+        # Subscribe request on /button/{button}/status/event
         for button in (
             re.sub(r".*/", "", button["href"])
             for button in self.button_list_result.Body.get("Buttons", [])
@@ -236,7 +268,7 @@ class Bridge:
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
 
-        # Finally, we should check the zone status on each zone
+        # Check the zone status on each zone
         requested_zones = []
         for _ in range(0, 4):
             request, response = await wait(leap.requests.get())
@@ -268,6 +300,294 @@ class Bridge:
             "/zone/3/status",
             "/zone/6/status",
         ]
+
+    async def _process_station(self, result, leap, wait, bridge_type):
+        if result.Body is None:
+            return
+
+        response_path = RESPONSE_PATH[bridge_type]
+
+        for station in result.Body.get("ControlStations", []):
+            for device in station.get("AssociatedGangedDevices", []):
+                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get(
+                    "sensor"
+                ):
+                    continue
+
+                device_id = re.sub(r".*/", "", device["Device"]["href"])
+                request, response = await wait(leap.requests.get())
+                assert request == Request(
+                    communique_type="ReadRequest",
+                    url=f"/device/{device_id}/buttongroup/expanded",
+                )
+                button_group_result = response_from_json_file(
+                    f"{response_path}device/{device_id}/buttongroup.json"
+                )
+                response.set_result(button_group_result)
+                leap.requests.task_done()
+
+                request, response = await wait(leap.requests.get())
+                assert request == Request(
+                    communique_type="ReadRequest", url=f"/device/{device_id}"
+                )
+                response.set_result(
+                    response_from_json_file(
+                        f"{response_path}device/{device_id}/device.json"
+                    )
+                )
+                leap.requests.task_done()
+
+                for group in button_group_result.Body["ButtonGroupsExpanded"]:
+                    for button in group["Buttons"]:
+                        if button.get("AssociatedLED", None) is not None:
+                            led_id = id_from_href(button["AssociatedLED"]["href"])
+                            request, response = await wait(leap.requests.get())
+                            assert request == Request(
+                                communique_type="SubscribeRequest",
+                                url=f"/led/{led_id}/status",
+                            )
+                            response.set_result(self.button_subscription_data_result)
+                            leap.requests.task_done()
+
+                self._populate_button_list_from_buttongroups(
+                    button_group_result.Body["ButtonGroupsExpanded"], bridge_type
+                )
+                self._populate_button_led_list_from_buttongroups(
+                    button_group_result.Body["ButtonGroupsExpanded"], bridge_type
+                )
+
+    def _populate_button_list_from_buttongroups(self, buttongroups, bridge_type):
+        """Add buttons from a set of buttongroups to the proper processor list
+        to support subscribe tests
+
+        Args:
+            buttongroups: A set of buttongroups
+            bridge_type: The bridge or processor type
+        """
+        buttons = []
+        buttons.extend(
+            [
+                id_from_href(button["href"])
+                for group in buttongroups
+                for button in group["Buttons"]
+            ]
+        )
+        if bridge_type == RA3_PROCESSOR:
+            self.ra3_button_list.extend(buttons)
+        elif bridge_type == HWQSX_PROCESSOR:
+            self.qsx_button_list.extend(buttons)
+
+    def _populate_button_led_list_from_buttongroups(self, buttongroups, bridge_type):
+        """Add button LEDs from a set of buttongroups to the proper processor list
+        to support subscribe tests
+
+        Args:
+            buttongroups: A set of buttongroups
+            bridge_type: The bridge or processor type
+        """
+        button_leds = []
+        for group in buttongroups:
+            for button in group["Buttons"]:
+                if button.get("AssociatedLED", None) is not None:
+                    button_leds.append(id_from_href(button["AssociatedLED"]["href"]))
+        if bridge_type == RA3_PROCESSOR:
+            self.ra3_button_led_list.extend(button_leds)
+        elif bridge_type == HWQSX_PROCESSOR:
+            self.qsx_button_led_list.extend(button_leds)
+
+    async def _accept_connection_ra3(self, leap, wait):
+        """Accept a connection from SmartBridge (implementation)."""
+        ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
+
+        # Read request on /areas
+        ra3_area_list_result = response_from_json_file(f"{ra3_response_path}areas.json")
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/area")
+        response.set_result(ra3_area_list_result)
+        leap.requests.task_done()
+
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(response_from_json_file(f"{ra3_response_path}project.json"))
+        leap.requests.task_done()
+
+        # Read request on /device?where=IsThisDevice:true
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
+        )
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}/processor.json")
+        )
+        leap.requests.task_done()
+
+        # Read request on each area's control stations & zones
+        for area_id in (
+            re.sub(r".*/", "", area["href"])
+            for area in ra3_area_list_result.Body.get("Areas", [])
+            if area["IsLeaf"]
+        ):
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest",
+                url=f"/area/{area_id}/associatedcontrolstation",
+            )
+            station_result = response_from_json_file(
+                f"{ra3_response_path}area/{area_id}/controlstation.json"
+            )
+            response.set_result(station_result)
+            leap.requests.task_done()
+            await self._process_station(station_result, leap, wait, RA3_PROCESSOR)
+
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
+            )
+            zone_result = response_from_json_file(
+                f"{ra3_response_path}area/{area_id}/associatedzone.json"
+            )
+            response.set_result(zone_result)
+            leap.requests.task_done()
+
+        # Read request on /zone/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/zone/status"
+        )
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}zonestatus.json")
+        )
+        leap.requests.task_done()
+
+        # Subscribe request on /button/{button}/status/event
+        for button in self.ra3_button_list:
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
+            )
+            response.set_result(self.button_subscription_data_result)
+            leap.requests.task_done()
+
+        # Read request on /device?where=IsThisDevice:false
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
+        )
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}device-list.json")
+        )
+        leap.requests.task_done()
+
+        # Subscribe request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/area/status"
+        )
+        response.set_result(
+            response_from_json_file(f"{ra3_response_path}area/status-subscribe.json")
+        )
+        leap.requests.task_done()
+
+    async def _accept_connection_qsx(self, leap, wait):
+        """Accept a connection as a mock QSX processor (implementation)."""
+        hwqsx_response_path = RESPONSE_PATH[HWQSX_PROCESSOR]
+
+        # Read request on /areas
+        qsx_area_list_result = response_from_json_file(
+            f"{hwqsx_response_path}areas.json"
+        )
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/area")
+        response.set_result(qsx_area_list_result)
+        leap.requests.task_done()
+
+        # Read request on /project
+        request, response = await wait(leap.requests.get())
+        assert request == Request(communique_type="ReadRequest", url="/project")
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}project.json")
+        )
+        leap.requests.task_done()
+
+        # Read request on /device?where=IsThisDevice:true
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}processor.json")
+        )
+        leap.requests.task_done()
+
+        # Read request on each area's control stations & zones
+        for area_id in (
+            re.sub(r".*/", "", area["href"])
+            for area in qsx_area_list_result.Body.get("Areas", [])
+            if area["IsLeaf"]
+        ):
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest",
+                url=f"/area/{area_id}/associatedcontrolstation",
+            )
+            station_result = response_from_json_file(
+                f"{hwqsx_response_path}area/{area_id}/controlstation.json"
+            )
+            response.set_result(station_result)
+            leap.requests.task_done()
+            await self._process_station(
+                station_result, leap, wait, bridge_type=HWQSX_PROCESSOR
+            )
+
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
+            )
+            zone_result = response_from_json_file(
+                f"{hwqsx_response_path}area/{area_id}/associatedzone.json"
+            )
+            response.set_result(zone_result)
+            leap.requests.task_done()
+
+        # Read request on /zone/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/zone/status"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}zonestatus.json")
+        )
+        leap.requests.task_done()
+
+        # Subscribe request on /button/{button}/status/event
+        for button in self.qsx_button_list:
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
+            )
+            response.set_result(self.button_subscription_data_result)
+            leap.requests.task_done()
+
+        # Read request on /device?where=IsThisDevice:false
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}device-list.json")
+        )
+        leap.requests.task_done()
+
+        # Subscribe request on /area/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/area/status"
+        )
+        response.set_result(
+            response_from_json_file(f"{hwqsx_response_path}area/status-subscribe.json")
+        )
+        leap.requests.task_done()
 
     def disconnect(self, exception=None):
         """Disconnect SmartBridge."""
@@ -309,7 +629,23 @@ async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
 @pytest.fixture(name="bridge")
 async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a bridge attached to a fake reader and writer."""
-    await bridge_uninit.initialize()
+    await bridge_uninit.initialize(CASETA_PROCESSOR)
+
+    yield bridge_uninit
+
+
+@pytest.fixture(name="ra3_bridge")
+async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+    """Create a RA3 bridge attached to a fake reader and writer."""
+    await bridge_uninit.initialize(RA3_PROCESSOR)
+
+    yield bridge_uninit
+
+
+@pytest.fixture(name="qsx_processor")
+async def fixture_bridge_qsx(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+    """Create a QSX processor attached to a fake reader and writer."""
+    await bridge_uninit.initialize(HWQSX_PROCESSOR)
 
     yield bridge_uninit
 
@@ -600,10 +936,10 @@ async def test_is_connected(bridge: Bridge):
 async def test_area_list(bridge: Bridge):
     """Test the list of areas loaded by the bridge."""
     expected_areas = {
-        "1": {"name": "root"},
-        "2": {"name": "Hallway"},
-        "3": {"name": "Living Room"},
-        "4": {"name": "Master Bathroom"},
+        "1": {"id": "1", "name": "root"},
+        "2": {"id": "2", "name": "Hallway"},
+        "3": {"id": "3", "name": "Living Room"},
+        "4": {"id": "4", "name": "Master Bathroom"},
     }
 
     assert bridge.target.areas == expected_areas
@@ -1187,3 +1523,1026 @@ async def test_reconnect_timeout(event_loop):
     task.cancel()
 
     await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_is_ra3_connected(ra3_bridge: Bridge):
+    """Test the is_connected method returns connection state."""
+    assert ra3_bridge.target.is_connected() is True
+
+    def connect():
+        raise NotImplementedError()
+
+    other = smartbridge.Smartbridge(connect)
+    assert other.is_connected() is False
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_notifications(ra3_bridge: Bridge):
+    """Test notifications are sent to subscribers."""
+    notified = False
+
+    def callback():
+        nonlocal notified
+        notified = True
+
+    ra3_bridge.target.add_subscriber("1377", callback)
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1337/status",
+            ),
+            Body={"ZoneStatus": {"Level": 100, "Zone": {"href": "/zone/1377"}}},
+        )
+    )
+    await asyncio.wait_for(ra3_bridge.leap.requests.join(), 10)
+    assert notified
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_device_list(ra3_bridge: Bridge):
+    """Test methods getting devices."""
+    devices = ra3_bridge.target.get_devices()
+    expected_devices = {
+        "1": {
+            "button_groups": None,
+            "current_state": -1,
+            "device_id": "1",
+            "fan_speed": None,
+            "model": "JanusProcRA3",
+            "name": "Equipment Room_Enclosure Device 001_RadioRa3Processor",
+            "serial": 11111111,
+            "type": None,
+            "zone": "1",
+        },
+        "1361": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1361",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Vanities",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "1361",
+        },
+        "1377": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1377",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Shower & Tub",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "1377",
+        },
+        "1393": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "1393",
+            "fan_speed": None,
+            "model": None,
+            "name": "Primary Bath_Vent",
+            "serial": None,
+            "tilt": None,
+            "type": "Switched",
+            "zone": "1393",
+        },
+        "1488": {
+            "button_groups": ["1491"],
+            "control_station_name": "Primary Bath_Entry",
+            "current_state": -1,
+            "device_id": "1488",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-A02",
+            "name": "Primary Bath_Entry_Audio Pico_Pico3ButtonRaiseLower",
+            "serial": None,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "2010": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2010",
+            "fan_speed": None,
+            "model": None,
+            "name": "Porch_Porch",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2010",
+        },
+        "2091": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2091",
+            "fan_speed": None,
+            "model": None,
+            "name": "Entry_Overhead",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2091",
+        },
+        "2107": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "2107",
+            "fan_speed": None,
+            "model": None,
+            "name": "Entry_Landscape",
+            "serial": None,
+            "tilt": None,
+            "type": "Dimmed",
+            "zone": "2107",
+        },
+        "2139": {
+            "button_groups": ["2148"],
+            "control_station_name": "Entry_Entry by Living Room",
+            "current_state": -1,
+            "device_id": "2139",
+            "fan_speed": None,
+            "model": "RRST-W4B-XX",
+            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad",
+            "serial": None,
+            "type": "SunnataKeypad",
+            "zone": None,
+        },
+        "2144": {
+            "current_state": -1,
+            "device_id": "2144",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Scene "
+            "Keypad_SunnataKeypad_Bright LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2145": {
+            "current_state": -1,
+            "device_id": "2145",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Scene "
+            "Keypad_SunnataKeypad_Entertain LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2146": {
+            "current_state": -1,
+            "device_id": "2146",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Scene "
+            "Keypad_SunnataKeypad_Dining LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2147": {
+            "current_state": -1,
+            "device_id": "2147",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad_Off " "LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2171": {
+            "button_groups": ["2180"],
+            "control_station_name": "Entry_Entry by Living Room",
+            "current_state": -1,
+            "device_id": "2171",
+            "fan_speed": None,
+            "model": "RRST-W4B-XX",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad",
+            "serial": None,
+            "type": "SunnataKeypad",
+            "zone": None,
+        },
+        "2176": {
+            "current_state": -1,
+            "device_id": "2176",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Fan "
+            "High LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2177": {
+            "current_state": -1,
+            "device_id": "2177",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Medium " "LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2178": {
+            "current_state": -1,
+            "device_id": "2178",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Low LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2179": {
+            "current_state": -1,
+            "device_id": "2179",
+            "fan_speed": None,
+            "model": "KeypadLED",
+            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Off LED",
+            "serial": None,
+            "type": "KeypadLED",
+            "zone": None,
+        },
+        "2939": {
+            "button_groups": ["2942"],
+            "control_station_name": "Primary Bath_Vanity",
+            "current_state": -1,
+            "device_id": "2939",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-A02",
+            "name": "Primary Bath_Vanity_Audio Pico_Pico3ButtonRaiseLower",
+            "serial": None,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "5341": {
+            "button_groups": ["5344"],
+            "control_station_name": "Equipment Room_TestingPico",
+            "current_state": -1,
+            "device_id": "5341",
+            "fan_speed": None,
+            "model": "PJ2-3BRL-XXX-L01",
+            "name": "Equipment "
+            "Room_TestingPico_TestingPicoDev_Pico3ButtonRaiseLower",
+            "serial": 68130838,
+            "type": "Pico3ButtonRaiseLower",
+            "zone": None,
+        },
+        "536": {
+            "button_groups": None,
+            "current_state": 0,
+            "device_id": "536",
+            "fan_speed": None,
+            "model": None,
+            "name": "Equipment Room_Overhead",
+            "serial": None,
+            "tilt": None,
+            "type": "Switched",
+            "zone": "536",
+        },
+    }
+
+    assert devices == expected_devices
+
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1377/status",
+            ),
+            Body={"ZoneStatus": {"Level": 100, "Zone": {"href": "/zone/1377"}}},
+        )
+    )
+
+    devices = ra3_bridge.target.get_devices()
+    assert devices["1377"]["current_state"] == 100
+    assert devices["1488"]["current_state"] == -1
+
+    devices = ra3_bridge.target.get_devices_by_domain("light")
+    assert len(devices) == 5
+    assert devices[0]["device_id"] == "1361"
+
+    devices = ra3_bridge.target.get_devices_by_type("Dimmed")
+    assert len(devices) == 5
+    assert devices[0]["device_id"] == "1361"
+
+    devices = ra3_bridge.target.get_devices_by_types(
+        ("Pico3ButtonRaiseLower", "Dimmed")
+    )
+    assert len(devices) == 8
+
+    device = ra3_bridge.target.get_device_by_id("2939")
+    assert device["device_id"] == "2939"
+
+    devices = ra3_bridge.target.get_devices_by_domain("fan")
+    assert len(devices) == 0
+
+    devices = ra3_bridge.target.get_devices_by_type("CasetaFanSpeedController")
+    assert len(devices) == 0
+
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_area_list(ra3_bridge: Bridge):
+    """Test the list of areas loaded by the bridge."""
+    expected_areas = {
+        "2796": {"id": "2796", "name": "Porch"},
+        "547": {"id": "547", "name": "Primary Bath"},
+        "766": {"id": "766", "name": "Entry"},
+        "83": {"id": "83", "name": "Equipment Room"},
+    }
+
+    assert ra3_bridge.target.areas == expected_areas
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_button_status_change(ra3_bridge: Bridge):
+    """Test that the status is updated when Pico button is pressed."""
+    ra3_bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/2946/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/2946"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
+            },
+        )
+    )
+    new_status = ra3_bridge.target.buttons["2946"]["current_state"]
+    assert new_status == BUTTON_STATUS_PRESSED
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_button_status_change_notification(ra3_bridge: Bridge):
+    """Test that button status changes send notifications."""
+    notified = False
+
+    def notify(status):
+        assert status == BUTTON_STATUS_PRESSED
+        nonlocal notified
+        notified = True
+
+    ra3_bridge.target.add_button_subscriber("2946", notify)
+    ra3_bridge.leap.send_to_subscribers(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneButtonStatusEvent",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/button/2946/status/event",
+            ),
+            Body={
+                "ButtonStatus": {
+                    "Button": {"href": "/button/2946"},
+                    "ButtonEvent": {"EventType": "Press"},
+                }
+            },
+        )
+    )
+    assert notified
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_is_on(ra3_bridge: Bridge):
+    """Test the is_on method returns device state."""
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/2107/status",
+            ),
+            Body={"ZoneStatus": {"Level": 50, "Zone": {"href": "/zone/2107"}}},
+        )
+    )
+
+    assert ra3_bridge.target.is_on("2107") is True
+
+    ra3_bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/2107/status",
+            ),
+            Body={"ZoneStatus": {"Level": 0, "Zone": {"href": "/zone/2107"}}},
+        )
+    )
+
+    assert ra3_bridge.target.is_on("2107") is False
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
+    """Test that setting values produces the right commands."""
+    print("BORE1")
+    task = event_loop.create_task(ra3_bridge.target.set_value("2107", 50))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 50}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 50,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        )
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+
+    task = event_loop.create_task(ra3_bridge.target.turn_on("2107"))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 100}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 100,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        ),
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+
+    task = event_loop.create_task(ra3_bridge.target.turn_off("2107"))
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToLevel",
+                "Parameter": [{"Type": "Level", "Value": 0}],
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/2107/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/2107/status",
+                    "Level": 0,
+                    "Zone": {"href": "/zone/2107"},
+                }
+            },
+        ),
+    )
+    ra3_bridge.leap.requests.task_done()
+    await task
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
+    """Test that setting values with fade_time produces the right commands."""
+    task = event_loop.create_task(
+        ra3_bridge.target.set_value("2107", 50, fade_time=timedelta(seconds=4))
+    )
+    command, _ = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/2107/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToDimmedLevel",
+                "DimmedLevelParameters": {"Level": 50, "FadeTime": "00:00:04"},
+            }
+        },
+    )
+    ra3_bridge.leap.requests.task_done()
+    task.cancel()
+    await ra3_bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
+    """Test that setting the value of a keypad LED produces the right command."""
+    task = event_loop.create_task(qsx_processor.target.set_value("1631", 50))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="UpdateRequest",
+        url="/led/1631/status",
+        body={"LEDStatus": {"State": "On"}},
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the level of a Ketra lamp without a fade time produces the
+    right command.
+    """
+    task = event_loop.create_task(qsx_processor.target.set_value("985", 50))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {"Level": 50},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the level of a Ketra lamp with a fade time produces the
+    right command.
+    """
+    task = event_loop.create_task(
+        qsx_processor.target.set_value("985", 50, fade_time=timedelta(seconds=4))
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {"Level": 50, "FadeTime": "00:00:04"},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_tap_button(qsx_processor: Bridge, event_loop):
+    """Test that tapping a keypad button produces the right command."""
+    task = event_loop.create_task(qsx_processor.target.tap_button("1422"))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/button/1422/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "PressAndRelease",
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_button_led_notification(qsx_processor: Bridge):
+    """Test button LED status events are sent to subscribers."""
+    notified = False
+
+    def callback():
+        nonlocal notified
+        notified = True
+
+    qsx_processor.target.add_subscriber("1631", callback)
+    qsx_processor.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneLEDStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/led/1631/status",
+            ),
+            Body={
+                "LEDStatus": {
+                    "href": "/led/1631/status",
+                    "LED": {"href": "/led/1631"},
+                    "State": "On",
+                }
+            },
+        )
+    )
+    await asyncio.wait_for(qsx_processor.leap.requests.join(), 10)
+    assert notified
+
+
+@pytest.mark.asyncio
+async def test_qsx_get_buttons(qsx_processor: Bridge):
+    """Test that the get_buttons function returns the expected value."""
+    buttons = qsx_processor.target.get_buttons()
+    expected_buttons = {
+        "1422": {
+            "button_group": "1421",
+            "button_led": "1414",
+            "button_name": "Button 1",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "1422",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 1",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1425": {
+            "button_group": "1421",
+            "button_led": "1415",
+            "button_name": "Button 2",
+            "button_number": 2,
+            "current_state": "Release",
+            "device_id": "1425",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 2",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1428": {
+            "button_group": "1421",
+            "button_led": "1416",
+            "button_name": "Button 3",
+            "button_number": 3,
+            "current_state": "Release",
+            "device_id": "1428",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 3",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1431": {
+            "button_group": "1421",
+            "button_led": "1417",
+            "button_name": "Button 4",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "1431",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 4",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1434": {
+            "button_group": "1421",
+            "button_led": "1418",
+            "button_name": "Button 5",
+            "button_number": 5,
+            "current_state": "Release",
+            "device_id": "1434",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 5",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1437": {
+            "button_group": "1421",
+            "button_led": "1419",
+            "button_name": "Button 6",
+            "button_number": 6,
+            "current_state": "Release",
+            "device_id": "1437",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Button 6",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1440": {
+            "button_group": "1421",
+            "button_led": "1420",
+            "button_name": "Vacation Mode",
+            "button_number": 7,
+            "current_state": "Release",
+            "device_id": "1440",
+            "model": "Homeowner Keypad",
+            "name": "Equipment Room_Homeowner Keypad Loc_Ho "
+            "Kpd_HomeownerKeypad_Vacation Mode",
+            "serial": None,
+            "type": "HomeownerKeypad",
+        },
+        "1520": {
+            "button_group": "1519",
+            "button_led": "1517",
+            "button_name": "Welcome",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "1520",
+            "model": "HQWT-U-P2W",
+            "name": "Foyer_Front Door_Keypad 2_PalladiomKeypad_Welcome",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1524": {
+            "button_group": "1519",
+            "button_led": "1518",
+            "button_name": "Goodbye",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "1524",
+            "model": "HQWT-U-P2W",
+            "name": "Foyer_Front Door_Keypad 2_PalladiomKeypad_Goodbye",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1602": {
+            "button_group": "1601",
+            "button_led": "1597",
+            "button_name": "Living Room",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "1602",
+            "model": "HQWT-U-P4W",
+            "name": "Living Room_Entryway_Device 1_PalladiomKeypad_Living Room",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1606": {
+            "button_group": "1601",
+            "button_led": "1598",
+            "button_name": "Shades",
+            "button_number": 2,
+            "current_state": "Release",
+            "device_id": "1606",
+            "model": "HQWT-U-P4W",
+            "name": "Living Room_Entryway_Device 1_PalladiomKeypad_Shades",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1610": {
+            "button_group": "1601",
+            "button_led": "1599",
+            "button_name": "Entertain",
+            "button_number": 3,
+            "current_state": "Release",
+            "device_id": "1610",
+            "model": "HQWT-U-P4W",
+            "name": "Living Room_Entryway_Device 1_PalladiomKeypad_Entertain",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1614": {
+            "button_group": "1601",
+            "button_led": "1600",
+            "button_name": "Relax",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "1614",
+            "model": "HQWT-U-P4W",
+            "name": "Living Room_Entryway_Device 1_PalladiomKeypad_Relax",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1636": {
+            "button_group": "1635",
+            "button_led": "1631",
+            "button_name": "Bedroom",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "1636",
+            "model": "HQWT-U-P4W",
+            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad_Bedroom",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1640": {
+            "button_group": "1635",
+            "button_led": "1632",
+            "button_name": "Shades",
+            "button_number": 2,
+            "current_state": "Release",
+            "device_id": "1640",
+            "model": "HQWT-U-P4W",
+            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad_Shades",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1644": {
+            "button_group": "1635",
+            "button_led": "1633",
+            "button_name": "Bright",
+            "button_number": 3,
+            "current_state": "Release",
+            "device_id": "1644",
+            "model": "HQWT-U-P4W",
+            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad_Bright",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1648": {
+            "button_group": "1635",
+            "button_led": "1634",
+            "button_name": "Dimmed",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "1648",
+            "model": "HQWT-U-P4W",
+            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad_Dimmed",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1670": {
+            "button_group": "1669",
+            "button_led": "1665",
+            "button_name": "Bathroom",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "1670",
+            "model": "HQWT-U-P4W",
+            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad_Bathroom",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1674": {
+            "button_group": "1669",
+            "button_led": "1666",
+            "button_name": "Fan",
+            "button_number": 2,
+            "current_state": "Release",
+            "device_id": "1674",
+            "model": "HQWT-U-P4W",
+            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad_Fan",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1678": {
+            "button_group": "1669",
+            "button_led": "1667",
+            "button_name": "Bright",
+            "button_number": 3,
+            "current_state": "Release",
+            "device_id": "1678",
+            "model": "HQWT-U-P4W",
+            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad_Bright",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "1682": {
+            "button_group": "1669",
+            "button_led": "1668",
+            "button_name": "Dimmed",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "1682",
+            "model": "HQWT-U-P4W",
+            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad_Dimmed",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "861": {
+            "button_group": "860",
+            "button_led": "856",
+            "button_name": "Foyer",
+            "button_number": 1,
+            "current_state": "Release",
+            "device_id": "861",
+            "model": "HQWT-U-P4W",
+            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad_Foyer",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "865": {
+            "button_group": "860",
+            "button_led": "857",
+            "button_name": "Shades",
+            "button_number": 2,
+            "current_state": "Release",
+            "device_id": "865",
+            "model": "HQWT-U-P4W",
+            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad_Shades",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "869": {
+            "button_group": "860",
+            "button_led": "858",
+            "button_name": "Entertain",
+            "button_number": 3,
+            "current_state": "Release",
+            "device_id": "869",
+            "model": "HQWT-U-P4W",
+            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad_Entertain",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+        "873": {
+            "button_group": "860",
+            "button_led": "859",
+            "button_name": "Dimmed",
+            "button_number": 4,
+            "current_state": "Release",
+            "device_id": "873",
+            "model": "HQWT-U-P4W",
+            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad_Dimmed",
+            "serial": None,
+            "type": "PalladiomKeypad",
+        },
+    }
+    assert buttons == expected_buttons
+
+
+@pytest.mark.asyncio
+async def test_get_devices_by_invalid_domain(bridge: Bridge):
+    """Tests that getting devices for an invalid domain returns an empty list."""
+    devices = bridge.target.get_devices_by_domain("this_is_an_invalid_domain")
+    assert devices == []
+
+
+@pytest.mark.asyncio
+async def test_qsx_get_devices_for_invalid_zone(qsx_processor: Bridge):
+    """Tests that getting devices for an invalid zone raises an exception."""
+    try:
+        _ = qsx_processor.target.get_device_by_zone_id("2")
+        assert False
+    except KeyError:
+        assert True
+
+
+@pytest.mark.asyncio
+async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
+    """Test the list of occupancy groups loaded by the bridge."""
+    # Occupancy group 766 has multiple sensor devices, but should only appear once
+    expected_groups = {
+        "766": {
+            "occupancy_group_id": "766",
+            "name": "Entry Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1870", "1888"],
+        },
+        "2796": {
+            "occupancy_group_id": "2796",
+            "name": "Porch Occupancy",
+            "status": OCCUPANCY_GROUP_UNKNOWN,
+            "sensors": ["1970"],
+        },
+    }
+
+    assert ra3_bridge.target.occupancy_groups == expected_groups

@@ -1,0 +1,17 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/led/1631/status",
+    "MessageBodyType": "OneLEDStatus"
+  },
+  "CommuniqueType": "SubscribeResponse",
+  "Body": {
+    "LEDStatus": {
+      "href": "/led/1631/status",
+      "LED": {
+        "href": "/led/1631"
+      },
+      "State": "On"
+    }
+  }
+}

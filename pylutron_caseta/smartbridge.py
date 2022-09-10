@@ -1,4 +1,4 @@
-"""Provides an API to interact with the Lutron Caseta Smart Bridge."""
+"""Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
 from datetime import timedelta
@@ -6,7 +6,7 @@ import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -18,6 +18,7 @@ from . import (
     _LEAP_DEVICE_TYPES,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
+    RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
     BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
@@ -153,11 +154,11 @@ class Smartbridge:
         self._button_subscribers[button_id] = callback_
 
     def get_devices(self) -> Dict[str, dict]:
-        """Will return all known devices connected to the Smart Bridge."""
+        """Will return all known devices connected to the bridge/processor."""
         return self.devices
 
     def get_buttons(self) -> Dict[str, dict]:
-        """Will return all known Pico buttons connected to the Smart Bridge."""
+        """Will return all known buttons connected to the bridge/processor."""
         return self.buttons
 
     def get_devices_by_domain(self, domain: str) -> List[dict]:
@@ -294,8 +295,36 @@ class Smartbridge:
         """
         device = self.devices[device_id]
 
+        # Handle keypad LEDs which don't have a zone ID associated
+        if device.get("type") == "KeypadLED":
+            target_state = "On" if value > 0 else "Off"
+            await self._request(
+                "UpdateRequest",
+                f"/led/{device_id}/status",
+                {"LEDStatus": {"State": target_state}},
+            )
+            return
+
+        # All other device types must have an associated zone ID
         zone_id = device.get("zone")
         if not zone_id:
+            return
+
+        # Handle Ketra lamps
+        if device.get("type") == "SpectrumTune":
+            params = {"Level": value}  # type: Dict[str, Union[str, int]]
+            if fade_time is not None:
+                params["FadeTime"] = _format_duration(fade_time)
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToSpectrumTuningLevel",
+                        "SpectrumTuningLevelParameters": params,
+                    }
+                },
+            )
             return
 
         if device.get("type") in _LEAP_DEVICE_TYPES["light"] and fade_time is not None:
@@ -429,6 +458,19 @@ class Smartbridge:
                 {"Command": {"CommandType": "PressAndRelease"}},
             )
 
+    async def tap_button(self, button_id: str):
+        """
+        Send a press and release message for the given button ID.
+
+        :param button_id: button ID, e.g. 23
+        """
+        if button_id in self.buttons:
+            await self._request(
+                "CreateRequest",
+                f"/button/{button_id}/commandprocessor",
+                {"Command": {"CommandType": "PressAndRelease"}},
+            )
+
     def _get_zone_id(self, device_id: str) -> Optional[str]:
         """
         Return the zone id for an given device.
@@ -497,18 +539,21 @@ class Smartbridge:
                 self._leap = None
 
     def _handle_one_zone_status(self, response: Response):
+        _LOG.debug("Handling single zone status: %s", response)
         body = response.Body
         if body is None:
             return
+        self._handle_zone_status(body["ZoneStatus"])
 
-        status = body["ZoneStatus"]
+    def _handle_zone_status(self, status):
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
-        device["current_state"] = level
+        if level >= 0:
+            device["current_state"] = level
         device["fan_speed"] = fan_speed
         device["tilt"] = tilt
         if device["device_id"] in self._subscribers:
@@ -528,6 +573,36 @@ class Smartbridge:
             # Notify any subscribers of the change to button status
             if button_id in self._button_subscribers:
                 self._button_subscribers[button_id](button_event)
+
+    def _handle_button_led_status(self, response: Response):
+        """
+        Handle events for button LED status changes.
+
+        :param response: processor response with event
+        """
+        _LOG.debug("Handling button LED status: %s", response)
+
+        if response.Body is None:
+            return
+
+        status = response.Body["LEDStatus"]
+        button_led_id = id_from_href(status["LED"]["href"])
+        state = 100 if status["State"] == "On" else 0
+
+        if button_led_id in self.devices:
+            self.devices[button_led_id]["current_state"] = state
+            # Notify any subscribers of the change to LED status
+            if button_led_id in self._subscribers:
+                self._subscribers[button_led_id]()
+
+    def _handle_multi_zone_status(self, response: Response):
+        _LOG.debug("Handling multi zone status: %s", response)
+
+        if response.Body is None:
+            return
+
+        for zonestatus in response.Body["ZoneStatuses"]:
+            self._handle_zone_status(zonestatus)
 
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
@@ -554,32 +629,92 @@ class Smartbridge:
             if occgroup_id in self._occupancy_subscribers:
                 self._occupancy_subscribers[occgroup_id]()
 
+    def _handle_ra3_occupancy_group_status(self, response: Response):
+        _LOG.debug("Handling ra3 occupancy status: %s", response)
+
+        if response.Body is None:
+            return
+
+        statuses = response.Body.get("AreaStatuses", [])
+        for status in statuses:
+            occgroup_id = id_from_href(status["href"])
+            if occgroup_id.endswith("/status"):
+                occgroup_id = occgroup_id[:-7]
+            # Check to see if the OccupancyStatus Key exists in the response.
+            # Sometimes in just responds swith the CurrentScene key
+            if "OccupancyStatus" in status:
+                ostat = status["OccupancyStatus"]
+                if occgroup_id not in self.occupancy_groups:
+                    if ostat != OCCUPANCY_GROUP_UNKNOWN:
+                        _LOG.debug(
+                            "Occupancy group %s has a status but no sensors",
+                            occgroup_id,
+                        )
+                    continue
+                if ostat == OCCUPANCY_GROUP_UNKNOWN:
+                    _LOG.warning(
+                        "Occupancy group %s has sensors but no status", occgroup_id
+                    )
+                self.occupancy_groups[occgroup_id]["status"] = ostat
+                # Notify any subscribers of the change to occupancy status
+                if occgroup_id in self._occupancy_subscribers:
+                    self._occupancy_subscribers[occgroup_id]()
+
     def _handle_unsolicited(self, response: Response):
         if (
             response.CommuniqueType == "ReadResponse"
             and response.Header.MessageBodyType == "OneZoneStatus"
         ):
             self._handle_one_zone_status(response)
+        elif (
+            response.CommuniqueType == "ReadResponse"
+            and response.Header.MessageBodyType == "OneLEDStatus"
+        ):
+            self._handle_button_led_status(response)
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         try:
-            await self._load_devices()
-            await self._load_buttons()
-            await self._load_lip_devices()
-            await self._load_scenes()
             await self._load_areas()
-            await self._load_occupancy_groups()
-            await self._subscribe_to_occupancy_groups()
-            await self._subscribe_to_button_status()
 
-            for device in self.devices.values():
-                if device.get("zone") is not None:
-                    _LOG.debug("Requesting zone information from %s", device)
-                    response = await self._request(
-                        "ReadRequest", f"/zone/{device['zone']}/status"
-                    )
-                    self._handle_one_zone_status(response)
+            # Read /project to determine bridge type
+            project_json = await self._request("ReadRequest", "/project")
+            project = project_json.Body["Project"]
+
+            if (
+                project["ProductType"] == "Lutron RadioRA 3 Project"
+                or project["ProductType"] == "Lutron HWQS Project"
+            ):
+
+                # RadioRa3 or HomeWorks QSX Processor device detected
+                _LOG.debug("RA3 or QSX processor detected")
+
+                # Load processor as devices[1] for compatibility with lutron_caseta HA
+                # integration
+                await self._load_ra3_processor()
+                await self._load_ra3_devices()
+                await self._subscribe_to_button_status()
+                await self._load_ra3_occupancy_groups()
+                await self._subscribe_to_ra3_occupancy_groups()
+            else:
+                # Caseta Bridge Device detected
+                _LOG.debug("Caseta bridge detected")
+
+                await self._load_devices()
+                await self._load_buttons()
+                await self._load_lip_devices()
+                await self._load_scenes()
+                await self._load_occupancy_groups()
+                await self._subscribe_to_occupancy_groups()
+                await self._subscribe_to_button_status()
+
+                for device in self.devices.values():
+                    if device.get("zone") is not None:
+                        _LOG.debug("Requesting zone information from %s", device)
+                        response = await self._request(
+                            "ReadRequest", f"/zone/{device['zone']}/status"
+                        )
+                        self._handle_one_zone_status(response)
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
@@ -609,6 +744,11 @@ class Smartbridge:
         """Load the device list from the SSL LEAP server interface."""
         _LOG.debug("Loading devices")
         device_json = await self._request("ReadRequest", "/device")
+
+        # If /device has no body, this probably isn't Caseta
+        if device_json.Body is None:
+            return
+
         for device in device_json.Body["Devices"]:
             _LOG.debug(device)
             device_id = id_from_href(device["href"])
@@ -644,6 +784,221 @@ class Smartbridge:
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
+            )
+
+    async def _load_ra3_devices(self):
+
+        for area in self.areas.values():
+            await self._load_ra3_control_stations(area)
+            await self._load_ra3_zones(area)
+
+        # caseta does this by default, but we need to do it manually for RA3
+        await self._subscribe_to_multi_zone_status()
+
+    async def _load_ra3_processor(self):
+        # Load processor as devices[1] for compatibility with lutron_caseta HA
+        # integration
+
+        processor_json = await self._request(
+            "ReadRequest", "/device?where=IsThisDevice:true"
+        )
+        if processor_json.Body is None:
+            return
+
+        processor = processor_json.Body["Devices"][0]
+        processor_area = self.areas[processor["AssociatedArea"]["href"].split("/")[2]][
+            "name"
+        ]
+
+        level = -1
+        device_id = "1"
+        fan_speed = None
+        zone_type = None
+        self.devices.setdefault(
+            device_id,
+            {"device_id": device_id, "current_state": level, "fan_speed": fan_speed},
+        ).update(
+            zone=device_id,
+            name="_".join((processor_area, processor["Name"], processor["DeviceType"])),
+            button_groups=None,
+            type=zone_type,
+            model=processor["ModelNumber"],
+            serial=processor["SerialNumber"],
+        )
+
+    async def _load_ra3_control_stations(self, area):
+        """
+        Load and process the control stations for an area.
+
+        :param area: data structure describing the area
+        """
+        area_id = area["id"]
+        area_name = area["name"]
+        station_json = await self._request(
+            "ReadRequest", f"/area/{area_id}/associatedcontrolstation"
+        )
+        if station_json.Body is None:
+            return
+        station_json = station_json.Body["ControlStations"]
+        for station in station_json:
+            station_name = station["Name"]
+            ganged_devices_json = station["AssociatedGangedDevices"]
+
+            combined_name = "_".join((area_name, station_name))
+
+            for device_json in ganged_devices_json:
+                await self._load_ra3_station_device(combined_name, device_json)
+
+    async def _load_ra3_station_device(self, control_station_name, device_json):
+        """
+        Load button groups and buttons for a control station device.
+
+        :param control_station_name: the name of the control station
+        :param device_json: data structure describing the station device
+        """
+        device_id = id_from_href(device_json["Device"]["href"])
+        device_type = device_json["Device"]["DeviceType"]
+
+        # ignore non-button devices
+        if device_type not in _LEAP_DEVICE_TYPES.get("sensor"):
+            return
+
+        button_group_json = await self._request(
+            "ReadRequest", f"/device/{device_id}/buttongroup/expanded"
+        )
+
+        # ignore button devices without buttons
+        if button_group_json.Body is None:
+            return
+
+        device_json = await self._request("ReadRequest", f"/device/{device_id}")
+        device_name = device_json.Body["Device"]["Name"]
+        device_model = device_json.Body["Device"]["ModelNumber"]
+
+        if "SerialNumber" in device_json.Body["Device"]:
+            device_serial = device_json.Body["Device"]["SerialNumber"]
+        else:
+            device_serial = None
+
+        button_groups = [
+            id_from_href(group["href"])
+            for group in button_group_json.Body["ButtonGroupsExpanded"]
+        ]
+
+        self.devices.setdefault(
+            device_id,
+            {
+                "device_id": device_id,
+                "current_state": -1,
+                "fan_speed": None,
+            },
+        ).update(
+            zone=None,
+            name="_".join((control_station_name, device_name, device_type)),
+            control_station_name=control_station_name,
+            button_groups=button_groups,
+            type=device_type,
+            model=device_model,
+            serial=device_serial,
+        )
+
+        for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
+            for button_json in button_expanded_json["Buttons"]:
+                await self._load_ra3_button(button_json, self.devices[device_id])
+
+    async def _load_ra3_button(self, button_json, keypad_device):
+        """
+        Create button device and load associated button LEDs.
+
+        :param button_json: data structure describing this button
+        :param device: data structure describing the keypad device
+        """
+        button_id = id_from_href(button_json["href"])
+        button_number = button_json["ButtonNumber"]
+        button_engraving = button_json.get("Engraving", None)
+        parent_id = id_from_href(button_json["Parent"]["href"])
+        button_led = None
+        button_led_obj = button_json.get("AssociatedLED", None)
+        if button_led_obj is not None:
+            button_led = id_from_href(button_led_obj["href"])
+        if button_engraving is not None and button_engraving["Text"]:
+            button_name = button_engraving["Text"].replace("\n", " ")
+        else:
+            button_name = button_json["Name"]
+        self.buttons.setdefault(
+            button_id,
+            {
+                "device_id": button_id,
+                "current_state": BUTTON_STATUS_RELEASED,
+                "button_number": button_number,
+                "button_group": parent_id,
+            },
+        ).update(
+            name="_".join((keypad_device["name"], button_name)),
+            type=keypad_device["type"],
+            model=keypad_device["model"],
+            serial=keypad_device["serial"],
+            button_name=button_name,
+            button_led=button_led,
+        )
+
+        # Load the button LED details
+        if button_led is not None:
+            await self._load_ra3_button_led(button_led, button_id, keypad_device)
+
+    async def _load_ra3_button_led(self, button_led, button_id, keypad_device):
+        """
+        Create an LED device from a given LEAP button ID.
+
+        :param button_led: LED ID of the button LED
+        :param button_id: device ID of the associated button
+        :param keypad_device: keypad device to which the LED belongs
+        """
+        button = self.buttons[button_id]
+        button_name = button["button_name"]
+        keypad_name = keypad_device["name"]
+
+        self.devices.setdefault(
+            button_led,
+            {
+                "device_id": button_led,
+                "current_state": -1,
+                "fan_speed": None,
+            },
+        ).update(
+            name="_".join((keypad_name, f"{button_name} LED")),
+            type="KeypadLED",
+            model="KeypadLED",
+            serial=None,
+            zone=None,
+        )
+        await self._subscribe_to_button_led_status(button_led)
+
+    async def _load_ra3_zones(self, area):
+        # For each area, process zones.  They will masquerade as devices
+        area_id = area["id"]
+        zone_json = await self._request(
+            "ReadRequest", f"/area/{area_id}/associatedzone"
+        )
+        if zone_json.Body is None:
+            return
+        zone_json = zone_json.Body["Zones"]
+        for zone in zone_json:
+            level = zone.get("Level", -1)
+            zone_id = id_from_href(zone["href"])
+            fan_speed = zone.get("FanSpeed", None)
+            zone_name = zone["Name"]
+            zone_type = zone["ControlType"]
+            self.devices.setdefault(
+                zone_id,
+                {"device_id": zone_id, "current_state": level, "fan_speed": fan_speed},
+            ).update(
+                zone=zone_id,
+                name="_".join((area["name"], zone_name)),
+                button_groups=None,
+                type=zone_type,
+                model=None,
+                serial=None,
             )
 
     async def _load_lip_devices(self):
@@ -723,10 +1078,12 @@ class Smartbridge:
         """Load the areas from the Smart Bridge."""
         _LOG.debug("Loading areas from the Smart Bridge")
         area_json = await self._request("ReadRequest", "/area")
+        # We only need leaf nodes in RA3
         for area in area_json.Body["Areas"]:
-            area_id = id_from_href(area["href"])
-            # We currently only need the name, so just load that
-            self.areas.setdefault(area_id, dict(name=area["Name"]))
+            if area.get("IsLeaf", True):
+                area_id = id_from_href(area["href"])
+                # We currently only need the name, so just load that
+                self.areas.setdefault(area_id, dict(id=area_id, name=area["Name"]))
 
     async def _load_occupancy_groups(self):
         """Load the occupancy groups from the Smart Bridge."""
@@ -786,9 +1143,61 @@ class Smartbridge:
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
         )
 
+    async def _load_ra3_occupancy_groups(self):
+        """Load the devices from the bridge and filter for occupancy sensors."""
+        _LOG.debug("Finding occupancy sensors from bridge")
+        occdevice_json = await self._request(
+            "ReadRequest", "/device?where=IsThisDevice:false"
+        )
+        if occdevice_json.Body is None:
+            return
+
+        occdevices = occdevice_json.Body.get("Devices", {})
+        for occdevice in occdevices:
+            if occdevice["DeviceType"] in RA3_OCCUPANCY_SENSOR_DEVICE_TYPES:
+                self._process_ra3_occupancy_group(occdevice)
+
+    def _process_ra3_occupancy_group(self, occdevice):
+        """Process ra3 occupancy group."""
+        occdevice_id = id_from_href(occdevice["href"])
+        associated_area = occdevice["AssociatedArea"]
+        occgroup_area_id = id_from_href(associated_area["href"])
+
+        if occgroup_area_id not in self.areas:
+            _LOG.error(
+                "Unknown parent area for occupancy group %s: %s",
+                occdevice_id,
+                occgroup_area_id,
+            )
+            return
+
+        occgroup = self.occupancy_groups.setdefault(
+            occgroup_area_id,
+            dict(
+                occupancy_group_id=occgroup_area_id,
+                status=OCCUPANCY_GROUP_UNKNOWN,
+                sensors=[],
+                name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
+            ),
+        )
+        occgroup["sensors"].append(occdevice_id)
+
+    async def _subscribe_to_ra3_occupancy_groups(self):
+        """Subscribe to ra3 occupancy group (area) status updates."""
+        _LOG.debug("Subscribing to occupancy group (ra3: area) status updates")
+        try:
+            response, _ = await self._subscribe(
+                "/area/status", self._handle_ra3_occupancy_group_status
+            )
+            _LOG.debug("Subscribed to occupancygroup status")
+        except BridgeResponseError as ex:
+            _LOG.error("Failed occupancy subscription: %s", ex.response)
+            return
+        self._handle_ra3_occupancy_group_status(response)
+
     async def _subscribe_to_button_status(self):
-        """Subscribe to pico button status updates."""
-        _LOG.debug("Subscribing to pico button status updates")
+        """Subscribe to button status updates."""
+        _LOG.debug("Subscribing to button status updates")
         try:
             for button in self.buttons:
                 response, _ = await self._subscribe(
@@ -797,6 +1206,22 @@ class Smartbridge:
                 )
                 _LOG.debug("Subscribed to button %s status", button)
                 self._handle_button_status(response)
+        except BridgeResponseError as ex:
+            _LOG.error("Failed device status subscription: %s", ex.response)
+            return
+
+    async def _subscribe_to_button_led_status(self, button_led_id):
+        """Subscribe to button LED status updates."""
+        _LOG.debug(
+            "Subscribing to button LED status updates for LED ID %s", button_led_id
+        )
+        try:
+            response, _ = await self._subscribe(
+                f"/led/{button_led_id}/status",
+                self._handle_button_led_status,
+            )
+            _LOG.debug("Subscribed to button LED %s status", button_led_id)
+            self._handle_button_led_status(response)
         except BridgeResponseError as ex:
             _LOG.error("Failed device status subscription: %s", ex.response)
             return
@@ -813,6 +1238,19 @@ class Smartbridge:
             _LOG.error("Failed occupancy subscription: %s", ex.response)
             return
         self._handle_occupancy_group_status(response)
+
+    async def _subscribe_to_multi_zone_status(self):
+        """Subscribe to multi-zone status updates - RA3."""
+        _LOG.debug("Subscribing to multi-zone status updates")
+        try:
+            response, _ = await self._subscribe(
+                "/zone/status", self._handle_multi_zone_status
+            )
+            _LOG.debug("Subscribed to zone status")
+        except BridgeResponseError as ex:
+            _LOG.error("Failed zone subscription: %s", ex.response)
+            return
+        self._handle_multi_zone_status(response)
 
     async def close(self):
         """Disconnect from the bridge."""

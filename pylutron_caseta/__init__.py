@@ -5,15 +5,31 @@ from typing import Optional
 from .messages import Response, ResponseStatus
 
 _LEAP_DEVICE_TYPES = {
-    "light": ["WallDimmer", "PlugInDimmer"],
+    "light": [
+        "WallDimmer",
+        "PlugInDimmer",
+        "InLineDimmer",
+        "SunnataDimmer",
+        "TempInWallPaddleDimmer",
+        "WallDimmerWithPreset",
+        "Dimmed",
+        "SpectrumTune",  # Ketra lamps
+    ],
     "switch": [
         "WallSwitch",
         "OutdoorPlugInSwitch",
         "PlugInSwitch",
+        "InLineSwitch",
+        "PowPakSwitch",
+        "SunnataSwitch",
+        "TempInWallPaddleSwitch",
+        "Switched",
+        "KeypadLED",
     ],
     "fan": [
         "CasetaFanSpeedController",
         "MaestroFanSpeedController",
+        "FanSpeed",
     ],
     "cover": [
         "SerenaHoneycombShade",
@@ -21,6 +37,10 @@ _LEAP_DEVICE_TYPES = {
         "TriathlonHoneycombShade",
         "TriathlonRollerShade",
         "QsWirelessShade",
+        "QsWirelessHorizontalSheerBlind",
+        "QsWirelessWoodBlind",
+        "RightDrawDrape",
+        "Shade",
         "SerenaTiltOnlyWoodBlind",
     ],
     "sensor": [
@@ -34,6 +54,18 @@ _LEAP_DEVICE_TYPES = {
         "Pico4ButtonZone",
         "Pico4Button2Group",
         "FourGroupRemote",
+        "SeeTouchTabletopKeypad",
+        "SunnataKeypad",
+        "SunnataKeypad_2Button",
+        "SunnataKeypad_3ButtonRaiseLower",
+        "SunnataKeypad_4Button",
+        "SeeTouchHybridKeypad",
+        "SeeTouchInternational",
+        "SeeTouchKeypad",
+        "HomeownerKeypad",
+        "GrafikTHybridKeypad",
+        "AlisseKeypad",
+        "PalladiomKeypad",
     ],
 }
 
@@ -46,6 +78,11 @@ FAN_HIGH = "High"
 OCCUPANCY_GROUP_OCCUPIED = "Occupied"
 OCCUPANCY_GROUP_UNOCCUPIED = "Unoccupied"
 OCCUPANCY_GROUP_UNKNOWN = "Unknown"
+
+RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
+    "RPSOccupancySensor",
+    "RPSCeilingMountedOccupancySensor",
+]
 
 BUTTON_STATUS_PRESSED = "Press"
 BUTTON_STATUS_RELEASED = "Release"

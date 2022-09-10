@@ -1,0 +1,38 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/1032/associatedzone",
+    "MessageBodyType": "MultipleZoneDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Zones": [
+      {
+        "href": "/zone/1150",
+        "Name": "Downlight",
+        "ControlType": "Dimmed",
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/1032"
+        },
+        "SortOrder": 0
+      },
+      {
+        "href": "/zone/1387",
+        "Name": "Exhaust Fan",
+        "ControlType": "Switched",
+        "Category": {
+          "Type": "NotALight",
+          "IsLight": false
+        },
+        "AssociatedArea": {
+          "href": "/area/1032"
+        },
+        "SortOrder": 1
+      }
+    ]
+  }
+}

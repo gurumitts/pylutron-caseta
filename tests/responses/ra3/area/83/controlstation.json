@@ -1,0 +1,48 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleControlStationDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/83/associatedcontrolstation"
+    },
+    "Body": {
+        "ControlStations": [
+            {
+                "href": "/controlstation/527",
+                "Name": "Entry",
+                "AssociatedArea": {
+                    "href": "/area/83"
+                },
+                "SortOrder": 0,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/529",
+                            "DeviceType": "SunnataSwitch",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 0
+                    }
+                ]
+            },
+            {
+                "href": "/controlstation/5339",
+                "Name": "TestingPico",
+                "AssociatedArea": {
+                    "href": "/area/83"
+                },
+                "SortOrder": 1,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/5341",
+                            "DeviceType": "Pico3ButtonRaiseLower",
+                            "AddressedState": "Addressed"
+                        },
+                        "GangPosition": 0
+                    }
+                ]
+            }
+        ]
+    }
+}

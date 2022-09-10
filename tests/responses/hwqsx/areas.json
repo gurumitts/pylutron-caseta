@@ -1,0 +1,72 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area",
+    "MessageBodyType": "MultipleAreaDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Areas": [
+      {
+        "href": "/area/3",
+        "Name": "LEAP Testing",
+        "SortOrder": 0,
+        "IsLeaf": false
+      },
+      {
+        "href": "/area/32",
+        "Name": "Equipment Room",
+        "Parent": {
+          "href": "/area/3"
+        },
+        "SortOrder": 0,
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/804",
+        "Name": "Foyer",
+        "Parent": {
+          "href": "/area/3"
+        },
+        "SortOrder": 1,
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/1008",
+        "Name": "Primary Suite",
+        "Parent": {
+          "href": "/area/3"
+        },
+        "SortOrder": 3,
+        "IsLeaf": false
+      },
+      {
+        "href": "/area/1020",
+        "Name": "Bedroom 1",
+        "Parent": {
+          "href": "/area/1008"
+        },
+        "SortOrder": 0,
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/1032",
+        "Name": "Bathroom 1",
+        "Parent": {
+          "href": "/area/1008"
+        },
+        "SortOrder": 1,
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/1578",
+        "Name": "Living Room",
+        "Parent": {
+          "href": "/area/3"
+        },
+        "SortOrder": 2,
+        "IsLeaf": true
+      }
+    ]
+  }
+}

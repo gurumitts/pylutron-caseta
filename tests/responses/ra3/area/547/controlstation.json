@@ -1,0 +1,72 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleControlStationDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/547/associatedcontrolstation"
+    },
+    "Body": {
+        "ControlStations": [
+            {
+                "href": "/controlstation/1352",
+                "Name": "Entry",
+                "AssociatedArea": {
+                    "href": "/area/547"
+                },
+                "SortOrder": 0,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/1354",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 0
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/1370",
+                            "DeviceType": "SunnataDimmer",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 1
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/1386",
+                            "DeviceType": "SunnataSwitch",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 2
+                    },
+                    {
+                        "Device": {
+                            "href": "/device/1488",
+                            "DeviceType": "Pico3ButtonRaiseLower",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 3
+                    }
+                ]
+            },
+            {
+                "href": "/controlstation/2937",
+                "Name": "Vanity",
+                "AssociatedArea": {
+                    "href": "/area/547"
+                },
+                "SortOrder": 1,
+                "AssociatedGangedDevices": [
+                    {
+                        "Device": {
+                            "href": "/device/2939",
+                            "DeviceType": "Pico3ButtonRaiseLower",
+                            "AddressedState": "Unaddressed"
+                        },
+                        "GangPosition": 0
+                    }
+                ]
+            }
+        ]
+    }
+}

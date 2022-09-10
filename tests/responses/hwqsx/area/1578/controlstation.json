@@ -1,0 +1,30 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/1578/associatedcontrolstation",
+    "MessageBodyType": "MultipleControlStationDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ControlStations": [
+      {
+        "href": "/controlstation/1590",
+        "Name": "Entryway",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "SortOrder": 0,
+        "AssociatedGangedDevices": [
+          {
+            "Device": {
+              "DeviceType": "PalladiomKeypad",
+              "href": "/device/1592",
+              "AddressedState": "Unaddressed"
+            },
+            "GangPosition": 0
+          }
+        ]
+      }
+    ]
+  }
+}

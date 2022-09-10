@@ -1,0 +1,54 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "MultipleAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area"
+    },
+    "Body": {
+        "Areas": [
+            {
+                "href": "/area/3",
+                "Name": "Home",
+                "SortOrder": 0,
+                "IsLeaf": false
+            },
+            {
+                "href": "/area/83",
+                "Name": "Equipment Room",
+                "Parent": {
+                    "href": "/area/3"
+                },
+                "SortOrder": 0,
+                "IsLeaf": true
+            },
+            {
+                "href": "/area/547",
+                "Name": "Primary Bath",
+                "Parent": {
+                    "href": "/area/3"
+                },
+                "SortOrder": 2,
+                "IsLeaf": true
+            },
+            {
+                "href": "/area/766",
+                "Name": "Entry",
+                "Parent": {
+                    "href": "/area/3"
+                },
+                "SortOrder": 15,
+                "IsLeaf": true
+            },
+            {
+                "href": "/area/2796",
+                "Name": "Porch",
+                "Parent": {
+                    "href": "/area/3"
+                },
+                "SortOrder": 28,
+                "IsLeaf": true
+            }
+        ]
+    }
+}
