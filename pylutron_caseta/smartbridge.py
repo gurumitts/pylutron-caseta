@@ -632,7 +632,7 @@ class Smartbridge:
 
         # legacy buttons (Pico)
         if button_id in self.buttons:
-            _LOG.info("processing legacy button event on id %s", button_id)
+            _LOG.debug("processing legacy button event on id %s", button_id)
             self.buttons[button_id]["current_state"] = button_event
             # Notify any subscribers of the change to button status
             if button_id in self._button_subscribers:
@@ -640,7 +640,7 @@ class Smartbridge:
 
         # RA3/HWQSX buttons (control station devices)
         if button_id in self._ra3_button_map:
-            _LOG.info("processing RA3/HWQSX button event on id %s", button_id)
+            _LOG.debug("processing RA3/HWQSX button event on id %s", button_id)
             device_id = self._ra3_button_map[button_id].get("keypad_device_id")
             button_group_id = self._ra3_button_map[button_id].get("button_group_id")
 
@@ -1087,6 +1087,16 @@ class Smartbridge:
         """
         button_group_id = id_from_href(button_group["href"])
         buttons: Dict[str, dict] = {}
+
+        if button_group.get("Buttons") is None:
+            _LOG.info(
+                "Encountered a keypad button group with no buttons, "
+                "keypad id = %s, button group id = %s, model = %s",
+                keypad_device_id,
+                button_group_id,
+                device_model,
+            )
+            return buttons
 
         for button_json in button_group["Buttons"]:
             button_id = id_from_href(button_json["href"])
