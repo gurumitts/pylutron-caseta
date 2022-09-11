@@ -59,7 +59,9 @@ class Smartbridge:
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
         self._led_device_map: Dict[str, dict] = {}
-        self._ra3_button_map: Dict[str, dict] = {} # Maps buttons back to parent devices
+        self._ra3_button_map: Dict[
+            str, dict
+        ] = {}  # Maps buttons back to parent devices
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.

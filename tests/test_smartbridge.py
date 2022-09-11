@@ -309,7 +309,9 @@ class Bridge:
 
         for station in result.Body.get("ControlStations", []):
             for device in station.get("AssociatedGangedDevices", []):
-                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get("keypad"):
+                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get(
+                    "keypad"
+                ):
                     _LOG.debug("Control station is not a known keypad type - skipping")
                     continue
 
@@ -1992,7 +1994,9 @@ async def test_ra3_button_status_change(ra3_bridge: Bridge):
         )
     )
 
-    new_status = ra3_bridge.target.devices["2939"]["button_groups"]["2942"]["buttons"]["2946"]["current_state"]
+    new_status = ra3_bridge.target.devices["2939"]["button_groups"]["2942"]["buttons"][
+        "2946"
+    ]["current_state"]
     assert new_status == BUTTON_STATUS_PRESSED
     await ra3_bridge.target.close()
 
@@ -2007,7 +2011,7 @@ async def test_ra3_button_status_change_notification(ra3_bridge: Bridge):
         assert status == BUTTON_STATUS_PRESSED
         nonlocal button_notified
         button_notified = True
-        
+
     def keypad_notify():
         nonlocal keypad_notified
         keypad_notified = True
@@ -2194,7 +2198,9 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
 @pytest.mark.asyncio
 async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
     """Test that setting the value of a keypad LED produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.turn_led_on("1626","1635","1636"))
+    task = event_loop.create_task(
+        qsx_processor.target.turn_led_on("1626", "1635", "1636")
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="UpdateRequest",
@@ -2257,7 +2263,9 @@ async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
 @pytest.mark.asyncio
 async def test_qsx_tap_button(qsx_processor: Bridge, event_loop):
     """Test that tapping a keypad button produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.tap_button("1409", "1421", "1422"))
+    task = event_loop.create_task(
+        qsx_processor.target.tap_button("1409", "1421", "1422")
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",

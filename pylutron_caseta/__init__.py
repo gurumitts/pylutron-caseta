@@ -43,7 +43,7 @@ _LEAP_DEVICE_TYPES = {
         "Shade",
         "SerenaTiltOnlyWoodBlind",
     ],
-    "sensor": [ # Legacy button device support
+    "sensor": [  # Legacy button device support
         "Pico1Button",
         "Pico2Button",
         "Pico2ButtonRaiseLower",
@@ -55,7 +55,7 @@ _LEAP_DEVICE_TYPES = {
         "Pico4Button2Group",
         "FourGroupRemote",
     ],
-    "keypad": [ # New control station support
+    "keypad": [  # New control station support
         "SeeTouchTabletopKeypad",
         "SunnataKeypad",
         "SeeTouchHybridKeypad",
