@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1982",
+    "MessageBodyType": "OneDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Device": {
+      "Name": "Device 1",
+      "DeviceType": "PalladiomKeypad",
+      "AssociatedArea": {
+        "href": "/area/1578"
+      },
+      "AssociatedControlStation": {
+        "href": "/controlstation/1980",
+        "Name": "Back Door"
+      },
+      "href": "/device/1982",
+      "Parent": {
+        "href": "/project"
+      },
+      "ModelNumber": "HQWT-U-PRW",
+      "LinkNodes": [
+        {
+          "href": "/device/1982/linknode/1984"
+        }
+      ],
+      "DeviceClass": {
+        "HexadecimalEncoding": "1210101"
+      },
+      "AddressedState": "Unaddressed"
+    }
+  }
+}

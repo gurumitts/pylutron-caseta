@@ -43,7 +43,7 @@ _LEAP_DEVICE_TYPES = {
         "Shade",
         "SerenaTiltOnlyWoodBlind",
     ],
-    "sensor": [
+    "sensor": [ # Legacy button device support
         "Pico1Button",
         "Pico2Button",
         "Pico2ButtonRaiseLower",
@@ -54,20 +54,9 @@ _LEAP_DEVICE_TYPES = {
         "Pico4ButtonZone",
         "Pico4Button2Group",
         "FourGroupRemote",
-        "SeeTouchTabletopKeypad",
-        "SunnataKeypad",
-        "SunnataKeypad_2Button",
-        "SunnataKeypad_3ButtonRaiseLower",
-        "SunnataKeypad_4Button",
-        "SeeTouchHybridKeypad",
-        "SeeTouchInternational",
-        "SeeTouchKeypad",
-        "HomeownerKeypad",
-        "GrafikTHybridKeypad",
-        "AlisseKeypad",
-        "PalladiomKeypad",
     ],
-    "keypad": [
+    "keypad": [ # New control station support
+        "SeeTouchTabletopKeypad",
         "SunnataKeypad",
         "SeeTouchHybridKeypad",
         "SeeTouchInternational",
@@ -83,13 +72,20 @@ KEYPAD_LED_STATE_UNKNOWN = -1
 KEYPAD_LED_STATE_ON = 100
 KEYPAD_LED_STATE_OFF = 0
 
+# Special button types that can't be labeled by the user
 BUTTON_TYPE_RAISE = "Raise"
 BUTTON_TYPE_LOWER = "Lower"
 
+# Identifies special buttons on keypads that aren't user-programmable
+# such as raise and lower buttons
 _KEYPAD_SPECIAL_BUTTON_MAP = {
     "HQWT-U-PRW": {
         16: BUTTON_TYPE_RAISE,
         17: BUTTON_TYPE_LOWER,
+    },
+    "RRST-W3RL-XX": {
+        18: BUTTON_TYPE_LOWER,
+        19: BUTTON_TYPE_RAISE,
     },
 }
 

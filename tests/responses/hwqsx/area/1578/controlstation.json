@@ -24,6 +24,24 @@
             "GangPosition": 0
           }
         ]
+      },
+      {
+        "href": "/controlstation/1980",
+        "Name": "Back Door",
+        "AssociatedArea": {
+          "href": "/area/1578"
+        },
+        "SortOrder": 1,
+        "AssociatedGangedDevices": [
+          {
+            "Device": {
+              "DeviceType": "PalladiomKeypad",
+              "href": "/device/1982",
+              "AddressedState": "Unaddressed"
+            },
+            "GangPosition": 0
+          }
+        ]
       }
     ]
   }

@@ -309,22 +309,11 @@ class Bridge:
 
         for station in result.Body.get("ControlStations", []):
             for device in station.get("AssociatedGangedDevices", []):
-                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get(
-                    "sensor"
-                ):
+                if device["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get("keypad"):
+                    _LOG.debug("Control station is not a known keypad type - skipping")
                     continue
 
                 device_id = re.sub(r".*/", "", device["Device"]["href"])
-                request, response = await wait(leap.requests.get())
-                assert request == Request(
-                    communique_type="ReadRequest",
-                    url=f"/device/{device_id}/buttongroup/expanded",
-                )
-                button_group_result = response_from_json_file(
-                    f"{response_path}device/{device_id}/buttongroup.json"
-                )
-                response.set_result(button_group_result)
-                leap.requests.task_done()
 
                 request, response = await wait(leap.requests.get())
                 assert request == Request(
@@ -337,8 +326,27 @@ class Bridge:
                 )
                 leap.requests.task_done()
 
+                request, response = await wait(leap.requests.get())
+                assert request == Request(
+                    communique_type="ReadRequest",
+                    url=f"/device/{device_id}/buttongroup/expanded",
+                )
+                button_group_result = response_from_json_file(
+                    f"{response_path}device/{device_id}/buttongroup.json"
+                )
+                response.set_result(button_group_result)
+                leap.requests.task_done()
+
                 for group in button_group_result.Body["ButtonGroupsExpanded"]:
                     for button in group["Buttons"]:
+                        request, response = await wait(leap.requests.get())
+                        assert request == Request(
+                            communique_type="SubscribeRequest",
+                            url=f"{button['href']}/status/event",
+                        )
+                        response.set_result(self.button_subscription_data_result)
+                        leap.requests.task_done()
+
                         if button.get("AssociatedLED", None) is not None:
                             led_id = id_from_href(button["AssociatedLED"]["href"])
                             request, response = await wait(leap.requests.get())
@@ -460,15 +468,6 @@ class Bridge:
         )
         leap.requests.task_done()
 
-        # Subscribe request on /button/{button}/status/event
-        for button in self.ra3_button_list:
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
-            )
-            response.set_result(self.button_subscription_data_result)
-            leap.requests.task_done()
-
         # Read request on /device?where=IsThisDevice:false
         request, response = await wait(leap.requests.get())
         assert request == Request(
@@ -559,15 +558,6 @@ class Bridge:
             response_from_json_file(f"{hwqsx_response_path}zonestatus.json")
         )
         leap.requests.task_done()
-
-        # Subscribe request on /button/{button}/status/event
-        for button in self.qsx_button_list:
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
-            )
-            response.set_result(self.button_subscription_data_result)
-            leap.requests.task_done()
 
         # Read request on /device?where=IsThisDevice:false
         request, response = await wait(leap.requests.get())
@@ -1570,12 +1560,15 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
     devices = ra3_bridge.target.get_devices()
     expected_devices = {
         "1": {
+            "area_name": "Equipment Room",
             "button_groups": None,
             "current_state": -1,
             "device_id": "1",
+            "device_type": "RadioRa3Processor",
             "fan_speed": None,
             "model": "JanusProcRA3",
             "name": "Equipment Room_Enclosure Device 001_RadioRa3Processor",
+            "processor_name": "Enclosure Device 001",
             "serial": 11111111,
             "type": None,
             "zone": "1",
@@ -1617,13 +1610,55 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "zone": "1393",
         },
         "1488": {
-            "button_groups": ["1491"],
-            "control_station_name": "Primary Bath_Entry",
+            "area_name": "Primary Bath",
+            "button_groups": {
+                "1491": {
+                    "button_group_id": "1491",
+                    "buttons": {
+                        "1492": {
+                            "button_number": 0,
+                            "device_id": "1492",
+                            "led": None,
+                            "name": "Play/Pause",
+                            "state": "Release",
+                        },
+                        "1495": {
+                            "button_number": 1,
+                            "device_id": "1495",
+                            "led": None,
+                            "name": "Favorite",
+                            "state": "Release",
+                        },
+                        "1498": {
+                            "button_number": 2,
+                            "device_id": "1498",
+                            "led": None,
+                            "name": "Next Track",
+                            "state": "Release",
+                        },
+                        "1501": {
+                            "button_number": 3,
+                            "device_id": "1501",
+                            "led": None,
+                            "name": "Volume Up",
+                            "state": "Release",
+                        },
+                        "1504": {
+                            "button_number": 4,
+                            "device_id": "1504",
+                            "led": None,
+                            "name": "Volume Down",
+                            "state": "Release",
+                        },
+                    },
+                }
+            },
+            "control_station_name": "Entry",
             "current_state": -1,
             "device_id": "1488",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-A02",
-            "name": "Primary Bath_Entry_Audio Pico_Pico3ButtonRaiseLower",
+            "name": "Audio Pico",
             "serial": None,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
@@ -1665,134 +1700,203 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "zone": "2107",
         },
         "2139": {
-            "button_groups": ["2148"],
-            "control_station_name": "Entry_Entry by Living Room",
+            "area_name": "Entry",
+            "button_groups": {
+                "2148": {
+                    "button_group_id": "2148",
+                    "buttons": {
+                        "2149": {
+                            "button_number": 1,
+                            "device_id": "2149",
+                            "led": {"current_state": -1, "led_id": "2144"},
+                            "name": "Bright",
+                            "state": "Release",
+                        },
+                        "2153": {
+                            "button_number": 2,
+                            "device_id": "2153",
+                            "led": {"current_state": -1, "led_id": "2145"},
+                            "name": "Entertain",
+                            "state": "Release",
+                        },
+                        "2157": {
+                            "button_number": 3,
+                            "device_id": "2157",
+                            "led": {"current_state": -1, "led_id": "2146"},
+                            "name": "Dining",
+                            "state": "Release",
+                        },
+                        "2161": {
+                            "button_number": 4,
+                            "device_id": "2161",
+                            "led": {"current_state": -1, "led_id": "2147"},
+                            "name": "Off",
+                            "state": "Release",
+                        },
+                    },
+                }
+            },
+            "control_station_name": "Entry by Living Room",
             "current_state": -1,
             "device_id": "2139",
             "fan_speed": None,
             "model": "RRST-W4B-XX",
-            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad",
+            "name": "Scene Keypad",
             "serial": None,
             "type": "SunnataKeypad",
             "zone": None,
         },
-        "2144": {
-            "current_state": -1,
-            "device_id": "2144",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Scene "
-            "Keypad_SunnataKeypad_Bright LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2145": {
-            "current_state": -1,
-            "device_id": "2145",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Scene "
-            "Keypad_SunnataKeypad_Entertain LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2146": {
-            "current_state": -1,
-            "device_id": "2146",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Scene "
-            "Keypad_SunnataKeypad_Dining LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2147": {
-            "current_state": -1,
-            "device_id": "2147",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Scene Keypad_SunnataKeypad_Off " "LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
         "2171": {
-            "button_groups": ["2180"],
-            "control_station_name": "Entry_Entry by Living Room",
+            "area_name": "Entry",
+            "button_groups": {
+                "2180": {
+                    "button_group_id": "2180",
+                    "buttons": {
+                        "2181": {
+                            "button_number": 1,
+                            "device_id": "2181",
+                            "led": {"current_state": -1, "led_id": "2176"},
+                            "name": "Fan High",
+                            "state": "Release",
+                        },
+                        "2185": {
+                            "button_number": 2,
+                            "device_id": "2185",
+                            "led": {"current_state": -1, "led_id": "2177"},
+                            "name": "Medium",
+                            "state": "Release",
+                        },
+                        "2189": {
+                            "button_number": 3,
+                            "device_id": "2189",
+                            "led": {"current_state": -1, "led_id": "2178"},
+                            "name": "Low",
+                            "state": "Release",
+                        },
+                        "2193": {
+                            "button_number": 4,
+                            "device_id": "2193",
+                            "led": {"current_state": -1, "led_id": "2179"},
+                            "name": "Off",
+                            "state": "Release",
+                        },
+                    },
+                }
+            },
+            "control_station_name": "Entry by Living Room",
             "current_state": -1,
             "device_id": "2171",
             "fan_speed": None,
             "model": "RRST-W4B-XX",
-            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad",
+            "name": "Fan Keypad",
             "serial": None,
             "type": "SunnataKeypad",
             "zone": None,
         },
-        "2176": {
-            "current_state": -1,
-            "device_id": "2176",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Fan "
-            "High LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2177": {
-            "current_state": -1,
-            "device_id": "2177",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Medium " "LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2178": {
-            "current_state": -1,
-            "device_id": "2178",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Low LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
-        "2179": {
-            "current_state": -1,
-            "device_id": "2179",
-            "fan_speed": None,
-            "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room_Fan Keypad_SunnataKeypad_Off LED",
-            "serial": None,
-            "type": "KeypadLED",
-            "zone": None,
-        },
         "2939": {
-            "button_groups": ["2942"],
-            "control_station_name": "Primary Bath_Vanity",
+            "area_name": "Primary Bath",
+            "button_groups": {
+                "2942": {
+                    "button_group_id": "2942",
+                    "buttons": {
+                        "2943": {
+                            "button_number": 0,
+                            "device_id": "2943",
+                            "led": None,
+                            "name": "Play/Pause",
+                            "state": "Release",
+                        },
+                        "2946": {
+                            "button_number": 1,
+                            "device_id": "2946",
+                            "led": None,
+                            "name": "Favorite",
+                            "state": "Release",
+                        },
+                        "2949": {
+                            "button_number": 2,
+                            "device_id": "2949",
+                            "led": None,
+                            "name": "Next Track",
+                            "state": "Release",
+                        },
+                        "2952": {
+                            "button_number": 3,
+                            "device_id": "2952",
+                            "led": None,
+                            "name": "Volume Up",
+                            "state": "Release",
+                        },
+                        "2955": {
+                            "button_number": 4,
+                            "device_id": "2955",
+                            "led": None,
+                            "name": "Volume Down",
+                            "state": "Release",
+                        },
+                    },
+                }
+            },
+            "control_station_name": "Vanity",
             "current_state": -1,
             "device_id": "2939",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-A02",
-            "name": "Primary Bath_Vanity_Audio Pico_Pico3ButtonRaiseLower",
+            "name": "Audio Pico",
             "serial": None,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
         },
         "5341": {
-            "button_groups": ["5344"],
-            "control_station_name": "Equipment Room_TestingPico",
+            "area_name": "Equipment Room",
+            "button_groups": {
+                "5344": {
+                    "button_group_id": "5344",
+                    "buttons": {
+                        "5345": {
+                            "button_number": 0,
+                            "device_id": "5345",
+                            "led": None,
+                            "name": "On",
+                            "state": "Release",
+                        },
+                        "5348": {
+                            "button_number": 1,
+                            "device_id": "5348",
+                            "led": None,
+                            "name": "Favorite",
+                            "state": "Release",
+                        },
+                        "5351": {
+                            "button_number": 2,
+                            "device_id": "5351",
+                            "led": None,
+                            "name": "Off",
+                            "state": "Release",
+                        },
+                        "5354": {
+                            "button_number": 3,
+                            "device_id": "5354",
+                            "led": None,
+                            "name": "Raise",
+                            "state": "Release",
+                        },
+                        "5357": {
+                            "button_number": 4,
+                            "device_id": "5357",
+                            "led": None,
+                            "name": "Lower",
+                            "state": "Release",
+                        },
+                    },
+                }
+            },
+            "control_station_name": "TestingPico",
             "current_state": -1,
             "device_id": "5341",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-L01",
-            "name": "Equipment "
-            "Room_TestingPico_TestingPicoDev_Pico3ButtonRaiseLower",
+            "name": "TestingPicoDev",
             "serial": 68130838,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
@@ -1887,7 +1991,8 @@ async def test_ra3_button_status_change(ra3_bridge: Bridge):
             },
         )
     )
-    new_status = ra3_bridge.target.buttons["2946"]["current_state"]
+
+    new_status = ra3_bridge.target.devices["2939"]["button_groups"]["2942"]["buttons"]["2946"]["current_state"]
     assert new_status == BUTTON_STATUS_PRESSED
     await ra3_bridge.target.close()
 
@@ -1895,14 +2000,20 @@ async def test_ra3_button_status_change(ra3_bridge: Bridge):
 @pytest.mark.asyncio
 async def test_ra3_button_status_change_notification(ra3_bridge: Bridge):
     """Test that button status changes send notifications."""
-    notified = False
+    button_notified = False
+    keypad_notified = False
 
-    def notify(status):
+    def button_notify(status):
         assert status == BUTTON_STATUS_PRESSED
-        nonlocal notified
-        notified = True
+        nonlocal button_notified
+        button_notified = True
+        
+    def keypad_notify():
+        nonlocal keypad_notified
+        keypad_notified = True
 
-    ra3_bridge.target.add_button_subscriber("2946", notify)
+    ra3_bridge.target.add_button_subscriber("2946", button_notify)
+    ra3_bridge.target.add_subscriber("2939", keypad_notify)
     ra3_bridge.leap.send_to_subscribers(
         Response(
             CommuniqueType="ReadResponse",
@@ -1919,7 +2030,8 @@ async def test_ra3_button_status_change_notification(ra3_bridge: Bridge):
             },
         )
     )
-    assert notified
+    assert button_notified
+    assert keypad_notified
     await ra3_bridge.target.close()
 
 
@@ -1959,7 +2071,6 @@ async def test_ra3_is_on(ra3_bridge: Bridge):
 @pytest.mark.asyncio
 async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
     """Test that setting values produces the right commands."""
-    print("BORE1")
     task = event_loop.create_task(ra3_bridge.target.set_value("2107", 50))
     command, response = await ra3_bridge.leap.requests.get()
     assert command == Request(
@@ -2083,7 +2194,7 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
 @pytest.mark.asyncio
 async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
     """Test that setting the value of a keypad LED produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.set_value("1631", 50))
+    task = event_loop.create_task(qsx_processor.target.turn_led_on("1626","1635","1636"))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="UpdateRequest",
@@ -2146,7 +2257,7 @@ async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
 @pytest.mark.asyncio
 async def test_qsx_tap_button(qsx_processor: Bridge, event_loop):
     """Test that tapping a keypad button produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.tap_button("1422"))
+    task = event_loop.create_task(qsx_processor.target.tap_button("1409", "1421", "1422"))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2191,315 +2302,6 @@ async def test_qsx_button_led_notification(qsx_processor: Bridge):
     )
     await asyncio.wait_for(qsx_processor.leap.requests.join(), 10)
     assert notified
-
-
-@pytest.mark.asyncio
-async def test_qsx_get_buttons(qsx_processor: Bridge):
-    """Test that the get_buttons function returns the expected value."""
-    buttons = qsx_processor.target.get_buttons()
-    expected_buttons = {
-        "1422": {
-            "button_group": "1421",
-            "button_led": "1414",
-            "button_name": "Button 1",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "1422",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1425": {
-            "button_group": "1421",
-            "button_led": "1415",
-            "button_name": "Button 2",
-            "button_number": 2,
-            "current_state": "Release",
-            "device_id": "1425",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1428": {
-            "button_group": "1421",
-            "button_led": "1416",
-            "button_name": "Button 3",
-            "button_number": 3,
-            "current_state": "Release",
-            "device_id": "1428",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1431": {
-            "button_group": "1421",
-            "button_led": "1417",
-            "button_name": "Button 4",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "1431",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1434": {
-            "button_group": "1421",
-            "button_led": "1418",
-            "button_name": "Button 5",
-            "button_number": 5,
-            "current_state": "Release",
-            "device_id": "1434",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1437": {
-            "button_group": "1421",
-            "button_led": "1419",
-            "button_name": "Button 6",
-            "button_number": 6,
-            "current_state": "Release",
-            "device_id": "1437",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1440": {
-            "button_group": "1421",
-            "button_led": "1420",
-            "button_name": "Vacation Mode",
-            "button_number": 7,
-            "current_state": "Release",
-            "device_id": "1440",
-            "model": "Homeowner Keypad",
-            "name": "Equipment Room_Homeowner Keypad Loc_Ho Kpd_HomeownerKeypad",
-            "serial": None,
-            "type": "HomeownerKeypad",
-        },
-        "1520": {
-            "button_group": "1519",
-            "button_led": "1517",
-            "button_name": "Welcome",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "1520",
-            "model": "HQWT-U-P2W",
-            "name": "Foyer_Front Door_Keypad 2_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1524": {
-            "button_group": "1519",
-            "button_led": "1518",
-            "button_name": "Goodbye",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "1524",
-            "model": "HQWT-U-P2W",
-            "name": "Foyer_Front Door_Keypad 2_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1602": {
-            "button_group": "1601",
-            "button_led": "1597",
-            "button_name": "Living Room",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "1602",
-            "model": "HQWT-U-P4W",
-            "name": "Living Room_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1606": {
-            "button_group": "1601",
-            "button_led": "1598",
-            "button_name": "Shades",
-            "button_number": 2,
-            "current_state": "Release",
-            "device_id": "1606",
-            "model": "HQWT-U-P4W",
-            "name": "Living Room_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1610": {
-            "button_group": "1601",
-            "button_led": "1599",
-            "button_name": "Entertain",
-            "button_number": 3,
-            "current_state": "Release",
-            "device_id": "1610",
-            "model": "HQWT-U-P4W",
-            "name": "Living Room_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1614": {
-            "button_group": "1601",
-            "button_led": "1600",
-            "button_name": "Relax",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "1614",
-            "model": "HQWT-U-P4W",
-            "name": "Living Room_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1636": {
-            "button_group": "1635",
-            "button_led": "1631",
-            "button_name": "Bedroom",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "1636",
-            "model": "HQWT-U-P4W",
-            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1640": {
-            "button_group": "1635",
-            "button_led": "1632",
-            "button_name": "Shades",
-            "button_number": 2,
-            "current_state": "Release",
-            "device_id": "1640",
-            "model": "HQWT-U-P4W",
-            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1644": {
-            "button_group": "1635",
-            "button_led": "1633",
-            "button_name": "Bright",
-            "button_number": 3,
-            "current_state": "Release",
-            "device_id": "1644",
-            "model": "HQWT-U-P4W",
-            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1648": {
-            "button_group": "1635",
-            "button_led": "1634",
-            "button_name": "Dimmed",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "1648",
-            "model": "HQWT-U-P4W",
-            "name": "Bedroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1670": {
-            "button_group": "1669",
-            "button_led": "1665",
-            "button_name": "Bathroom",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "1670",
-            "model": "HQWT-U-P4W",
-            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1674": {
-            "button_group": "1669",
-            "button_led": "1666",
-            "button_name": "Fan",
-            "button_number": 2,
-            "current_state": "Release",
-            "device_id": "1674",
-            "model": "HQWT-U-P4W",
-            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1678": {
-            "button_group": "1669",
-            "button_led": "1667",
-            "button_name": "Bright",
-            "button_number": 3,
-            "current_state": "Release",
-            "device_id": "1678",
-            "model": "HQWT-U-P4W",
-            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "1682": {
-            "button_group": "1669",
-            "button_led": "1668",
-            "button_name": "Dimmed",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "1682",
-            "model": "HQWT-U-P4W",
-            "name": "Bathroom 1_Entryway_Device 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "861": {
-            "button_group": "860",
-            "button_led": "856",
-            "button_name": "Foyer",
-            "button_number": 1,
-            "current_state": "Release",
-            "device_id": "861",
-            "model": "HQWT-U-P4W",
-            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "865": {
-            "button_group": "860",
-            "button_led": "857",
-            "button_name": "Shades",
-            "button_number": 2,
-            "current_state": "Release",
-            "device_id": "865",
-            "model": "HQWT-U-P4W",
-            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "869": {
-            "button_group": "860",
-            "button_led": "858",
-            "button_name": "Entertain",
-            "button_number": 3,
-            "current_state": "Release",
-            "device_id": "869",
-            "model": "HQWT-U-P4W",
-            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-        "873": {
-            "button_group": "860",
-            "button_led": "859",
-            "button_name": "Dimmed",
-            "button_number": 4,
-            "current_state": "Release",
-            "device_id": "873",
-            "model": "HQWT-U-P4W",
-            "name": "Foyer_Front Door_Keypad 1_PalladiomKeypad",
-            "serial": None,
-            "type": "PalladiomKeypad",
-        },
-    }
-    assert buttons == expected_buttons
 
 
 @pytest.mark.asyncio
