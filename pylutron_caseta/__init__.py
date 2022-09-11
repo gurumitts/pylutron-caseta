@@ -301,11 +301,11 @@ _KEYPAD_SPECIAL_BUTTON_MAP = {
         18: BUTTON_TYPE_LOWER,
         19: BUTTON_TYPE_RAISE,
     },
-    "RRST-W3RL-XX": { # RA3 Sunnata 3-button w/ raise/lower
+    "RRST-W3RL-XX": {  # RA3 Sunnata 3-button w/ raise/lower
         18: BUTTON_TYPE_LOWER,
         19: BUTTON_TYPE_RAISE,
     },
-    "3RL": { # HomeWorks Sunnata 3-button w/ raise/lower
+    "3RL": {  # HomeWorks Sunnata 3-button w/ raise/lower
         18: BUTTON_TYPE_LOWER,
         19: BUTTON_TYPE_RAISE,
     },
