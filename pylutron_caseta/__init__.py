@@ -26,7 +26,7 @@ _LEAP_DEVICE_TYPES = {
         "TempInWallPaddleSwitch",
         "Switched",
         "KeypadLED",
-        "ClaroSmartSwitch",
+        "DivaSmartSwitch",
     ],
     "fan": [
         "CasetaFanSpeedController",
