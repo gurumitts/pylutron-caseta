@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for new Claro and Diva devices on Caseta.
+
 ## [0.15.1] - 2022-09-10
 
 ### Changed
