@@ -14,6 +14,7 @@ _LEAP_DEVICE_TYPES = {
         "WallDimmerWithPreset",
         "Dimmed",
         "SpectrumTune",  # Ketra lamps
+        "DivaSmartDimmer",
     ],
     "switch": [
         "WallSwitch",
@@ -25,6 +26,7 @@ _LEAP_DEVICE_TYPES = {
         "TempInWallPaddleSwitch",
         "Switched",
         "KeypadLED",
+        "DivaSmartSwitch",
     ],
     "fan": [
         "CasetaFanSpeedController",
