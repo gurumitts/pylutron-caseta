@@ -1,0 +1,92 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/1982/buttongroup/expanded",
+    "MessageBodyType": "MultipleButtonGroupExpandedDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ButtonGroupsExpanded": [
+      {
+        "href": "/buttongroup/1990",
+        "Parent": {
+          "href": "/device/1982"
+        },
+        "SortOrder": 0,
+        "ProgrammingType": "Freeform",
+        "Buttons": [
+          {
+            "href": "/button/1991",
+            "ButtonNumber": 1,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1992",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1990"
+            },
+            "Name": "Button 1",
+            "Engraving": {
+              "Text": ""
+            },
+            "AssociatedLED": {
+              "href": "/led/1987"
+            }
+          },
+          {
+            "href": "/button/1995",
+            "ButtonNumber": 2,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/1996",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1990"
+            },
+            "Name": "Button 2",
+            "Engraving": {
+              "Text": ""
+            },
+            "AssociatedLED": {
+              "href": "/led/1988"
+            }
+          },
+          {
+            "href": "/button/1999",
+            "ButtonNumber": 3,
+            "ProgrammingModel": {
+              "href": "/programmingmodel/2000",
+              "ProgrammingModelType": "AdvancedToggleProgrammingModel"
+            },
+            "Parent": {
+              "href": "/buttongroup/1990"
+            },
+            "Name": "Button 3",
+            "Engraving": {
+              "Text": ""
+            },
+            "AssociatedLED": {
+              "href": "/led/1989"
+            }
+          },
+          {
+            "href": "/button/2003",
+            "ButtonNumber": 16,
+            "Parent": {
+              "href": "/buttongroup/1990"
+            },
+            "Name": "Button 16"
+          },
+          {
+            "href": "/button/2005",
+            "ButtonNumber": 17,
+            "Parent": {
+              "href": "/buttongroup/1990"
+            },
+            "Name": "Button 17"
+          }
+        ]
+      }
+    ]
+  }
+}

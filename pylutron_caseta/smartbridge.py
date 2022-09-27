@@ -22,6 +22,10 @@ from . import (
     BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
+    _KEYPAD_SPECIAL_BUTTON_MAP,
+    KEYPAD_LED_STATE_UNKNOWN,
+    KEYPAD_LED_STATE_ON,
+    KEYPAD_LED_STATE_OFF,
 )
 from .leap import open_connection, id_from_href, LeapProtocol
 from .messages import Response
@@ -54,6 +58,10 @@ class Smartbridge:
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
+        self._led_device_map: Dict[str, dict] = {}
+        self._ra3_button_map: Dict[
+            str, dict
+        ] = {}  # Maps buttons back to parent devices
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -151,15 +159,12 @@ class Smartbridge:
         :param button_id: button id, e.g., 2
         :param callback_: callback to invoke
         """
+        _LOG.debug("Adding subscriber to button ID %s", button_id)
         self._button_subscribers[button_id] = callback_
 
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the bridge/processor."""
         return self.devices
-
-    def get_buttons(self) -> Dict[str, dict]:
-        """Will return all known buttons connected to the bridge/processor."""
-        return self.buttons
 
     def get_devices_by_domain(self, domain: str) -> List[dict]:
         """
@@ -295,17 +300,6 @@ class Smartbridge:
         """
         device = self.devices[device_id]
 
-        # Handle keypad LEDs which don't have a zone ID associated
-        if device.get("type") == "KeypadLED":
-            target_state = "On" if value > 0 else "Off"
-            await self._request(
-                "UpdateRequest",
-                f"/led/{device_id}/status",
-                {"LEDStatus": {"State": target_state}},
-            )
-            return
-
-        # All other device types must have an associated zone ID
         zone_id = device.get("zone")
         if not zone_id:
             return
@@ -445,6 +439,62 @@ class Smartbridge:
         """
         await self.set_value(device_id, 0, **kwargs)
 
+    async def set_led_value(
+        self, keypad_device_id: str, button_group_id: str, button_id: str, value: int
+    ):
+        """
+        Set the value for a keypad LED with the given ID.
+
+        :param device_id: device id to set the value on
+        :param value: integer value from 0 to 100 to set
+        :param fade_time: duration for the light to fade from its current value to the
+        new value (only valid for lights)
+        """
+        keypad_device = self.devices.get(keypad_device_id)
+        if keypad_device is not None:
+            button_group = keypad_device["button_groups"].get(button_group_id)
+            if button_group is not None:
+                if button_group["buttons"].get(button_id) is not None:
+                    button = button_group["buttons"].get(button_id)
+                    led = button.get("led")
+                    if led is not None:
+                        led_id = led.get("led_id")
+                        target_state = "On" if value > 0 else "Off"
+                        await self._request(
+                            "UpdateRequest",
+                            f"/led/{led_id}/status",
+                            {"LEDStatus": {"State": target_state}},
+                        )
+                        return
+
+        _LOG.error(
+            "received a set_led_value request for button ID %s "
+            "which doesn't exist or doesn't have an LED associated",
+            button_id,
+        )
+
+    async def turn_led_on(
+        self, keypad_device_id: str, button_group_id: str, button_id: str
+    ):
+        """
+        Turn 'on' the keypad LED with the given ID.
+
+        :param device_id: device id to turn on
+        :param **kwargs: additional parameters for set_value
+        """
+        await self.set_led_value(keypad_device_id, button_group_id, button_id, 100)
+
+    async def turn_led_off(
+        self, keypad_device_id: str, button_group_id: str, button_id: str
+    ):
+        """
+        Turn 'off' the keypad LED with the given ID.
+
+        :param device_id: device id to turn off
+        :param **kwargs: additional parameters for set_value
+        """
+        await self.set_led_value(keypad_device_id, button_group_id, button_id, 0)
+
     async def activate_scene(self, scene_id: str):
         """
         Will activate the scene with the given ID.
@@ -458,18 +508,29 @@ class Smartbridge:
                 {"Command": {"CommandType": "PressAndRelease"}},
             )
 
-    async def tap_button(self, button_id: str):
+    async def tap_button(
+        self, keypad_device_id: str, button_group_id: str, button_id: str
+    ):
         """
         Send a press and release message for the given button ID.
 
+        :param keypad_device_id: device ID of the keypad to which this button belongs
+        :param button_group_id: button group ID to which this button belongs
         :param button_id: button ID, e.g. 23
         """
-        if button_id in self.buttons:
-            await self._request(
-                "CreateRequest",
-                f"/button/{button_id}/commandprocessor",
-                {"Command": {"CommandType": "PressAndRelease"}},
-            )
+        keypad_device = self.devices.get(keypad_device_id)
+        if keypad_device is not None:
+            button_group = keypad_device["button_groups"].get(button_group_id)
+            if button_group is not None:
+                if button_group["buttons"].get(button_id) is not None:
+                    await self._request(
+                        "CreateRequest",
+                        f"/button/{button_id}/commandprocessor",
+                        {"Command": {"CommandType": "PressAndRelease"}},
+                    )
+                    return
+
+        _LOG.error("received a tap_button request for unknown button ID %s", button_id)
 
     def _get_zone_id(self, device_id: str) -> Optional[str]:
         """
@@ -568,11 +629,45 @@ class Smartbridge:
         status = response.Body["ButtonStatus"]
         button_id = id_from_href(status["Button"]["href"])
         button_event = status["ButtonEvent"]["EventType"]
+
+        # legacy buttons (Pico)
         if button_id in self.buttons:
+            _LOG.debug("processing legacy button event on id %s", button_id)
             self.buttons[button_id]["current_state"] = button_event
             # Notify any subscribers of the change to button status
             if button_id in self._button_subscribers:
                 self._button_subscribers[button_id](button_event)
+
+        # RA3/HWQSX buttons (control station devices)
+        if button_id in self._ra3_button_map:
+            _LOG.debug("processing RA3/HWQSX button event on id %s", button_id)
+            device_id = self._ra3_button_map[button_id].get("keypad_device_id")
+            button_group_id = self._ra3_button_map[button_id].get("button_group_id")
+
+            if device_id is None or button_group_id is None or button_id is None:
+                _LOG.error(
+                    "_ra3_button_map consistency error: button_id = %s, "
+                    "device_id = %s, button_group_id = %s",
+                    button_id,
+                    device_id,
+                    button_group_id,
+                )
+                return
+
+            # Update state
+            self.devices[device_id]["button_groups"][button_group_id]["buttons"][
+                button_id
+            ]["current_state"] = button_event
+
+            # Notify any subscribers of the change to button status
+            if device_id in self._subscribers:
+                _LOG.debug("Notifying keypad device subscriber...")
+                self._subscribers[device_id]()
+
+            if button_id in self._button_subscribers:
+                _LOG.debug("Notifying button subscriber...")
+                self._button_subscribers[button_id](button_event)
+            _LOG.debug("Finished processing button event")
 
     def _handle_button_led_status(self, response: Response):
         """
@@ -587,13 +682,61 @@ class Smartbridge:
 
         status = response.Body["LEDStatus"]
         button_led_id = id_from_href(status["LED"]["href"])
-        state = 100 if status["State"] == "On" else 0
+        state = KEYPAD_LED_STATE_ON if status["State"] == "On" else KEYPAD_LED_STATE_OFF
 
-        if button_led_id in self.devices:
-            self.devices[button_led_id]["current_state"] = state
-            # Notify any subscribers of the change to LED status
-            if button_led_id in self._subscribers:
-                self._subscribers[button_led_id]()
+        if button_led_id not in self._led_device_map:
+            _LOG.error(
+                "received LED status update for unknown LED id %s", button_led_id
+            )
+            return
+
+        device_id = self._led_device_map[button_led_id].get("keypad_device_id")
+        button_group_id = self._led_device_map[button_led_id].get("button_group_id")
+        button_id = self._led_device_map[button_led_id].get("button_id")
+
+        if device_id is None or button_group_id is None or button_id is None:
+            _LOG.error(
+                "_led_device_map consistency error: button_led_id = %s, "
+                "device_id = %s, button_group_id = %s, button_id = %s",
+                button_led_id,
+                device_id,
+                button_group_id,
+                button_id,
+            )
+            return
+
+        device = self.devices.get(device_id)
+
+        if device is None:
+            _LOG.error(
+                "unable to find device ID %s when handling button " "LED status update",
+                device_id,
+            )
+            return
+
+        if device["button_groups"].get(button_group_id) is None:
+            _LOG.error(
+                "unable to find button group ID %s when handling "
+                "button LED status update",
+                button_group_id,
+            )
+            return
+
+        if device["button_groups"][button_group_id]["buttons"].get(button_id) is None:
+            _LOG.error(
+                "unable to find button ID %s when handling button LED status update",
+                button_id,
+            )
+            return
+
+        # Update state
+        self.devices[device_id]["button_groups"][button_group_id]["buttons"][button_id][
+            "led"
+        ]["current_state"] = state
+
+        # Notify any subscribers of the change to LED status
+        if button_led_id in self._subscribers:
+            self._subscribers[button_led_id]()
 
     def _handle_multi_zone_status(self, response: Response):
         _LOG.debug("Handling multi zone status: %s", response)
@@ -799,6 +942,7 @@ class Smartbridge:
         # Load processor as devices[1] for compatibility with lutron_caseta HA
         # integration
 
+        _LOG.debug("Loading RA3/HWQSX processor")
         processor_json = await self._request(
             "ReadRequest", "/device?where=IsThisDevice:true"
         )
@@ -824,6 +968,9 @@ class Smartbridge:
             type=zone_type,
             model=processor["ModelNumber"],
             serial=processor["SerialNumber"],
+            device_type=processor["DeviceType"],
+            processor_name=processor["Name"],
+            area_name=processor_area,
         )
 
     async def _load_ra3_control_stations(self, area):
@@ -834,56 +981,65 @@ class Smartbridge:
         """
         area_id = area["id"]
         area_name = area["name"]
+        _LOG.debug("Loading control stations for area %s (%s)", area_id, area_name)
         station_json = await self._request(
             "ReadRequest", f"/area/{area_id}/associatedcontrolstation"
         )
         if station_json.Body is None:
+            _LOG.debug("No control stations for this zone")
             return
         station_json = station_json.Body["ControlStations"]
         for station in station_json:
             station_name = station["Name"]
             ganged_devices_json = station["AssociatedGangedDevices"]
 
-            combined_name = "_".join((area_name, station_name))
-
             for device_json in ganged_devices_json:
-                await self._load_ra3_station_device(combined_name, device_json)
+                await self._load_ra3_station_device(
+                    area_name, station_name, device_json
+                )
 
-    async def _load_ra3_station_device(self, control_station_name, device_json):
+    async def _load_ra3_station_device(self, area_name, station_name, device_json):
         """
         Load button groups and buttons for a control station device.
 
-        :param control_station_name: the name of the control station
+        :param area_name: area in which this control station device exists
+        :param station_name: name of this control station
         :param device_json: data structure describing the station device
         """
         device_id = id_from_href(device_json["Device"]["href"])
-        device_type = device_json["Device"]["DeviceType"]
 
-        # ignore non-button devices
-        if device_type not in _LEAP_DEVICE_TYPES.get("sensor"):
+        # ignore non-keypad devices
+        if device_json["Device"]["DeviceType"] not in _LEAP_DEVICE_TYPES.get("keypad"):
+            _LOG.debug(
+                "Control station device id %s is not a known keypad type, skipping",
+                device_id,
+            )
             return
 
+        _LOG.debug("Processing control station device id %s", device_id)
+        keypad_device_json = await self._request("ReadRequest", f"/device/{device_id}")
+        device_data = keypad_device_json.Body["Device"]
+
+        # fetch button details for this device
         button_group_json = await self._request(
             "ReadRequest", f"/device/{device_id}/buttongroup/expanded"
         )
 
-        # ignore button devices without buttons
+        # ignore keypad devices without buttons
         if button_group_json.Body is None:
+            _LOG.debug("Keypad device id %s has no buttons", device_id)
             return
 
-        device_json = await self._request("ReadRequest", f"/device/{device_id}")
-        device_name = device_json.Body["Device"]["Name"]
-        device_model = device_json.Body["Device"]["ModelNumber"]
-
-        if "SerialNumber" in device_json.Body["Device"]:
-            device_serial = device_json.Body["Device"]["SerialNumber"]
-        else:
-            device_serial = None
-
-        button_groups = [
-            id_from_href(group["href"])
-            for group in button_group_json.Body["ButtonGroupsExpanded"]
-        ]
+        button_groups = {}
+        for group in button_group_json.Body["ButtonGroupsExpanded"]:
+            button_group_id = id_from_href(group["href"])
+            buttons = await self._get_ra3_buttons_from_group(
+                device_id, device_data["ModelNumber"], group
+            )
+            button_groups[button_group_id] = {
+                "button_group_id": button_group_id,
+                "buttons": buttons,
+            }
 
         self.devices.setdefault(
             device_id,
@@ -894,85 +1050,121 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name="_".join((control_station_name, device_name, device_type)),
-            control_station_name=control_station_name,
+            name=device_data["Name"],  # ex: "Keypad 1"
+            area_name=area_name,  # ex: "Foyer"
+            control_station_name=station_name,  # ex: "Front Door Entry Wall"
             button_groups=button_groups,
-            type=device_type,
-            model=device_model,
-            serial=device_serial,
+            type=device_data["DeviceType"],  # ex: "PalladiomKeypad"
+            model=device_data["ModelNumber"],  # ex: "HQWT-U-P4W"
+            serial=device_data["SerialNumber"]
+            if "SerialNumber" in device_data
+            else None,
         )
 
-        for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
-            for button_json in button_expanded_json["Buttons"]:
-                await self._load_ra3_button(button_json, self.devices[device_id])
+        # Subscribe to button status and LEDs
+        for button_group in button_groups.values():
+            for button in button_group["buttons"].values():
+                _LOG.debug(
+                    "Subscribing to button status for button ID %s", button["device_id"]
+                )
+                await self._subscribe_to_button_status_for_id(button["device_id"])
 
-    async def _load_ra3_button(self, button_json, keypad_device):
-        """
-        Create button device and load associated button LEDs.
+                if button["led"] is not None:
+                    button_led_id = button["led"]["led_id"]
+                    await self._subscribe_to_button_led_status(button_led_id)
 
-        :param button_json: data structure describing this button
-        :param device: data structure describing the keypad device
+    async def _get_ra3_buttons_from_group(
+        self, keypad_device_id: str, device_model: str, button_group: Dict
+    ) -> Dict:
+        """Create a dictionary of button data and associated LEDs.
+
+        :param keypad_device_id (str): Device ID of the keypad for these buttons
+        :param device_model (str): Model of the keypad for these buttons
+        :param button_group (Dict): Button group
+
+        Returns:
+            buttons (Dict): Buttons with associated LEDs if applicable
         """
-        button_id = id_from_href(button_json["href"])
-        button_number = button_json["ButtonNumber"]
-        button_engraving = button_json.get("Engraving", None)
-        parent_id = id_from_href(button_json["Parent"]["href"])
-        button_led = None
-        button_led_obj = button_json.get("AssociatedLED", None)
-        if button_led_obj is not None:
-            button_led = id_from_href(button_led_obj["href"])
-        if button_engraving is not None and button_engraving["Text"]:
-            button_name = button_engraving["Text"].replace("\n", " ")
-        else:
-            button_name = button_json["Name"]
-        self.buttons.setdefault(
-            button_id,
-            {
+        button_group_id = id_from_href(button_group["href"])
+        buttons: Dict[str, dict] = {}
+
+        if button_group.get("Buttons") is None:
+            _LOG.info(
+                "Encountered a keypad button group with no buttons, "
+                "keypad id = %s, button group id = %s, model = %s",
+                keypad_device_id,
+                button_group_id,
+                device_model,
+            )
+            return buttons
+
+        for button_json in button_group["Buttons"]:
+            button_id = id_from_href(button_json["href"])
+            button_number = button_json["ButtonNumber"]
+            button_engraving = button_json.get("Engraving", None)
+
+            self._ra3_button_map[button_id] = {
+                "button_id": button_id,
+                "button_group_id": button_group_id,
+                "keypad_device_id": keypad_device_id,
+            }
+
+            led = None
+            button_led_obj = button_json.get("AssociatedLED", None)
+            if button_led_obj is not None:
+                button_led_id = id_from_href(button_led_obj["href"])
+                led = {
+                    "led_id": button_led_id,
+                    "current_state": KEYPAD_LED_STATE_UNKNOWN,
+                }
+
+                self._led_device_map[button_led_id] = {
+                    "button_led_id": button_led_id,
+                    "keypad_device_id": keypad_device_id,
+                    "button_group_id": button_group_id,
+                    "button_id": button_id,
+                }
+
+            if button_engraving is not None and button_engraving["Text"]:
+                button_name = button_engraving["Text"].replace("\n", " ")
+            else:
+                button_name = self._get_default_button_name(
+                    device_model, button_number, button_json
+                )
+
+            buttons[button_id] = {
                 "device_id": button_id,
-                "current_state": BUTTON_STATUS_RELEASED,
                 "button_number": button_number,
-                "button_group": parent_id,
-            },
-        ).update(
-            name=keypad_device["name"],
-            type=keypad_device["type"],
-            model=keypad_device["model"],
-            serial=keypad_device["serial"],
-            button_name=button_name,
-            button_led=button_led,
-        )
+                "name": button_name,
+                "state": BUTTON_STATUS_RELEASED,
+                "led": led,
+            }
 
-        # Load the button LED details
-        if button_led is not None:
-            await self._load_ra3_button_led(button_led, button_id, keypad_device)
+        return buttons
 
-    async def _load_ra3_button_led(self, button_led, button_id, keypad_device):
+    @staticmethod
+    def _get_default_button_name(
+        device_model: str, button_number: int, button_json: Dict
+    ):
+        """Construct the default name for a button.
+
+        For buttons without engraving, determine the default name. This function
+        takes into account the device type and handles special button types like
+        raise and lower.
+
+        :param device_model (str): Model of the keypad to which this button belongs
+        :param button_number (str): Button number of this button on the keypad
+        :param button_json (Dict): The JSON data for this button
+
+        Returns:
+            name (str): Name for this button
         """
-        Create an LED device from a given LEAP button ID.
-
-        :param button_led: LED ID of the button LED
-        :param button_id: device ID of the associated button
-        :param keypad_device: keypad device to which the LED belongs
-        """
-        button = self.buttons[button_id]
-        button_name = button["button_name"]
-        keypad_name = keypad_device["name"]
-
-        self.devices.setdefault(
-            button_led,
-            {
-                "device_id": button_led,
-                "current_state": -1,
-                "fan_speed": None,
-            },
-        ).update(
-            name="_".join((keypad_name, f"{button_name} LED")),
-            type="KeypadLED",
-            model="KeypadLED",
-            serial=None,
-            zone=None,
-        )
-        await self._subscribe_to_button_led_status(button_led)
+        keypad_button_map = _KEYPAD_SPECIAL_BUTTON_MAP.get(device_model)
+        if keypad_button_map is not None:
+            special_button_name = keypad_button_map.get(button_number)
+            if special_button_name is not None:
+                return special_button_name
+        return button_json.get("Name")
 
     async def _load_ra3_zones(self, area):
         # For each area, process zones.  They will masquerade as devices
@@ -1206,6 +1398,19 @@ class Smartbridge:
                 )
                 _LOG.debug("Subscribed to button %s status", button)
                 self._handle_button_status(response)
+        except BridgeResponseError as ex:
+            _LOG.error("Failed device status subscription: %s", ex.response)
+            return
+
+    async def _subscribe_to_button_status_for_id(self, button_id):
+        """Subscribe to button status updates for a given button ID."""
+        try:
+            response, _ = await self._subscribe(
+                f"/button/{button_id}/status/event",
+                self._handle_button_status,
+            )
+            _LOG.debug("Subscribed to button %s status", button_id)
+            self._handle_button_status(response)
         except BridgeResponseError as ex:
             _LOG.error("Failed device status subscription: %s", ex.response)
             return
