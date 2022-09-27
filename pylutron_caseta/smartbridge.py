@@ -875,7 +875,7 @@ class Smartbridge:
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
         device_type_friendly = device_type
-        
+
         if "Pico" in device_type:
             device_type_friendly = "Pico"
         elif "Keypad" in device_type:

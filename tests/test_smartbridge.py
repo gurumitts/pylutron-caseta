@@ -1681,8 +1681,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2144",
             "fan_speed": None,
             "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room Scene "
-            "Keypad Keypad Bright LED",
+            "name": "Entry_Entry by Living Room Scene " "Keypad Keypad Bright LED",
             "serial": None,
             "type": "KeypadLED",
             "zone": None,
@@ -1692,8 +1691,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2145",
             "fan_speed": None,
             "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room Scene "
-            "Keypad Keypad Entertain LED",
+            "name": "Entry_Entry by Living Room Scene " "Keypad Keypad Entertain LED",
             "serial": None,
             "type": "KeypadLED",
             "zone": None,
@@ -1703,8 +1701,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2146",
             "fan_speed": None,
             "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room Scene "
-            "Keypad Keypad Dining LED",
+            "name": "Entry_Entry by Living Room Scene " "Keypad Keypad Dining LED",
             "serial": None,
             "type": "KeypadLED",
             "zone": None,
@@ -1736,8 +1733,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "2176",
             "fan_speed": None,
             "model": "KeypadLED",
-            "name": "Entry_Entry by Living Room Fan Keypad Keypad Fan "
-            "High LED",
+            "name": "Entry_Entry by Living Room Fan Keypad Keypad Fan " "High LED",
             "serial": None,
             "type": "KeypadLED",
             "zone": None,
@@ -1791,8 +1787,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "device_id": "5341",
             "fan_speed": None,
             "model": "PJ2-3BRL-XXX-L01",
-            "name": "Equipment "
-            "Room_TestingPico TestingPicoDev Pico",
+            "name": "Equipment " "Room_TestingPico TestingPicoDev Pico",
             "serial": 68130838,
             "type": "Pico3ButtonRaiseLower",
             "zone": None,
