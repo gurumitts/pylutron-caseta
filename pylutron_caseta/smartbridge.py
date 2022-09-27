@@ -819,7 +819,7 @@ class Smartbridge:
             {"device_id": device_id, "current_state": level, "fan_speed": fan_speed},
         ).update(
             zone=device_id,
-            name="_".join((processor_area, processor["Name"], processor["DeviceType"])),
+            name=" ".join((processor_area, processor["Name"], processor["DeviceType"])),
             button_groups=None,
             type=zone_type,
             model=processor["ModelNumber"],
@@ -874,6 +874,12 @@ class Smartbridge:
         device_json = await self._request("ReadRequest", f"/device/{device_id}")
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
+        device_type_friendly = device_type
+        
+        if "Pico" in device_type:
+            device_type_friendly = "Pico"
+        elif "Keypad" in device_type:
+            device_type_friendly = "Keypad"
 
         if "SerialNumber" in device_json.Body["Device"]:
             device_serial = device_json.Body["Device"]["SerialNumber"]
@@ -894,7 +900,7 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name="_".join((control_station_name, device_name, device_type)),
+            name=" ".join((control_station_name, device_name, device_type_friendly)),
             control_station_name=control_station_name,
             button_groups=button_groups,
             type=device_type,
@@ -966,7 +972,7 @@ class Smartbridge:
                 "fan_speed": None,
             },
         ).update(
-            name="_".join((keypad_name, f"{button_name} LED")),
+            name=" ".join((keypad_name, f"{button_name} LED")),
             type="KeypadLED",
             model="KeypadLED",
             serial=None,
