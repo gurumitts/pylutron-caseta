@@ -1098,9 +1098,7 @@ class Smartbridge:
         """Load the areas from the Smart Bridge."""
         _LOG.debug("Loading areas from the Smart Bridge")
         area_json = await self._request("ReadRequest", "/area")
-        # We only need leaf nodes in RA3
         for area in area_json.Body["Areas"]:
-            # if area.get("IsLeaf", True):
             area_id = id_from_href(area["href"])
             parent_id = None
             if area.get("IsLeaf", False):
