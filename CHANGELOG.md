@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The `name` field on QSX and RadioRA 3 devices now more closely matches the format of the name field on Caseta devices.
+
+### Added
+- Devices now have an `area` field containing the area ID and a `device_name` field containing the name of the device without any prefixes or suffixes added by this library. These fields should be used instead of trying to parse the same values out of the `name` field.
+
 ## [0.15.2] - 2022-09-19
 
 ### Added

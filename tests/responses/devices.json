@@ -182,7 +182,7 @@
                     }
                 ],
                 "AssociatedArea": {
-                    "href": "/area/4"
+                    "href": "/area/3"
                 },
                 "LinkNodes": [
                     {
@@ -214,7 +214,7 @@
                     }
                 ],
                 "AssociatedArea": {
-                    "href": "/area/2"
+                    "href": "/area/4"
                 },
                 "LinkNodes": [
                     {
@@ -243,7 +243,7 @@
                     "href": "/buttongroup/6"
                 }],
                 "AssociatedArea": {
-                    "href": "/area/2"
+                    "href": "/area/3"
                 },
                 "LinkNodes": [{
                     "href": "/device/9/linknode/31"
@@ -266,7 +266,7 @@
                     "href": "/zone/3"
                 }],
                 "AssociatedArea": {
-                    "href": "/area/2"
+                    "href": "/area/3"
                 },
                 "LinkNodes": [{
                     "href": "/device/10/linknode/18"

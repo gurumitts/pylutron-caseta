@@ -752,6 +752,12 @@ class Smartbridge:
         for device in device_json.Body["Devices"]:
             _LOG.debug(device)
             device_id = id_from_href(device["href"])
+
+            area_id = None
+            area_href = device.get("AssociatedArea", {}).get("href")
+            if area_href is not None:
+                area_id = id_from_href(area_href)
+
             device_zone = None
             button_groups = None
             occupancy_sensors = None
@@ -784,6 +790,8 @@ class Smartbridge:
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
+                device_name=device["Name"],
+                area=area_id,
             )
 
     async def _load_ra3_devices(self):
@@ -806,14 +814,12 @@ class Smartbridge:
             return
 
         processor = processor_json.Body["Devices"][0]
-        processor_area = self.areas[processor["AssociatedArea"]["href"].split("/")[2]][
-            "name"
-        ]
+        area_id = processor["AssociatedArea"]["href"].split("/")[2]
+        processor_area = self.areas[area_id]["name"]
 
         level = -1
         device_id = "1"
         fan_speed = None
-        zone_type = None
         self.devices.setdefault(
             device_id,
             {"device_id": device_id, "current_state": level, "fan_speed": fan_speed},
@@ -821,9 +827,11 @@ class Smartbridge:
             zone=device_id,
             name=" ".join((processor_area, processor["Name"], processor["DeviceType"])),
             button_groups=None,
-            type=zone_type,
+            type=processor["DeviceType"],
             model=processor["ModelNumber"],
             serial=processor["SerialNumber"],
+            area=area_id,
+            device_name=processor["Name"],
         )
 
     async def _load_ra3_control_stations(self, area):
@@ -906,6 +914,8 @@ class Smartbridge:
             type=device_type,
             model=device_model,
             serial=device_serial,
+            device_name=device_name,
+            area=id_from_href(device_json.Body["Device"]["AssociatedArea"]["href"]),
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
@@ -977,6 +987,8 @@ class Smartbridge:
             model="KeypadLED",
             serial=None,
             zone=None,
+            device_name=button_name,
+            area=keypad_device["area"],
         )
         await self._subscribe_to_button_led_status(button_led)
 
@@ -1005,6 +1017,8 @@ class Smartbridge:
                 type=zone_type,
                 model=None,
                 serial=None,
+                area=area_id,
+                device_name=zone_name,
             )
 
     async def _load_lip_devices(self):
