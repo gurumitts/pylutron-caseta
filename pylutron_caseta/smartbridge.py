@@ -1100,10 +1100,19 @@ class Smartbridge:
         area_json = await self._request("ReadRequest", "/area")
         # We only need leaf nodes in RA3
         for area in area_json.Body["Areas"]:
-            if area.get("IsLeaf", True):
-                area_id = id_from_href(area["href"])
-                # We currently only need the name, so just load that
-                self.areas.setdefault(area_id, dict(id=area_id, name=area["Name"]))
+            # if area.get("IsLeaf", True):
+            area_id = id_from_href(area["href"])
+            parent_id = None
+            if area.get("IsLeaf", False):
+                parent_id = area["Parent"]["href"].split("/")[2]
+            self.areas.setdefault(
+                area_id,
+                dict(
+                    id=area_id,
+                    name=area["Name"],
+                    parent_id=parent_id,
+                ),
+            )
 
     async def _load_occupancy_groups(self):
         """Load the occupancy groups from the Smart Bridge."""

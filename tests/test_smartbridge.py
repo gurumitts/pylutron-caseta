@@ -426,7 +426,6 @@ class Bridge:
         for area_id in (
             re.sub(r".*/", "", area["href"])
             for area in ra3_area_list_result.Body.get("Areas", [])
-            if area["IsLeaf"]
         ):
             request, response = await wait(leap.requests.get())
             assert request == Request(
@@ -524,7 +523,6 @@ class Bridge:
         for area_id in (
             re.sub(r".*/", "", area["href"])
             for area in qsx_area_list_result.Body.get("Areas", [])
-            if area["IsLeaf"]
         ):
             request, response = await wait(leap.requests.get())
             assert request == Request(
@@ -956,10 +954,10 @@ async def test_is_connected(bridge: Bridge):
 async def test_area_list(bridge: Bridge):
     """Test the list of areas loaded by the bridge."""
     expected_areas = {
-        "1": {"id": "1", "name": "root"},
-        "2": {"id": "2", "name": "Hallway"},
-        "3": {"id": "3", "name": "Living Room"},
-        "4": {"id": "4", "name": "Master Bathroom"},
+        "1": {"id": "1", "name": "root", "parent_id": None},
+        "2": {"id": "2", "name": "Hallway", "parent_id": None},
+        "3": {"id": "3", "name": "Living Room", "parent_id": None},
+        "4": {"id": "4", "name": "Master Bathroom", "parent_id": None},
     }
 
     assert bridge.target.areas == expected_areas
@@ -1915,10 +1913,11 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
 async def test_ra3_area_list(ra3_bridge: Bridge):
     """Test the list of areas loaded by the bridge."""
     expected_areas = {
-        "2796": {"id": "2796", "name": "Porch"},
-        "547": {"id": "547", "name": "Primary Bath"},
-        "766": {"id": "766", "name": "Entry"},
-        "83": {"id": "83", "name": "Equipment Room"},
+        "3": {"id": "3", "name": "Home", "parent_id": None},
+        "2796": {"id": "2796", "name": "Porch", "parent_id": "3"},
+        "547": {"id": "547", "name": "Primary Bath", "parent_id": "3"},
+        "766": {"id": "766", "name": "Entry", "parent_id": "3"},
+        "83": {"id": "83", "name": "Equipment Room", "parent_id": "3"},
     }
 
     assert ra3_bridge.target.areas == expected_areas
