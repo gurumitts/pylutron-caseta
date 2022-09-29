@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2022-09-28
+
+### Changed
+- The `name` field on QSX and RadioRA 3 devices now more closely matches the format of the name field on Caseta devices.
+
+### Added
+- Devices now have an `area` field containing the area ID and a `device_name` field containing the name of the device without any prefixes or suffixes added by this library. These fields should be used instead of trying to parse the same values out of the `name` field.
+
 ## [0.15.2] - 2022-09-19
 
 ### Added
@@ -239,8 +247,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.2...HEAD
-[0.15.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.1...v0.15.2
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.2...v0.16.0
+[0.15.2]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.13.1...v0.14.0

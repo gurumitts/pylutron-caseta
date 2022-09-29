@@ -1,0 +1,15 @@
+{
+    "CommuniqueType": "ReadResponse",
+    "Header": {
+        "MessageBodyType": "OneAreaDefinition",
+        "StatusCode": "200 OK",
+        "Url": "/area/3"
+    },
+    "Body": {
+        "Area": {
+            "href": "/area/3",
+            "Name": "Home",
+            "IsLeaf": "False"
+        }
+    }
+}
