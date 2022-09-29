@@ -752,6 +752,12 @@ class Smartbridge:
         for device in device_json.Body["Devices"]:
             _LOG.debug(device)
             device_id = id_from_href(device["href"])
+
+            area_id = None
+            area_href = device.get("AssociatedArea", {}).get("href")
+            if area_href is not None:
+                area_id = id_from_href(area_href)
+
             device_zone = None
             button_groups = None
             occupancy_sensors = None
@@ -784,6 +790,8 @@ class Smartbridge:
                 type=device["DeviceType"],
                 model=device["ModelNumber"],
                 serial=device["SerialNumber"],
+                device_name=device["Name"],
+                area=area_id,
             )
 
     async def _load_ra3_devices(self):
@@ -806,24 +814,24 @@ class Smartbridge:
             return
 
         processor = processor_json.Body["Devices"][0]
-        processor_area = self.areas[processor["AssociatedArea"]["href"].split("/")[2]][
-            "name"
-        ]
+        area_id = id_from_href(processor["AssociatedArea"]["href"])
+        processor_area = self.areas[area_id]["name"]
 
         level = -1
         device_id = "1"
         fan_speed = None
-        zone_type = None
         self.devices.setdefault(
             device_id,
             {"device_id": device_id, "current_state": level, "fan_speed": fan_speed},
         ).update(
             zone=device_id,
-            name="_".join((processor_area, processor["Name"], processor["DeviceType"])),
+            name=" ".join((processor_area, processor["Name"])),
             button_groups=None,
-            type=zone_type,
+            type=processor["DeviceType"],
             model=processor["ModelNumber"],
             serial=processor["SerialNumber"],
+            area=area_id,
+            device_name=processor["Name"],
         )
 
     async def _load_ra3_control_stations(self, area):
@@ -844,12 +852,14 @@ class Smartbridge:
             station_name = station["Name"]
             ganged_devices_json = station["AssociatedGangedDevices"]
 
-            combined_name = "_".join((area_name, station_name))
-
             for device_json in ganged_devices_json:
-                await self._load_ra3_station_device(combined_name, device_json)
+                await self._load_ra3_station_device(
+                    area_name, station_name, device_json
+                )
 
-    async def _load_ra3_station_device(self, control_station_name, device_json):
+    async def _load_ra3_station_device(
+        self, control_station_area_name, control_station_name, device_json
+    ):
         """
         Load button groups and buttons for a control station device.
 
@@ -874,6 +884,15 @@ class Smartbridge:
         device_json = await self._request("ReadRequest", f"/device/{device_id}")
         device_name = device_json.Body["Device"]["Name"]
         device_model = device_json.Body["Device"]["ModelNumber"]
+        device_type_friendly = device_type
+        control_station_combined_name = "_".join(
+            (control_station_area_name, control_station_name)
+        )
+
+        if "Pico" in device_type:
+            device_type_friendly = "Pico"
+        elif "Keypad" in device_type:
+            device_type_friendly = "Keypad"
 
         if "SerialNumber" in device_json.Body["Device"]:
             device_serial = device_json.Body["Device"]["SerialNumber"]
@@ -894,12 +913,16 @@ class Smartbridge:
             },
         ).update(
             zone=None,
-            name="_".join((control_station_name, device_name, device_type)),
-            control_station_name=control_station_name,
+            name=" ".join(
+                (control_station_combined_name, device_name, device_type_friendly)
+            ),
             button_groups=button_groups,
             type=device_type,
             model=device_model,
             serial=device_serial,
+            control_station_name=control_station_name,
+            device_name=device_name,
+            area=id_from_href(device_json.Body["Device"]["AssociatedArea"]["href"]),
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
@@ -940,6 +963,8 @@ class Smartbridge:
             serial=keypad_device["serial"],
             button_name=button_name,
             button_led=button_led,
+            device_name=button_name,
+            parent_device=keypad_device["device_id"],
         )
 
         # Load the button LED details
@@ -966,11 +991,13 @@ class Smartbridge:
                 "fan_speed": None,
             },
         ).update(
-            name="_".join((keypad_name, f"{button_name} LED")),
+            name=" ".join((keypad_name, f"{button_name} LED")),
             type="KeypadLED",
             model="KeypadLED",
             serial=None,
             zone=None,
+            device_name=" ".join((button_name, "LED")),
+            parent_device=keypad_device["device_id"],
         )
         await self._subscribe_to_button_led_status(button_led)
 
@@ -999,6 +1026,8 @@ class Smartbridge:
                 type=zone_type,
                 model=None,
                 serial=None,
+                area=area_id,
+                device_name=zone_name,
             )
 
     async def _load_lip_devices(self):
@@ -1072,18 +1101,26 @@ class Smartbridge:
                 type=button_device["type"],
                 model=button_device["model"],
                 serial=button_device["serial"],
+                parent_device=button_device["device_id"],
             )
 
     async def _load_areas(self):
         """Load the areas from the Smart Bridge."""
         _LOG.debug("Loading areas from the Smart Bridge")
         area_json = await self._request("ReadRequest", "/area")
-        # We only need leaf nodes in RA3
         for area in area_json.Body["Areas"]:
-            if area.get("IsLeaf", True):
-                area_id = id_from_href(area["href"])
-                # We currently only need the name, so just load that
-                self.areas.setdefault(area_id, dict(id=area_id, name=area["Name"]))
+            area_id = id_from_href(area["href"])
+            parent_id = None
+            if area.get("IsLeaf", False):
+                parent_id = id_from_href(area["Parent"]["href"])
+            self.areas.setdefault(
+                area_id,
+                dict(
+                    id=area_id,
+                    name=area["Name"],
+                    parent_id=parent_id,
+                ),
+            )
 
     async def _load_occupancy_groups(self):
         """Load the occupancy groups from the Smart Bridge."""
@@ -1141,6 +1178,8 @@ class Smartbridge:
             ),
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
+            device_name="Occupancy",
+            area=occgroup_area_id,
         )
 
     async def _load_ra3_occupancy_groups(self):
@@ -1178,6 +1217,8 @@ class Smartbridge:
                 status=OCCUPANCY_GROUP_UNKNOWN,
                 sensors=[],
                 name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
+                device_name="Occupancy",
+                area=occgroup_area_id,
             ),
         )
         occgroup["sensors"].append(occdevice_id)
