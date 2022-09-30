@@ -1,6 +1,6 @@
 # pylutron-caseta
 
-A Python API to control Lutron Caséta devices.
+A Python API to control Lutron Caséta devices. Other devices implementing LEAP such as RadioRA 3 and Homeworks QSX are also at least partially supported.
 
 [![Coverage Status](https://coveralls.io/repos/github/gurumitts/pylutron-caseta/badge.svg?branch=dev)](https://coveralls.io/github/gurumitts/pylutron-caseta?branch=dev)
 
@@ -16,6 +16,14 @@ In order to communicate with the bridge device, you must complete the pairing pr
 
 If pylutron_caseta is installed with the cli extra (`pip install pylutron_caseta[cli]`), the `lap-pair` tool can be used to generate the certificate files. Simply running `lap-pair <BRIDGE HOST>` (note the LEAP port number should not be included) will begin the pairing process. The certificate files will be saved in `$XDG_CONFIG_HOME/pylutron_caseta` (normally `~/.config/pylutron_caseta`) in the files `[BRIDGE HOST]-bridge.crt`, `[BRIDGE HOST].crt`,  `[BRIDGE HOST].key`. Check `lap-pair --help` if you want to use different files.
 
+### A note on RadioRA and Homeworks
+
+This API primarily supports Lutron Caséta, but does mostly work with other Lutron products implementing the LEAP protocol, such as, RadioRA 3, and Homeworks QSX. Documentation here generally refers to Caséta and bridges, but most of it can be freely interpreted as relevant with "bridge" swapped out for "processor". A few key differences:
+
+* Homeworks QSX processors, at least, may not show up in `leap-scan`.
+* The pairing button is a small tan button on the front of QSX processors.
+* Different systems implement somewhat different features from each other but the library attempts to provide support for each flavour.
+
 #### The pairing module
 
 If pylutron_caseta is being integrated into a larger application, the pairing functionality can be reused to allow pairing from within that application.
@@ -23,7 +31,7 @@ If pylutron_caseta is being integrated into a larger application, the pairing fu
 ```py
 async def pair(host: str):
     def _ready():
-        print("Press the small black button on the back of the bridge.")
+        print("Press the small black button on the back of the bridge (or front of processor).")
 
     data = await async_pair(host, _ready)
     with open("caseta-bridge.crt", "w") as cacert:

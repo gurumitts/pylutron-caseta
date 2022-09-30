@@ -114,19 +114,22 @@ async def lap_pair(address: str, cacert: TextIO, cert: TextIO, key: TextIO):
     """
     Perform LAP pairing.
 
-    This program connects to a Lutron bridge device and initiates the LAP pairing
-    process. The user will be prompted to press a physical button on the bridge, and
-    certificate files will be generated on the local computer.
+    This program connects to a Lutron bridge device or Homeworks processor and
+    initiates the LAP pairing process. The user will be prompted to press a
+    physical button on the device, and certificate files will be generated on
+    the local computer.
 
     By default, the certificate files will be placed in
-    $XDG_CONFIG_HOME/pylutron_caseta, named after the address of the bridge device. The
-    leap tool will look for certificates in the same location.
+    $XDG_CONFIG_HOME/pylutron_caseta, named after the address of the bridge or
+    processor. The leap tool will look for certificates in the same location.
     """
 
     def _ready():
         click.echo(
-            "Press the small black button on the back of the bridge to complete "
-            "pairing."
+            "Press the pairing button on the bridge or processor to complete pairing. "
+            "Generally this is a small black button on the back of the device. "
+            "For Homeworks QSX processors, this is a small tan button on the "
+            "front of the unit."
         )
 
     data = await async_pair(address, _ready)
