@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 import click
 import xdg
-from zeroconf import DNSQuestionType, InterfaceChoice, IPVersion, ServiceListener
+from zeroconf import DNSQuestionType, InterfaceChoice, ServiceListener
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
 import pylutron_caseta.leap
