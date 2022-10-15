@@ -522,8 +522,8 @@ class Smartbridge:
             OSError,
             asyncio.TimeoutError,
             BridgeDisconnectedError,
-        ):
-            _LOG.warning("Reconnecting...", exc_info=1)
+        ) as ex:
+            _LOG.warning("Reconnecting after error: %s", ex)
             await asyncio.sleep(RECONNECT_DELAY)
         finally:
             if self._login_task is not None:
