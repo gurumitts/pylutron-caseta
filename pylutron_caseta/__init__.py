@@ -65,6 +65,7 @@ _LEAP_DEVICE_TYPES = {
         "GrafikTHybridKeypad",
         "AlisseKeypad",
         "PalladiomKeypad",
+        "PhantomKeypad",
     ],
 }
 

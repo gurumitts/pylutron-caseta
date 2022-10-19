@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2022-10-18
+
+### Added
+- Support for RadioRA 2 PhantomKeypad.
+
+### Fixed
+- leap-scan now detects devices besides Caseta.
+
 ## [0.16.0] - 2022-09-28
 
 ### Changed
@@ -247,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.16.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.2...v0.16.0
 [0.15.2]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.0...v0.15.1

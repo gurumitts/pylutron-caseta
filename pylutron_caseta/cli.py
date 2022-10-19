@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 import click
 import xdg
-from zeroconf import DNSQuestionType, InterfaceChoice, IPVersion, ServiceListener
+from zeroconf import DNSQuestionType, InterfaceChoice, ServiceListener
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
 import pylutron_caseta.leap
@@ -167,15 +167,8 @@ async def leap_scan(interface: List[str], timeout: float):
         info = AsyncServiceInfo(type_, name)
         await info.async_request(zeroconf, 3000, question_type=DNSQuestionType.QU)
 
-        addresses = [f"{info.server}:{info.port}"]
-
-        for address in info.addresses_by_version(IPVersion.V4Only):
-            addresses.append(f"{socket.inet_ntop(socket.AF_INET, address)}:{info.port}")
-
-        for address in info.addresses_by_version(IPVersion.V6Only):
-            addresses.append(
-                f"[{socket.inet_ntop(socket.AF_INET6, address)}]:{info.port}"
-            )
+        addresses = [info.server]
+        addresses.extend(info.parsed_scoped_addresses())
 
         click.echo(" ".join(addresses))
 
@@ -195,7 +188,7 @@ async def leap_scan(interface: List[str], timeout: float):
 
     async with AsyncZeroconf(interfaces) as azc:
         await azc.zeroconf.async_wait_for_start()
-        browser = AsyncServiceBrowser(azc.zeroconf, "_leap._tcp.local.", _Listener())
+        browser = AsyncServiceBrowser(azc.zeroconf, "_lutron._tcp.local.", _Listener())
         await asyncio.sleep(timeout)
         await browser.async_cancel()
 
