@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2022-10-23
+
 ### Fixed
 - Now discovers the complete area list with working parent_area relationship.
 
@@ -258,7 +260,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.17.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.17.1...HEAD
+[0.17.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.2...v0.16.0
 [0.15.2]: https://github.com/gurumitts/pylutron-caseta/compare/v0.15.1...v0.15.2
