@@ -1111,7 +1111,7 @@ class Smartbridge:
         for area in area_json.Body["Areas"]:
             area_id = id_from_href(area["href"])
             parent_id = None
-            if area.get("IsLeaf", False):
+            if "Parent" in area:
                 parent_id = id_from_href(area["Parent"]["href"])
             self.areas.setdefault(
                 area_id,

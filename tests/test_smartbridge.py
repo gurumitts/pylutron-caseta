@@ -955,9 +955,9 @@ async def test_area_list(bridge: Bridge):
     """Test the list of areas loaded by the bridge."""
     expected_areas = {
         "1": {"id": "1", "name": "root", "parent_id": None},
-        "2": {"id": "2", "name": "Hallway", "parent_id": None},
-        "3": {"id": "3", "name": "Living Room", "parent_id": None},
-        "4": {"id": "4", "name": "Master Bathroom", "parent_id": None},
+        "2": {"id": "2", "name": "Hallway", "parent_id": "1"},
+        "3": {"id": "3", "name": "Living Room", "parent_id": "1"},
+        "4": {"id": "4", "name": "Master Bathroom", "parent_id": "1"},
     }
 
     assert bridge.target.areas == expected_areas
