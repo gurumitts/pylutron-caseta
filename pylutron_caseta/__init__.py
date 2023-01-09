@@ -58,6 +58,7 @@ _LEAP_DEVICE_TYPES = {
         "FourGroupRemote",
         "SeeTouchTabletopKeypad",
         "SunnataKeypad",
+        "SunnataHybridKeypad",
         "SeeTouchHybridKeypad",
         "SeeTouchInternational",
         "SeeTouchKeypad",
