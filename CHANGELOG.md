@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Increased maximum message size for compatibility with 22.08.16f000 firmware.
+
 ## [0.18.0] - 2022-01-17
 
 ### Added
