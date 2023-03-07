@@ -121,7 +121,7 @@ async def _async_generate_certificate(
     ready: Optional[Callable[[], None]],
 ) -> Tuple[str, str]:
     async with asyncio_timeout(SOCKET_TIMEOUT):
-        reader, writer = asyncio.open_connection(
+        reader, writer = await asyncio.open_connection(
             server_addr,
             8083,
             server_hostname="",
@@ -196,7 +196,7 @@ def _generate_csr(private_key) -> x509.CertificateSigningRequest:
 
 async def _async_verify_certificate(server_addr, signed_ssl_context):
     async with asyncio_timeout(SOCKET_TIMEOUT):
-        reader, writer = asyncio.open_connection(
+        reader, writer = await asyncio.open_connection(
             server_addr,
             8081,
             server_hostname="",
