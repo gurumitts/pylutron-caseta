@@ -121,7 +121,7 @@ async def _async_generate_certificate(
     ready: Optional[Callable[[], None]],
 ) -> Tuple[str, str]:
     async with asyncio_timeout(SOCKET_TIMEOUT):
-        reader, writer =  asyncio.open_connection(
+        reader, writer = asyncio.open_connection(
             server_addr,
             8083,
             server_hostname="",
@@ -218,9 +218,9 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             return leap_response
 
 
-def _generate_csr_with_ssl_context() -> Tuple[
-    x509.CertificateSigningRequest, bytes, ssl.SSLContext
-]:
+def _generate_csr_with_ssl_context() -> (
+    Tuple[x509.CertificateSigningRequest, bytes, ssl.SSLContext]
+):
     with tempfile.NamedTemporaryFile(delete=False) as lap_cert_temp_file:
         with tempfile.NamedTemporaryFile(delete=False) as lap_key_temp_file:
             try:

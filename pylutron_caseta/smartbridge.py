@@ -682,7 +682,6 @@ class Smartbridge:
                 project["ProductType"] == "Lutron RadioRA 3 Project"
                 or project["ProductType"] == "Lutron HWQS Project"
             ):
-
                 # RadioRa3 or HomeWorks QSX Processor device detected
                 _LOG.debug("RA3 or QSX processor detected")
 
@@ -792,7 +791,6 @@ class Smartbridge:
             )
 
     async def _load_ra3_devices(self):
-
         for area in self.areas.values():
             await self._load_ra3_control_stations(area)
             await self._load_ra3_zones(area)
