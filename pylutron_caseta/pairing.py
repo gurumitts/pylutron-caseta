@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID  # type: ignore
 
 from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM, LUTRON_ROOT_CA_PEM
+from .utils import asyncio_timeout
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +51,8 @@ class JsonSocket:
 
     async def async_read_json(self, timeout):
         """Read an object."""
-        buffer = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
+        async with asyncio_timeout(timeout):
+            buffer = await self._reader.readline()
         if buffer == b"":
             return None
 
@@ -118,16 +120,14 @@ async def _async_generate_certificate(
     csr: x509.CertificateSigningRequest,
     ready: Optional[Callable[[], None]],
 ) -> Tuple[str, str]:
-    reader, writer = await asyncio.wait_for(
-        asyncio.open_connection(
+    async with asyncio_timeout(SOCKET_TIMEOUT):
+        reader, writer =  asyncio.open_connection(
             server_addr,
             8083,
             server_hostname="",
             ssl=ssl_context,
             family=socket.AF_INET,
-        ),
-        timeout=SOCKET_TIMEOUT,
-    )
+        )
 
     json_socket = JsonSocket(reader, writer)
     LOGGER.info("Press the small black button on the back of the Caseta bridge...")
@@ -195,16 +195,14 @@ def _generate_csr(private_key) -> x509.CertificateSigningRequest:
 
 
 async def _async_verify_certificate(server_addr, signed_ssl_context):
-    reader, writer = await asyncio.wait_for(
-        asyncio.open_connection(
+    async with asyncio_timeout(SOCKET_TIMEOUT):
+        reader, writer = asyncio.open_connection(
             server_addr,
             8081,
             server_hostname="",
             ssl=signed_ssl_context,
             family=socket.AF_INET,
-        ),
-        timeout=SOCKET_TIMEOUT,
-    )
+        )
     json_socket = JsonSocket(reader, writer)
 
     await json_socket.async_write_json(
