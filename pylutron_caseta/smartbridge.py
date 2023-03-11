@@ -25,6 +25,7 @@ from . import (
 )
 from .leap import open_connection, id_from_href, LeapProtocol
 from .messages import Response
+from .utils import asyncio_timeout
 
 _LOG = logging.getLogger(__name__)
 
@@ -248,10 +249,8 @@ class Smartbridge:
         if self._leap is None:
             raise BridgeDisconnectedError()
 
-        response = await asyncio.wait_for(
-            self._leap.request(communique_type, url, body),
-            timeout=REQUEST_TIMEOUT,
-        )
+        async with asyncio_timeout(REQUEST_TIMEOUT):
+            response = await self._leap.request(communique_type, url, body)
 
         status = response.Header.StatusCode
         if status is None or not status.is_successful():
@@ -269,12 +268,10 @@ class Smartbridge:
         if self._leap is None:
             raise BridgeDisconnectedError()
 
-        response, tag = await asyncio.wait_for(
-            self._leap.subscribe(
+        async with asyncio_timeout(REQUEST_TIMEOUT):
+            response, tag = await self._leap.subscribe(
                 url, callback, communique_type=communique_type, body=body
-            ),
-            timeout=REQUEST_TIMEOUT,
-        )
+            )
 
         status = response.Header.StatusCode
         if status is None or not status.is_successful():
@@ -685,7 +682,6 @@ class Smartbridge:
                 project["ProductType"] == "Lutron RadioRA 3 Project"
                 or project["ProductType"] == "Lutron HWQS Project"
             ):
-
                 # RadioRa3 or HomeWorks QSX Processor device detected
                 _LOG.debug("RA3 or QSX processor detected")
 
@@ -795,7 +791,6 @@ class Smartbridge:
             )
 
     async def _load_ra3_devices(self):
-
         for area in self.areas.values():
             await self._load_ra3_control_stations(area)
             await self._load_ra3_zones(area)
