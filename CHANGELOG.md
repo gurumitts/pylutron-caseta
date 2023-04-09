@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for Palladiom Wire-Free shades.
+
 ## [0.18.1] - 2023-02-03
 
 ### Fixed
