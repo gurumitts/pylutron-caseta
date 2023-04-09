@@ -44,6 +44,7 @@ _LEAP_DEVICE_TYPES = {
         "RightDrawDrape",
         "Shade",
         "SerenaTiltOnlyWoodBlind",
+        "PalladiomWireFreeShade",
     ],
     "sensor": [
         "Pico1Button",
