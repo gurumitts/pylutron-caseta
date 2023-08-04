@@ -108,7 +108,8 @@ class Smartbridge:
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
         """Initialize the Smart Bridge using TLS over IPv4."""
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
