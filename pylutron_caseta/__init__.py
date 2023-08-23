@@ -84,6 +84,7 @@ OCCUPANCY_GROUP_UNKNOWN = "Unknown"
 RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
     "RPSOccupancySensor",
     "RPSCeilingMountedOccupancySensor",
+    "RPSWallMountedOccupancySensor",
 ]
 
 BUTTON_STATUS_PRESSED = "Press"
