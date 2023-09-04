@@ -25,6 +25,7 @@ from . import (
 )
 from .leap import open_connection, id_from_href, LeapProtocol
 from .messages import Response
+from .utils import asyncio_timeout
 
 _LOG = logging.getLogger(__name__)
 
@@ -107,7 +108,8 @@ class Smartbridge:
     @classmethod
     def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
         """Initialize the Smart Bridge using TLS over IPv4."""
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
@@ -248,10 +250,8 @@ class Smartbridge:
         if self._leap is None:
             raise BridgeDisconnectedError()
 
-        response = await asyncio.wait_for(
-            self._leap.request(communique_type, url, body),
-            timeout=REQUEST_TIMEOUT,
-        )
+        async with asyncio_timeout(REQUEST_TIMEOUT):
+            response = await self._leap.request(communique_type, url, body)
 
         status = response.Header.StatusCode
         if status is None or not status.is_successful():
@@ -269,12 +269,10 @@ class Smartbridge:
         if self._leap is None:
             raise BridgeDisconnectedError()
 
-        response, tag = await asyncio.wait_for(
-            self._leap.subscribe(
+        async with asyncio_timeout(REQUEST_TIMEOUT):
+            response, tag = await self._leap.subscribe(
                 url, callback, communique_type=communique_type, body=body
-            ),
-            timeout=REQUEST_TIMEOUT,
-        )
+            )
 
         status = response.Header.StatusCode
         if status is None or not status.is_successful():
@@ -685,7 +683,6 @@ class Smartbridge:
                 project["ProductType"] == "Lutron RadioRA 3 Project"
                 or project["ProductType"] == "Lutron HWQS Project"
             ):
-
                 # RadioRa3 or HomeWorks QSX Processor device detected
                 _LOG.debug("RA3 or QSX processor detected")
 
@@ -795,7 +792,6 @@ class Smartbridge:
             )
 
     async def _load_ra3_devices(self):
-
         for area in self.areas.values():
             await self._load_ra3_control_stations(area)
             await self._load_ra3_zones(area)

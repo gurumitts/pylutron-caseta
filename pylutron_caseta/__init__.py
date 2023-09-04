@@ -44,6 +44,7 @@ _LEAP_DEVICE_TYPES = {
         "RightDrawDrape",
         "Shade",
         "SerenaTiltOnlyWoodBlind",
+        "PalladiomWireFreeShade",
     ],
     "sensor": [
         "Pico1Button",
@@ -83,6 +84,7 @@ OCCUPANCY_GROUP_UNKNOWN = "Unknown"
 RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
     "RPSOccupancySensor",
     "RPSCeilingMountedOccupancySensor",
+    "RPSWallMountedOccupancySensor",
 ]
 
 BUTTON_STATUS_PRESSED = "Press"
