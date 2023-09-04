@@ -49,7 +49,7 @@ class _PipeTransport(asyncio.Transport):
     def get_write_buffer_size(self) -> int:
         return 0
 
-    def get_write_buffer_limits(self) -> Tuple[int, int]:  # pylint: disable=no-self-use
+    def get_write_buffer_limits(self) -> Tuple[int, int]:
         """Return (0, 0)."""
         return (0, 0)
 
