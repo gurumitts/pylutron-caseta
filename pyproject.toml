@@ -56,6 +56,9 @@ good-names = [
 # allow more lines when using typing to allow for copied signatures
 min-similarity-lines = 8
 
+[tool.hatch.envs.default]
+features = ["cli"]
+
 [tool.hatch.envs.lint]
 extra-dependencies = [
     # linters such as flake8 and pylint should be pinned, as new releases

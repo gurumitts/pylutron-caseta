@@ -29,7 +29,7 @@ jobs:
         if: matrix.lint
         run: |
           hatch run lint.py${{ matrix.python-version }}:run
-      - name: Test with tox
+      - name: Test
         run: |
           hatch run test.py${{ matrix.python-version }}:run
       - name: Collect code coverage
