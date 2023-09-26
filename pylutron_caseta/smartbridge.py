@@ -718,7 +718,8 @@ class Smartbridge:
         except asyncio.CancelledError:
             pass
         except Exception as ex:
-            self._login_completed.set_exception(ex)
+            if not self._login_completed.done():
+                self._login_completed.set_exception(ex)
             raise
 
     async def _ping(self):
