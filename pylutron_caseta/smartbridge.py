@@ -848,14 +848,14 @@ class Smartbridge:
         for station in station_json:
             station_name = station["Name"]
             ganged_devices_json = station["AssociatedGangedDevices"]
-
+        
             for device_json in ganged_devices_json:
                 await self._load_ra3_station_device(
-                    area_name, station_name, device_json
+                    area_name, station_name, device_json, len(ganged_devices_json)
                 )
 
     async def _load_ra3_station_device(
-        self, control_station_area_name, control_station_name, device_json
+        self, control_station_area_name, control_station_name, device_json, gang_count
     ):
         """
         Load button groups and buttons for a control station device.
@@ -869,6 +869,8 @@ class Smartbridge:
         # ignore non-button devices
         if device_type not in _LEAP_DEVICE_TYPES.get("sensor"):
             return
+
+        gang_position = device_json["GangPosition"]
 
         button_group_json = await self._request(
             "ReadRequest", f"/device/{device_id}/buttongroup/expanded"
@@ -920,6 +922,8 @@ class Smartbridge:
             control_station_name=control_station_name,
             device_name=device_name,
             area=id_from_href(device_json.Body["Device"]["AssociatedArea"]["href"]),
+            gang_position=gang_position,
+            gang_count=gang_count,
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
