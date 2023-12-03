@@ -7,6 +7,7 @@ import math
 import socket
 import ssl
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from .color_value import ColorValue
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -281,14 +282,15 @@ class Smartbridge:
         return (response, tag)
 
     async def set_value(
-        self, device_id: str, value: int, fade_time: Optional[timedelta] = None
+        self, device_id: str, value: Optional[int] = None, fade_time: Optional[timedelta] = None, color_value: Optional[ColorValue] = None
     ):
         """
         Will set the value for a device with the given ID.
 
         :param device_id: device id to set the value on
-        :param value: integer value from 0 to 100 to set
+        :param value: integer value from 0 to 100 to set (Optional if just setting color)
         :param fade_time: duration for the light to fade from its current value to the
+        :param color_value: color value to set the device to (only currently valid for Ketra devices)
         new value (only valid for lights)
         """
         device = self.devices[device_id]
@@ -310,7 +312,11 @@ class Smartbridge:
 
         # Handle Ketra lamps
         if device.get("type") == "SpectrumTune":
-            params = {"Level": value}  # type: Dict[str, Union[str, int]]
+            params = {}  # type: Dict[str, Union[str, int]]
+            if value is not None:
+                params["Level"] = value
+            if color_value is not None:
+                params.update(color_value.get_spectrum_tuning_level_parameters())
             if fade_time is not None:
                 params["FadeTime"] = _format_duration(fade_time)
             await self._request(
