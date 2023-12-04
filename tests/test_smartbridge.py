@@ -31,6 +31,7 @@ from pylutron_caseta import (
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
     smartbridge,
+    color_value,
 )
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -2170,6 +2171,104 @@ async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
             "Command": {
                 "CommandType": "GoToSpectrumTuningLevel",
                 "SpectrumTuningLevelParameters": {"Level": 50},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the color of a Ketra lamp produces the
+    right command.
+    """
+    hue = 150
+    saturation = 30
+    color = color_value.FullColorValue(color_value.HueSaturationColorParameter(hue, saturation))
+    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "HSVTuningLevel": {
+                            "Hue": hue, "Saturation": saturation
+                        }
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    kelvin = 2700
+    color = color_value.WarmCoolColorValue(kelvin)
+    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "WhiteTuningLevel": {
+                            "Kelvin": kelvin
+                        }
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    color = color_value.WarmDimmingColorValue(True)
+    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "CurveDimming": {
+                            "Curve": {
+                                "href": "/curve/1"
+                            }
+                        }
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    vibrancy = 50
+    color = color_value.VibrancyColorValue(vibrancy)
+    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "Vibrancy": vibrancy
+                },
             }
         },
     )

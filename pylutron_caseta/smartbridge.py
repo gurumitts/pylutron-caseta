@@ -554,12 +554,15 @@ class Smartbridge:
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
+        color = ColorValue.get_color_value_from_leap(status)
+
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
         if level >= 0:
             device["current_state"] = level
         device["fan_speed"] = fan_speed
         device["tilt"] = tilt
+        device["color"] = color
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
