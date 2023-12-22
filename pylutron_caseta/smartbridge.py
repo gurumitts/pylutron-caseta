@@ -330,6 +330,23 @@ class Smartbridge:
                 },
             )
             return
+        
+        # Handle Lumaris Tape Light
+        if device.get("type") == "WhiteTune":
+            params = {"Level": value}  # type: Dict[str, Union[str, int]]
+            if fade_time is not None:
+                params["FadeTime"] = _format_duration(fade_time)
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToWhiteTuningLevel",
+                        "WhiteTuningLevelParameters": params,
+                    }
+                },
+            )
+            return
 
         if device.get("type") in _LEAP_DEVICE_TYPES["light"] and fade_time is not None:
             await self._request(
