@@ -1039,6 +1039,8 @@ class Smartbridge:
             fan_speed = zone.get("FanSpeed", None)
             zone_name = zone["Name"]
             zone_type = zone["ControlType"]
+            zone_white_tuning_range = zone.get("ColorTuningProperties", {}).get("WhiteTuningLevelRange", None)
+
             self.devices.setdefault(
                 zone_id,
                 {"device_id": zone_id, "current_state": level, "fan_speed": fan_speed},
@@ -1051,6 +1053,7 @@ class Smartbridge:
                 serial=None,
                 area=area_id,
                 device_name=zone_name,
+                white_tuning_range=zone_white_tuning_range,
             )
 
     async def _load_lip_devices(self):
