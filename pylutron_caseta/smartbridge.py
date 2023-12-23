@@ -333,7 +333,11 @@ class Smartbridge:
         
         # Handle Lumaris Tape Light
         if device.get("type") == "WhiteTune":
-            params = {"Level": value}  # type: Dict[str, Union[str, int]]
+            params = {}  # type: Dict[str, Union[str, int]]
+            if value is not None:
+                params["Level"] = value
+            if color_value is not None:
+                params.update(color_value.get_spectrum_tuning_level_parameters())
             if fade_time is not None:
                 params["FadeTime"] = _format_duration(fade_time)
             await self._request(
