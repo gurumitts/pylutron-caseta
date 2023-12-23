@@ -708,6 +708,7 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
+            "color": None,
         },
         "3": {
             "area": "2",
@@ -723,6 +724,7 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
+            "color": None,
         },
         "4": {
             "area": "3",
@@ -783,6 +785,7 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
+            "color": None,
         },
         "8": {
             "area": "4",
@@ -828,6 +831,7 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
+            "color": None,
         },
     }
 
@@ -1618,6 +1622,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1361",
+            "color": None,
+            "white_tuning_range": None,
         },
         "1377": {
             "area": "547",
@@ -1632,6 +1638,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1377",
+            "color": None,
+            "white_tuning_range": None,
         },
         "1393": {
             "area": "547",
@@ -1646,6 +1654,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "1393",
+            "color": None,
+            "white_tuning_range": None,
         },
         "1488": {
             "area": "547",
@@ -1674,6 +1684,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2010",
+            "color": None,
+            "white_tuning_range": None,
         },
         "2091": {
             "area": "766",
@@ -1688,6 +1700,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2091",
+            "color": None,
+            "white_tuning_range": None,
         },
         "2107": {
             "area": "766",
@@ -1702,6 +1716,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2107",
+            "color": None,
+            "white_tuning_range": None,
         },
         "2139": {
             "area": "766",
@@ -1868,6 +1884,22 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "536",
+            "color": None,
+            "white_tuning_range": None,
+        },
+        '1659': {
+            'area': '83',
+            'button_groups': None,
+            'current_state': -1,
+            'device_id': '1659',
+            'device_name': 'Ketra Lights',
+            'fan_speed': None,
+            'model': None,
+            'name': 'Equipment Room_Ketra Lights',
+            'serial': None,
+            'type': 'SpectrumTune',
+            'white_tuning_range': {'Max': 10000, 'Min': 1400},
+            'zone': '1659'
         },
     }
 
@@ -1890,8 +1922,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
     assert devices["1488"]["current_state"] == -1
 
     devices = ra3_bridge.target.get_devices_by_domain("light")
-    assert len(devices) == 5
-    assert devices[0]["device_id"] == "1361"
+    assert len(devices) == 6
+    assert devices[0]["device_id"] == "1659"
 
     devices = ra3_bridge.target.get_devices_by_type("Dimmed")
     assert len(devices) == 5
