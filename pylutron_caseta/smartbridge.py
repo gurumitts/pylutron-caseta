@@ -1048,7 +1048,7 @@ class Smartbridge:
             color_tuning_properties = zone.get("ColorTuningProperties")
             zone_white_tuning_range = None
             if color_tuning_properties is not None:
-                zone_white_tuning_range = color_tuning_properties["WhiteTuningLevelRange"]
+                zone_white_tuning_range = color_tuning_properties.get("WhiteTuningLevelRange")
 
             self.devices.setdefault(
                 zone_id,
