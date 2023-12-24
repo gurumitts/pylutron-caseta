@@ -708,7 +708,6 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
-            "color": None,
         },
         "3": {
             "area": "2",
@@ -724,7 +723,6 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
-            "color": None,
         },
         "4": {
             "area": "3",
@@ -785,7 +783,6 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
-            "color": None,
         },
         "8": {
             "area": "4",
@@ -831,7 +828,6 @@ async def test_device_list(bridge: Bridge):
             "button_groups": None,
             "tilt": None,
             "occupancy_sensors": None,
-            "color": None,
         },
     }
 
@@ -1622,7 +1618,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1361",
-            "color": None,
             "white_tuning_range": None,
         },
         "1377": {
@@ -1638,7 +1633,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1377",
-            "color": None,
             "white_tuning_range": None,
         },
         "1393": {
@@ -1654,7 +1648,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "1393",
-            "color": None,
             "white_tuning_range": None,
         },
         "1488": {
@@ -1684,7 +1677,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2010",
-            "color": None,
             "white_tuning_range": None,
         },
         "2091": {
@@ -1700,7 +1692,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2091",
-            "color": None,
             "white_tuning_range": None,
         },
         "2107": {
@@ -1716,7 +1707,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2107",
-            "color": None,
             "white_tuning_range": None,
         },
         "2139": {
@@ -1884,7 +1874,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "536",
-            "color": None,
             "white_tuning_range": None,
         },
         '1659': {

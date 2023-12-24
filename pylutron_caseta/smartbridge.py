@@ -583,7 +583,9 @@ class Smartbridge:
             device["current_state"] = level
         device["fan_speed"] = fan_speed
         device["tilt"] = tilt
-        device["color"] = color
+        # only update color if it's not None, since color is not reported on brightness changes
+        if color is not None:
+            device["color"] = color
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
