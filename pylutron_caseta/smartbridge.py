@@ -1043,7 +1043,10 @@ class Smartbridge:
             fan_speed = zone.get("FanSpeed", None)
             zone_name = zone["Name"]
             zone_type = zone["ControlType"]
-            zone_white_tuning_range = zone.get("ColorTuningProperties", {}).get("WhiteTuningLevelRange", None)
+            color_tuning_properties = zone.get("ColorTuningProperties")
+            zone_white_tuning_range = None
+            if color_tuning_properties is not None:
+                zone_white_tuning_range = color_tuning_properties["WhiteTuningLevelRange"]
 
             self.devices.setdefault(
                 zone_id,
