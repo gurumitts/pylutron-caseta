@@ -32,22 +32,21 @@ class ColorValue(ABC):
 
         if "ColorTuningStatus" in zone_status:
             color_status = zone_status["ColorTuningStatus"]
-            if "WhiteTuningLevel" in color_status:
+            curve_dimming = color_status.get("CurveDimming")
+            if curve_dimming is not None and "Curve" in curve_dimming:
+                return WarmDimmingColorValue(True)
+            elif "WhiteTuningLevel" in color_status:
                 kelvin = color_status["WhiteTuningLevel"]["Kelvin"]
                 return WarmCoolColorValue(kelvin)
             elif "HSVTuningLevel" in color_status:
                 hue = color_status["HSVTuningLevel"]["Hue"]
                 saturation = color_status["HSVTuningLevel"]["Saturation"]
                 return FullColorValue(HueSaturationColorParameter(hue, saturation))
-            elif "CurveDimming" in color_status:
-                if color_status["CurveDimming"] is None:
-                    return WarmDimmingColorValue(False)
-                else:
-                    return WarmDimmingColorValue(True)
+
         elif "Vibrancy" in zone_status:
             return VibrancyColorValue(zone_status["Vibrancy"])
-        else:
-            return None
+
+        return None
 
 
 class FullColorParameter(ABC):
