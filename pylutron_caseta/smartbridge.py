@@ -7,7 +7,7 @@ import math
 import socket
 import ssl
 from typing import Callable, Dict, List, Optional, Tuple, Union
-from .color_value import ColorValue
+from .color_value import ColorMode, WarmDimmingColorValue
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -281,8 +281,46 @@ class Smartbridge:
 
         return (response, tag)
 
+    async def set_warm_dim(
+            self, device_id: str, enabled: bool, value: Optional[int] = None, fade_time: Optional[timedelta] = None
+    ):
+        """
+        Will set the warm dimming value for a device with the given ID.
+
+        :param device_id: device id to set the value on
+        :param enabled: enable warm dimming
+        :param value: integer value from 0 to 100 to set (Optional if just setting color)
+        :param fade_time: duration for the light to fade from its current value to the
+        """
+        device = self.devices[device_id]
+        zone_id = device.get("zone")
+        if not zone_id:
+            return
+
+        params = {}  # type: Dict[str, Union[str, int]]
+        if value is not None:
+            params["Level"] = value
+        if fade_time is not None:
+            params["FadeTime"] = _format_duration(fade_time)
+
+        color_value = WarmDimmingColorValue(enabled, params)
+        command = {}
+        if device.get("type") == "SpectrumTune":
+            command = color_value.get_spectrum_tuning_level_parameters()
+        elif device.get("type") == "WhiteTune":
+            command = color_value.get_white_tuning_level_parameters()
+
+        await self._request(
+            "CreateRequest",
+            f"/zone/{zone_id}/commandprocessor",
+            {
+                "Command": command
+            },
+        )
+        return
+
     async def set_value(
-        self, device_id: str, value: Optional[int] = None, fade_time: Optional[timedelta] = None, color_value: Optional[ColorValue] = None
+        self, device_id: str, value: Optional[int] = None, fade_time: Optional[timedelta] = None, color_value: Optional[ColorMode] = None
     ):
         """
         Will set the value for a device with the given ID.
@@ -337,7 +375,7 @@ class Smartbridge:
             if value is not None:
                 params["Level"] = value
             if color_value is not None:
-                params.update(color_value.get_spectrum_tuning_level_parameters())
+                params.update(color_value.get_white_tuning_level_parameters())
             if fade_time is not None:
                 params["FadeTime"] = _format_duration(fade_time)
             await self._request(
@@ -575,7 +613,7 @@ class Smartbridge:
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
-        color = ColorValue.get_color_value_from_leap(status)
+        color = ColorMode.get_color_mode_from_leap(status)
 
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)

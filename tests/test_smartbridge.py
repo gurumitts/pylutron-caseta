@@ -2253,8 +2253,7 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
     qsx_processor.leap.requests.task_done()
     task.cancel()
 
-    color = color_value.WarmDimmingColorValue(True)
-    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
+    task = event_loop.create_task(qsx_processor.target.set_warm_dim("985", True))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2270,25 +2269,6 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
                             }
                         }
                     }
-                },
-            }
-        },
-    )
-    qsx_processor.leap.requests.task_done()
-    task.cancel()
-
-    vibrancy = 50
-    color = color_value.VibrancyColorValue(vibrancy)
-    task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
-    command, _ = await qsx_processor.leap.requests.get()
-    assert command == Request(
-        communique_type="CreateRequest",
-        url="/zone/985/commandprocessor",
-        body={
-            "Command": {
-                "CommandType": "GoToSpectrumTuningLevel",
-                "SpectrumTuningLevelParameters": {
-                    "Vibrancy": vibrancy
                 },
             }
         },

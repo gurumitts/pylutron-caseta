@@ -4,8 +4,7 @@ import colorsys
 from typing import Optional
 
 
-# Protocol for color supported lights
-class ColorValue(ABC):
+class ColorMode(ABC):
     """
     A protocol for setting the color property of a support light.
    """
@@ -19,8 +18,16 @@ class ColorValue(ABC):
         """
         pass
 
+    def get_white_tuning_level_parameters(self) -> dict:
+        """
+        Gets the relevant parameter dictionary for the white tuning level of the child class.
+
+        :return: white tuning level parameter dictionary
+        """
+        pass
+
     @staticmethod
-    def get_color_value_from_leap(zone_status: dict) -> Optional["ColorValue"]:
+    def get_color_mode_from_leap(zone_status: dict) -> Optional["ColorMode"]:
         """
         Gets the color value from the leap command.
 
@@ -30,21 +37,20 @@ class ColorValue(ABC):
         if zone_status is None:
             return None
 
-        if "ColorTuningStatus" in zone_status:
-            color_status = zone_status["ColorTuningStatus"]
-            curve_dimming = color_status.get("CurveDimming")
-            if curve_dimming is not None and "Curve" in curve_dimming:
-                return WarmDimmingColorValue(True)
-            elif "WhiteTuningLevel" in color_status:
-                kelvin = color_status["WhiteTuningLevel"]["Kelvin"]
-                return WarmCoolColorValue(kelvin)
-            elif "HSVTuningLevel" in color_status:
-                hue = color_status["HSVTuningLevel"]["Hue"]
-                saturation = color_status["HSVTuningLevel"]["Saturation"]
-                return FullColorValue(HueSaturationColorParameter(hue, saturation))
+        if "ColorTuningStatus" not in zone_status:
+            return None
 
-        elif "Vibrancy" in zone_status:
-            return VibrancyColorValue(zone_status["Vibrancy"])
+        color_status = zone_status["ColorTuningStatus"]
+        curve_dimming = color_status.get("CurveDimming")
+        if curve_dimming is not None and "Curve" in curve_dimming:
+            return WarmDimmingColorValue(True)
+        elif "WhiteTuningLevel" in color_status:
+            kelvin = color_status["WhiteTuningLevel"]["Kelvin"]
+            return WarmCoolColorValue(kelvin)
+        elif "HSVTuningLevel" in color_status:
+            hue = color_status["HSVTuningLevel"]["Hue"]
+            saturation = color_status["HSVTuningLevel"]["Saturation"]
+            return FullColorValue(HueSaturationColorParameter(hue, saturation))
 
         return None
 
@@ -76,7 +82,7 @@ class HueSaturationColorParameter(FullColorParameter):
         return self.hue, self.saturation
 
 
-class FullColorValue(ColorValue):
+class FullColorValue(ColorMode):
     def __init__(self, color: FullColorParameter):
         """
         Full Color spectrum value
@@ -87,13 +93,16 @@ class FullColorValue(ColorValue):
 
     def get_spectrum_tuning_level_parameters(self) -> dict:
         return {
-            "ColorTuningStatus": {
-                "HSVTuningLevel":
-                    {
-                        "Hue": self.hue,
-                        "Saturation": self.saturation
-                    }
-            }
+            "ColorTuningStatus": self.get_white_tuning_level_parameters()
+        }
+
+    def get_white_tuning_level_parameters(self) -> dict:
+        return {
+            "HSVTuningLevel":
+                {
+                    "Hue": self.hue,
+                    "Saturation": self.saturation
+                }
         }
 
     def get_rgb(self) -> (int, int, int):
@@ -102,7 +111,7 @@ class FullColorValue(ColorValue):
         return int(r * 255), int(g * 255), int(b * 255)
 
 
-class WarmCoolColorValue(ColorValue):
+class WarmCoolColorValue(ColorMode):
     def __init__(self, kelvin: int):
         """
         Warm Cool color value
@@ -113,27 +122,29 @@ class WarmCoolColorValue(ColorValue):
 
     def get_spectrum_tuning_level_parameters(self) -> dict:
         return {
-            "ColorTuningStatus": {
-                "WhiteTuningLevel":
-                    {
-                        "Kelvin": self.kelvin
-                    }
+            "ColorTuningStatus": self.get_white_tuning_level_parameters()
+        }
+
+    def get_white_tuning_level_parameters(self) -> dict:
+        return {
+            "WhiteTuningLevel": {
+                "Kelvin": self.kelvin
             }
         }
 
 
-class WarmDimmingColorValue(ColorValue):
+class WarmDimmingColorValue(ColorMode):
     """
     Warm Dimming value
 
     :param enabled: enable warm dimming
     """
 
-    def __init__(self, enabled: bool):
+    def __init__(self, enabled: bool, additional_params: dict = {}):
         self.enabled = enabled
+        self.additional_params = additional_params
 
-    def get_spectrum_tuning_level_parameters(self) -> dict:
-
+    def get_leap_parameters(self) -> dict:
         if self.enabled:
             curve_dimming = {
                 "Curve":
@@ -145,23 +156,24 @@ class WarmDimmingColorValue(ColorValue):
             curve_dimming = None
 
         return {
-            "ColorTuningStatus":
-                {
-                    "CurveDimming": curve_dimming
-                }
+            "CurveDimming": curve_dimming
         }
 
-
-class VibrancyColorValue(ColorValue):
-    def __init__(self, vibrancy: int):
-        """
-        set the vibrancy value
-
-        :param vibrancy: vibrancy value between 0 and 100
-        """
-        self.vibrancy = vibrancy
-
     def get_spectrum_tuning_level_parameters(self) -> dict:
+        params = {
+            "ColorTuningStatus": self.get_leap_parameters()
+        }
+        params.update(self.additional_params)
         return {
-            "Vibrancy": self.vibrancy
+            "CommandType": "GoToSpectrumTuningLevel",
+            "SpectrumTuningLevelParameters": params
+        }
+
+    def get_white_tuning_level_parameters(self) -> dict:
+        params = self.get_leap_parameters()
+        params.update(self.additional_params)
+
+        return {
+            "CommandType": "GoToWarmDim",
+            "WarmDimParameters": params
         }
