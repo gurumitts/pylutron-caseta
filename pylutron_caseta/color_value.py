@@ -26,8 +26,9 @@ class ColorMode(ABC):
         """
         pass
 
+
     @staticmethod
-    def get_color_mode_from_leap(zone_status: dict) -> Optional["ColorMode"]:
+    def get_color_from_leap(zone_status: dict) -> Optional["ColorMode"]:
         """
         Gets the color value from the leap command.
 
@@ -37,14 +38,11 @@ class ColorMode(ABC):
         if zone_status is None:
             return None
 
-        if "ColorTuningStatus" not in zone_status:
+        color_status = zone_status.get("ColorTuningStatus")
+        if color_status is None:
             return None
 
-        color_status = zone_status["ColorTuningStatus"]
-        curve_dimming = color_status.get("CurveDimming")
-        if curve_dimming is not None and "Curve" in curve_dimming:
-            return WarmDimmingColorValue(True)
-        elif "WhiteTuningLevel" in color_status:
+        if "WhiteTuningLevel" in color_status:
             kelvin = color_status["WhiteTuningLevel"]["Kelvin"]
             return WarmCoolColorValue(kelvin)
         elif "HSVTuningLevel" in color_status:
@@ -133,7 +131,7 @@ class WarmCoolColorValue(ColorMode):
         }
 
 
-class WarmDimmingColorValue(ColorMode):
+class WarmDimmingColorValue:
     """
     Warm Dimming value
 
@@ -143,6 +141,21 @@ class WarmDimmingColorValue(ColorMode):
     def __init__(self, enabled: bool, additional_params: dict = {}):
         self.enabled = enabled
         self.additional_params = additional_params
+
+    @staticmethod
+    def get_warm_dim_from_leap(zone_status: dict) -> Optional["bool"]:
+        if zone_status is None:
+            return None
+
+        color_status = zone_status.get("ColorTuningStatus")
+        if color_status is None:
+            return None
+
+        curve_dimming = color_status.get("CurveDimming")
+        if curve_dimming is None:
+            return None
+
+        return "Curve" in curve_dimming
 
     def get_leap_parameters(self) -> dict:
         if self.enabled:

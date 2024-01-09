@@ -317,7 +317,6 @@ class Smartbridge:
                 "Command": command
             },
         )
-        return
 
     async def set_value(
         self, device_id: str, value: Optional[int] = None, fade_time: Optional[timedelta] = None, color_value: Optional[ColorMode] = None
@@ -328,7 +327,7 @@ class Smartbridge:
         :param device_id: device id to set the value on
         :param value: integer value from 0 to 100 to set (Optional if just setting color)
         :param fade_time: duration for the light to fade from its current value to the
-        :param color_value: color value to set the device to (only currently valid for Ketra devices)
+        :param color_value: color value to set the device to (only currently valid for Ketra/Lumaris devices)
         new value (only valid for lights)
         """
         device = self.devices[device_id]
@@ -613,7 +612,8 @@ class Smartbridge:
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
-        color = ColorMode.get_color_mode_from_leap(status)
+        color = ColorMode.get_color_from_leap(status)
+        warm_dim = WarmDimmingColorValue.get_warm_dim_from_leap(status)
 
         _LOG.debug("zone=%s level=%s", zone, level)
         device = self.get_device_by_zone_id(zone)
@@ -624,6 +624,9 @@ class Smartbridge:
         # only update color if it's not None, since color is not reported on brightness changes
         if color is not None:
             device["color"] = color
+        if warm_dim is not None:
+            device["warm_dim"] = warm_dim
+
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
