@@ -2208,7 +2208,7 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
     """
     hue = 150
     saturation = 30
-    color = color_value.FullColorValue(color_value.HueSaturationColorParameter(hue, saturation))
+    color = color_value.FullColorValue(hue, saturation)
     task = event_loop.create_task(qsx_processor.target.set_value("985", color_value=color))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
