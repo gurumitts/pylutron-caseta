@@ -2162,6 +2162,7 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
     await ra3_bridge.target.close()
 
 
+
 @pytest.mark.asyncio
 async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
     """Test that setting the value of a keypad LED produces the right command."""
@@ -2192,6 +2193,56 @@ async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
             "Command": {
                 "CommandType": "GoToSpectrumTuningLevel",
                 "SpectrumTuningLevelParameters": {"Level": 50},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the temperature of a lumaris device produces the
+    right command.
+    """
+    kelvin = 2700
+    color = color_value.WarmCoolColorValue(kelvin)
+    task = event_loop.create_task(qsx_processor.target.set_value("989", color_value=color))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/989/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToWhiteTuningLevel",
+                "WhiteTuningLevelParameters": {
+                    "WhiteTuningLevel": {
+                        "Kelvin": kelvin
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    task = event_loop.create_task(qsx_processor.target.set_warm_dim("989", True))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/989/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToWarmDim",
+                "WarmDimParameters": {
+                    "CurveDimming": {
+                        "Curve": {
+                            "href": "/curve/1"
+                        }
+                    }
+                },
             }
         },
     )
