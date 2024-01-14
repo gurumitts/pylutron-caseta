@@ -1,12 +1,10 @@
-# protocol which defines a method that returns a dictionary of the leap command given a zone string
 from abc import ABC, abstractmethod
-import colorsys
 from typing import Optional
 
 
 class ColorMode(ABC):
     """
-    A protocol for setting the color property of a support light.
+    A protocol for getting leap commands to send color to supported spectrum tune and white tune lights .
    """
 
     @abstractmethod
@@ -18,6 +16,7 @@ class ColorMode(ABC):
         """
         pass
 
+    @abstractmethod
     def get_white_tuning_level_parameters(self) -> dict:
         """
         Gets the relevant parameter dictionary for the white tuning level of the child class.
@@ -26,11 +25,10 @@ class ColorMode(ABC):
         """
         pass
 
-
     @staticmethod
     def get_color_from_leap(zone_status: dict) -> Optional["ColorMode"]:
         """
-        Gets the color value from the leap command.
+        Gets the color value from the zone status. Returns None if no color is set.
 
         :param zone_status: leap zone status dictionary
         :return: color value
@@ -48,46 +46,21 @@ class ColorMode(ABC):
         elif "HSVTuningLevel" in color_status:
             hue = color_status["HSVTuningLevel"]["Hue"]
             saturation = color_status["HSVTuningLevel"]["Saturation"]
-            return FullColorValue(HueSaturationColorParameter(hue, saturation))
+            return FullColorValue(hue, saturation)
 
         return None
 
 
-class FullColorParameter(ABC):
-    @abstractmethod
-    def get_hs(self) -> (int, int):
-        pass
-
-
-class RGBColorParameter(FullColorParameter):
-    def __init__(self, r: int, g: int, b: int):
-        self.r = r
-        self.g = g
-        self.b = b
-
-    def get_hs(self) -> (int, int):
-        # convert rgb to hsv, then from 0-1 into 0-360 and 0-100
-        h, s, _ = colorsys.rgb_to_hsv(float(self.r) / 255.0, float(self.g) / 255.0, float(self.b) / 255.0)
-        return int(h * 360), int(s * 100)
-
-
-class HueSaturationColorParameter(FullColorParameter):
+class FullColorValue(ColorMode):
     def __init__(self, hue: int, saturation: int):
+        """
+        Full Color value
+
+        :param hue: Hue of the bulb
+        :param saturation: Saturation of the bulb
+        """
         self.hue = hue
         self.saturation = saturation
-
-    def get_hs(self) -> (int, int):
-        return self.hue, self.saturation
-
-
-class FullColorValue(ColorMode):
-    def __init__(self, color: FullColorParameter):
-        """
-        Full Color spectrum value
-
-        :param color: color parameter for the bulb defined by either RGB or Hue/Saturation
-        """
-        self.hue, self.saturation = color.get_hs()
 
     def get_spectrum_tuning_level_parameters(self) -> dict:
         return {
@@ -102,11 +75,6 @@ class FullColorValue(ColorMode):
                     "Saturation": self.saturation
                 }
         }
-
-    def get_rgb(self) -> (int, int, int):
-        # convert hsv to rgb, then from 0-1 into 0-255
-        r, g, b = colorsys.hsv_to_rgb(float(self.hue) / 360.0, float(self.saturation) / 100.0, 1.0)
-        return int(r * 255), int(g * 255), int(b * 255)
 
 
 class WarmCoolColorValue(ColorMode):
