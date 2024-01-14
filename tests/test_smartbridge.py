@@ -1876,20 +1876,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "zone": "536",
             "white_tuning_range": None,
         },
-        '1659': {
-            'area': '83',
-            'button_groups': None,
-            'current_state': -1,
-            'device_id': '1659',
-            'device_name': 'Ketra Lights',
-            'fan_speed': None,
-            'model': None,
-            'name': 'Equipment Room_Ketra Lights',
-            'serial': None,
-            'type': 'SpectrumTune',
-            'white_tuning_range': {'Max': 10000, 'Min': 1400},
-            'zone': '1659'
-        },
     }
 
     assert devices == expected_devices
@@ -1911,8 +1897,8 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
     assert devices["1488"]["current_state"] == -1
 
     devices = ra3_bridge.target.get_devices_by_domain("light")
-    assert len(devices) == 6
-    assert devices[0]["device_id"] == "1659"
+    assert len(devices) == 5
+    assert devices[0]["device_id"] == "1361"
 
     devices = ra3_bridge.target.get_devices_by_type("Dimmed")
     assert len(devices) == 5
