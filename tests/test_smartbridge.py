@@ -2162,7 +2162,6 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
     await ra3_bridge.target.close()
 
 
-
 @pytest.mark.asyncio
 async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
     """Test that setting the value of a keypad LED produces the right command."""
@@ -2179,20 +2178,20 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_whitetune_level(qsx_processor: Bridge, event_loop):
     """
-    Test that setting the level of a Ketra lamp without a fade time produces the
+    Test that setting the level of a White Tune zone without a fade time produces the
     right command.
     """
-    task = event_loop.create_task(qsx_processor.target.set_value("985", 50))
+    task = event_loop.create_task(qsx_processor.target.set_value("989", 50))
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
-        url="/zone/985/commandprocessor",
+        url="/zone/989/commandprocessor",
         body={
             "Command": {
-                "CommandType": "GoToSpectrumTuningLevel",
-                "SpectrumTuningLevelParameters": {"Level": 50},
+                "CommandType": "GoToWhiteTuningLevel",
+                "WhiteTuningLevelParameters": {"Level": 50},
             }
         },
     )
@@ -2243,6 +2242,29 @@ async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
                         }
                     }
                 },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the level of a Ketra lamp without a fade time produces the
+    right command.
+    """
+    task = event_loop.create_task(qsx_processor.target.set_value("985", 50))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {"Level": 50},
             }
         },
     )
