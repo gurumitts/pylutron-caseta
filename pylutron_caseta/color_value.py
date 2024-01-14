@@ -82,7 +82,7 @@ class WarmCoolColorValue(ColorMode):
         """
         Warm Cool color value
 
-        :param kelvin: kelvin value between 1400 and 7000
+        :param kelvin: kelvin value of the bulb
         """
         self.kelvin = kelvin
 
