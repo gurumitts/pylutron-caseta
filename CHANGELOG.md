@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for Lumaris Tape Light and Ketra color.
+
 ## [0.18.3] - 2023-10-07
 
 ### Fixed

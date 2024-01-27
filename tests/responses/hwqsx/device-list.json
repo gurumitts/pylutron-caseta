@@ -151,6 +151,32 @@
         "AddressedState": "Unaddressed"
       },
       {
+        "Name": "Lumaris Tape Strip",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "href": "/device/989",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HWL-TLK-SW",
+        "LocalZones": [
+          {
+            "href": "/zone/989"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/989/linknode/992"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61a0101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
         "Name": "Keypad 1",
         "DeviceType": "PalladiomKeypad",
         "AssociatedArea": {

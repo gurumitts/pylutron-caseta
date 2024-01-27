@@ -32,6 +32,7 @@ from pylutron_caseta import (
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
     smartbridge,
+    color_value,
 )
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -1618,6 +1619,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1361",
+            "white_tuning_range": None,
         },
         "1377": {
             "area": "547",
@@ -1632,6 +1634,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "1377",
+            "white_tuning_range": None,
         },
         "1393": {
             "area": "547",
@@ -1646,6 +1649,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "1393",
+            "white_tuning_range": None,
         },
         "1488": {
             "area": "547",
@@ -1674,6 +1678,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2010",
+            "white_tuning_range": None,
         },
         "2091": {
             "area": "766",
@@ -1688,6 +1693,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2091",
+            "white_tuning_range": None,
         },
         "2107": {
             "area": "766",
@@ -1702,6 +1708,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Dimmed",
             "zone": "2107",
+            "white_tuning_range": None,
         },
         "2139": {
             "area": "766",
@@ -1868,6 +1875,7 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "tilt": None,
             "type": "Switched",
             "zone": "536",
+            "white_tuning_range": None,
         },
     }
 
@@ -2157,6 +2165,71 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
+async def test_qsx_set_whitetune_level(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the level of a White Tune zone without a fade time produces the
+    right command.
+    """
+    task = event_loop.create_task(qsx_processor.target.set_value("989", 50))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/989/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToWhiteTuningLevel",
+                "WhiteTuningLevelParameters": {"Level": 50},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the temperature of a lumaris device produces the
+    right command.
+    """
+    kelvin = 2700
+    color = color_value.WarmCoolColorValue(kelvin)
+    task = event_loop.create_task(
+        qsx_processor.target.set_value("989", color_value=color)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/989/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToWhiteTuningLevel",
+                "WhiteTuningLevelParameters": {"WhiteTuningLevel": {"Kelvin": kelvin}},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    task = event_loop.create_task(qsx_processor.target.set_warm_dim("989", True))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/989/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToWarmDim",
+                "WarmDimParameters": {"CurveDimming": {"Curve": {"href": "/curve/1"}}},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
 async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
     """
     Test that setting the level of a Ketra lamp without a fade time produces the
@@ -2171,6 +2244,78 @@ async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
             "Command": {
                 "CommandType": "GoToSpectrumTuningLevel",
                 "SpectrumTuningLevelParameters": {"Level": 50},
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
+    """
+    Test that setting the color of a Ketra lamp produces the
+    right command.
+    """
+    hue = 150
+    saturation = 30
+    full_color = color_value.FullColorValue(hue, saturation)
+    task = event_loop.create_task(
+        qsx_processor.target.set_value("985", color_value=full_color)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "HSVTuningLevel": {"Hue": hue, "Saturation": saturation}
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    kelvin = 2700
+    warm_color = color_value.WarmCoolColorValue(kelvin)
+    task = event_loop.create_task(
+        qsx_processor.target.set_value("985", color_value=warm_color)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {"WhiteTuningLevel": {"Kelvin": kelvin}}
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    task = event_loop.create_task(qsx_processor.target.set_warm_dim("985", True))
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/985/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "CurveDimming": {"Curve": {"href": "/curve/1"}}
+                    }
+                },
             }
         },
     )
