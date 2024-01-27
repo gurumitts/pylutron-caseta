@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pylutron-caseta"
-version = "0.18.3"
+version = "0.19.0"
 description = "Provides an API to the Lutron Smartbridge"
 readme = "README.md"
 license = "Apache-2.0"
@@ -34,6 +34,12 @@ leap-scan = "pylutron_caseta.cli:leap_scan[cli]"
 
 [project.urls]
 Homepage = "https://github.com/gurumitts/pylutron-caseta"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+]
 
 [tool.hatch.envs.default]
 features = ["cli"]
