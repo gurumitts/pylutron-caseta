@@ -4,6 +4,7 @@ import json
 from typing import AsyncGenerator, Iterable, NamedTuple, Tuple
 
 import pytest
+import pytest_asyncio
 
 from pylutron_caseta import BridgeDisconnectedError
 from pylutron_caseta.leap import LeapProtocol
@@ -49,7 +50,7 @@ class _PipeTransport(asyncio.Transport):
     def get_write_buffer_size(self) -> int:
         return 0
 
-    def get_write_buffer_limits(self) -> Tuple[int, int]:  # pylint: disable=no-self-use
+    def get_write_buffer_limits(self) -> Tuple[int, int]:
         """Return (0, 0)."""
         return (0, 0)
 
@@ -73,10 +74,8 @@ class _PipeTransport(asyncio.Transport):
         return self._protocol
 
 
-@pytest.fixture(name="pipe")
-async def fixture_pipe(
-    event_loop: asyncio.AbstractEventLoop,
-) -> AsyncGenerator[Pipe, None]:
+@pytest_asyncio.fixture(name="pipe")
+async def fixture_pipe() -> AsyncGenerator[Pipe, None]:
     """Create linked readers and writers for tests."""
     test_reader = asyncio.StreamReader()
     impl_reader = asyncio.StreamReader()
@@ -91,10 +90,10 @@ async def fixture_pipe(
     test_protocol.connection_made(test_pipe)
     impl_protocol.connection_made(impl_pipe)
     test_writer = asyncio.StreamWriter(
-        test_pipe, test_protocol, test_reader, event_loop
+        test_pipe, test_protocol, test_reader, asyncio.get_running_loop()
     )
     impl_writer = asyncio.StreamWriter(
-        impl_pipe, impl_protocol, impl_reader, event_loop
+        impl_pipe, impl_protocol, impl_reader, asyncio.get_running_loop()
     )
 
     leap = LeapProtocol(impl_reader, impl_writer)
