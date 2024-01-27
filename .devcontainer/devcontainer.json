@@ -9,8 +9,7 @@
 				"python.defaultInterpreterPath": "/home/vscode/.env/default/bin/python"
 			},
 			"extensions": [
-				"ms-python.black-formatter",
-				"ms-python.flake8",
+				"charliermarsh.ruff",
 				"ms-python.mypy-type-checker",
 				"ms-python.python",
 				"visualstudioexptteam.vscodeintellicode",

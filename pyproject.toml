@@ -35,64 +35,38 @@ leap-scan = "pylutron_caseta.cli:leap_scan[cli]"
 [project.urls]
 Homepage = "https://github.com/gurumitts/pylutron-caseta"
 
-[tool.pylint.MASTER]
-reports = false
-
-[tool.pylint.'MESSAGES CONTROL']
-disable = [
-  "too-many-arguments",
-  "too-many-instance-attributes",
-  "too-many-public-methods",
-  "too-many-lines",
-]
-
-[tool.pylint.BASIC]
-good-names = [
-  "i","j","k","ex","Run","_", # defaults
-  "T",
-]
-
-[tool.pylint.SIMILARITIES]
-# allow more lines when using typing to allow for copied signatures
-min-similarity-lines = 8
-
 [tool.hatch.envs.default]
 features = ["cli"]
 
 [tool.hatch.envs.lint]
 extra-dependencies = [
-    # linters such as flake8 and pylint should be pinned, as new releases
+    # linters such as mypy and ruff should be pinned, as new releases
     # make new things fail. Manually update these pins when pulling in a
     # new version
-    "black==22.3.0",
-    "flake8==3.8.3",
     "mypy==1.5.1",
-    "pydocstyle==5.1.1",
-    "pylint==2.17.5",
+    "ruff==0.1.14",
 ]
 features = ["cli"]
 template = "test"
 
 [tool.hatch.envs.lint.scripts]
 run = [
-    "black --check src tests",
-    "flake8 src tests",
-    "pylint src tests",
-    "pydocstyle src tests",
+    "ruff format --check src tests",
+    "ruff check src tests",
     "mypy src tests",
 ]
 
 [[tool.hatch.envs.lint.matrix]]
-python = ["3.11"]
+python = ["3.12"]
 
 [tool.hatch.envs.test]
 dependencies = [
-    "coveralls~=2.1.2",
-    "pytest-asyncio==0.14.0",
-    "pytest-cov~=2.10.1",
-    "pytest-sugar~=0.9.4",
-    "pytest-timeout~=1.4.2",
-    "pytest~=6.2.5",
+    "coveralls~=3.3.1",
+    "pytest-asyncio==0.23.3",
+    "pytest-cov~=4.1.0",
+    "pytest-sugar~=0.9.7",
+    "pytest-timeout~=2.2.0",
+    "pytest~=7.4.4",
 ]
 
 [tool.hatch.envs.test.scripts]
@@ -101,4 +75,4 @@ run = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]

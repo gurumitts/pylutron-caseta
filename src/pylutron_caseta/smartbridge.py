@@ -302,7 +302,7 @@ class Smartbridge:
         if not zone_id:
             return
 
-        params = {}  # type: Dict[str, Union[str, int]]
+        params: Dict[str, Union[str, int]] = {}
         if value is not None:
             params["Level"] = value
         if fade_time is not None:
@@ -358,7 +358,7 @@ class Smartbridge:
 
         # Handle Ketra lamps
         if device.get("type") == "SpectrumTune":
-            spectrum_params = {}  # type: Dict[str, Union[str, int]]
+            spectrum_params: Dict[str, Union[str, int]] = {}
             if value is not None:
                 spectrum_params["Level"] = value
             if color_value is not None:
@@ -381,7 +381,7 @@ class Smartbridge:
 
         # Handle Lumaris Tape Light
         if device.get("type") == "WhiteTune":
-            white_params = {}  # type: Dict[str, Union[str, int]]
+            white_params: Dict[str, Union[str, int]] = {}
             if value is not None:
                 white_params["Level"] = value
             if color_value is not None:

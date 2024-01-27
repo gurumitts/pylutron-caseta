@@ -1,3 +1,0 @@
-[pydocstyle]
-inherit = false
-add_ignore = D102

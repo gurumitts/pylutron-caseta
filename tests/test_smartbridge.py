@@ -20,6 +20,7 @@ from typing import (
 )
 
 import pytest
+import pytest_asyncio
 
 from pylutron_caseta.leap import id_from_href
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
@@ -611,7 +612,7 @@ class Bridge:
         self.connections.task_done()
 
 
-@pytest.fixture(name="bridge_uninit")
+@pytest_asyncio.fixture(name="bridge_uninit")
 async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
     """
     Create a bridge attached to a fake reader and writer but not yet initialized.
@@ -626,7 +627,7 @@ async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
     await harness.target.close()
 
 
-@pytest.fixture(name="bridge")
+@pytest_asyncio.fixture(name="bridge")
 async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a bridge attached to a fake reader and writer."""
     await bridge_uninit.initialize(CASETA_PROCESSOR)
@@ -634,7 +635,7 @@ async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     yield bridge_uninit
 
 
-@pytest.fixture(name="ra3_bridge")
+@pytest_asyncio.fixture(name="ra3_bridge")
 async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a RA3 bridge attached to a fake reader and writer."""
     await bridge_uninit.initialize(RA3_PROCESSOR)
@@ -642,7 +643,7 @@ async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     yield bridge_uninit
 
 
-@pytest.fixture(name="qsx_processor")
+@pytest_asyncio.fixture(name="qsx_processor")
 async def fixture_bridge_qsx(bridge_uninit) -> AsyncGenerator[Bridge, None]:
     """Create a QSX processor attached to a fake reader and writer."""
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
@@ -1218,9 +1219,9 @@ async def test_is_on_fan(bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_value(bridge: Bridge, event_loop):
+async def test_set_value(bridge: Bridge):
     """Test that setting values produces the right commands."""
-    task = event_loop.create_task(bridge.target.set_value("2", 50))
+    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1252,7 +1253,7 @@ async def test_set_value(bridge: Bridge, event_loop):
     bridge.leap.requests.task_done()
     await task
 
-    task = event_loop.create_task(bridge.target.turn_on("2"))
+    task = asyncio.get_running_loop().create_task(bridge.target.turn_on("2"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1284,7 +1285,7 @@ async def test_set_value(bridge: Bridge, event_loop):
     bridge.leap.requests.task_done()
     await task
 
-    task = event_loop.create_task(bridge.target.turn_off("2"))
+    task = asyncio.get_running_loop().create_task(bridge.target.turn_off("2"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1318,9 +1319,9 @@ async def test_set_value(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_set_value_with_fade(bridge: Bridge, event_loop):
+async def test_set_value_with_fade(bridge: Bridge):
     """Test that setting values with fade_time produces the right commands."""
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         bridge.target.set_value("2", 50, fade_time=timedelta(seconds=4))
     )
     command, _ = await bridge.leap.requests.get()
@@ -1339,9 +1340,11 @@ async def test_set_value_with_fade(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_set_fan(bridge: Bridge, event_loop):
+async def test_set_fan(bridge: Bridge):
     """Test that setting fan speed produces the right commands."""
-    task = event_loop.create_task(bridge.target.set_fan("2", FAN_MEDIUM))
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_fan("2", FAN_MEDIUM)
+    )
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1358,9 +1361,9 @@ async def test_set_fan(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_set_tilt(bridge: Bridge, event_loop):
+async def test_set_tilt(bridge: Bridge):
     """Test that setting tilt produces the right commands."""
-    task = event_loop.create_task(bridge.target.set_tilt("10", 50))
+    task = asyncio.get_running_loop().create_task(bridge.target.set_tilt("10", 50))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1377,10 +1380,10 @@ async def test_set_tilt(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_lower_cover(bridge: Bridge, event_loop):
+async def test_lower_cover(bridge: Bridge):
     """Test that lowering a cover produces the right commands."""
     devices = bridge.target.get_devices()
-    task = event_loop.create_task(bridge.target.lower_cover("7"))
+    task = asyncio.get_running_loop().create_task(bridge.target.lower_cover("7"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1403,10 +1406,10 @@ async def test_lower_cover(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_raise_cover(bridge: Bridge, event_loop):
+async def test_raise_cover(bridge: Bridge):
     """Test that raising a cover produces the right commands."""
     devices = bridge.target.get_devices()
-    task = event_loop.create_task(bridge.target.raise_cover("7"))
+    task = asyncio.get_running_loop().create_task(bridge.target.raise_cover("7"))
     command, response = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1429,9 +1432,9 @@ async def test_raise_cover(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_stop_cover(bridge: Bridge, event_loop):
+async def test_stop_cover(bridge: Bridge):
     """Test that stopping a cover produces the right commands."""
-    task = event_loop.create_task(bridge.target.stop_cover("7"))
+    task = asyncio.get_running_loop().create_task(bridge.target.stop_cover("7"))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1443,9 +1446,9 @@ async def test_stop_cover(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_activate_scene(bridge: Bridge, event_loop):
+async def test_activate_scene(bridge: Bridge):
     """Test that activating scenes produces the right commands."""
-    task = event_loop.create_task(bridge.target.activate_scene("1"))
+    task = asyncio.get_running_loop().create_task(bridge.target.activate_scene("1"))
     command, _ = await bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -1457,10 +1460,10 @@ async def test_activate_scene(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_eof(bridge: Bridge, event_loop):
+async def test_reconnect_eof(bridge: Bridge):
     """Test that SmartBridge can reconnect on disconnect."""
     time = 0.0
-    event_loop.time = lambda: time
+    asyncio.get_running_loop().time = lambda: time  # type: ignore [method-assign]
 
     bridge.disconnect()
 
@@ -1469,7 +1472,7 @@ async def test_reconnect_eof(bridge: Bridge, event_loop):
 
     await bridge.accept_connection()
 
-    task = event_loop.create_task(bridge.target.set_value("2", 50))
+    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
@@ -1477,10 +1480,10 @@ async def test_reconnect_eof(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_connect_error(event_loop):
+async def test_connect_error():
     """Test that SmartBridge can retry failed connections."""
     time = 0.0
-    event_loop.time = lambda: time
+    asyncio.get_running_loop().time = lambda: time
 
     tried = asyncio.Event()
 
@@ -1490,7 +1493,7 @@ async def test_connect_error(event_loop):
         raise OSError()
 
     target = smartbridge.Smartbridge(fake_connect)
-    connect_task = event_loop.create_task(target.connect())
+    connect_task = asyncio.get_running_loop().create_task(target.connect())
 
     await tried.wait()
     tried.clear()
@@ -1501,10 +1504,10 @@ async def test_connect_error(event_loop):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_error(bridge: Bridge, event_loop):
+async def test_reconnect_error(bridge: Bridge):
     """Test that SmartBridge can reconnect on error."""
     time = 0.0
-    event_loop.time = lambda: time
+    asyncio.get_running_loop().time = lambda: time  # type: ignore [method-assign]
 
     bridge.disconnect()
 
@@ -1513,7 +1516,7 @@ async def test_reconnect_error(bridge: Bridge, event_loop):
 
     await bridge.accept_connection()
 
-    task = event_loop.create_task(bridge.target.set_value("2", 50))
+    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
@@ -1521,12 +1524,12 @@ async def test_reconnect_error(bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_reconnect_timeout(event_loop):
+async def test_reconnect_timeout():
     """Test that SmartBridge can reconnect if the remote does not respond."""
     bridge = Bridge()
 
     time = 0.0
-    event_loop.time = lambda: time
+    asyncio.get_running_loop().time = lambda: time
 
     await bridge.initialize()
 
@@ -1540,7 +1543,7 @@ async def test_reconnect_timeout(event_loop):
     time += smartbridge.RECONNECT_DELAY
     await bridge.accept_connection()
 
-    task = event_loop.create_task(bridge.target.set_value("2", 50))
+    task = asyncio.get_running_loop().create_task(bridge.target.set_value("2", 50))
     command, _ = await bridge.leap.requests.get()
     assert command is not None
     bridge.leap.requests.task_done()
@@ -2026,10 +2029,11 @@ async def test_ra3_is_on(ra3_bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
+async def test_ra3_set_value(ra3_bridge: Bridge):
     """Test that setting values produces the right commands."""
-    print("BORE1")
-    task = event_loop.create_task(ra3_bridge.target.set_value("2107", 50))
+    task = asyncio.get_running_loop().create_task(
+        ra3_bridge.target.set_value("2107", 50)
+    )
     command, response = await ra3_bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2061,7 +2065,7 @@ async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
     ra3_bridge.leap.requests.task_done()
     await task
 
-    task = event_loop.create_task(ra3_bridge.target.turn_on("2107"))
+    task = asyncio.get_running_loop().create_task(ra3_bridge.target.turn_on("2107"))
     command, response = await ra3_bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2093,7 +2097,7 @@ async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
     ra3_bridge.leap.requests.task_done()
     await task
 
-    task = event_loop.create_task(ra3_bridge.target.turn_off("2107"))
+    task = asyncio.get_running_loop().create_task(ra3_bridge.target.turn_off("2107"))
     command, response = await ra3_bridge.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2128,9 +2132,9 @@ async def test_ra3_set_value(ra3_bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
+async def test_ra3_set_value_with_fade(ra3_bridge: Bridge):
     """Test that setting values with fade_time produces the right commands."""
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         ra3_bridge.target.set_value("2107", 50, fade_time=timedelta(seconds=4))
     )
     command, _ = await ra3_bridge.leap.requests.get()
@@ -2150,9 +2154,11 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_keypad_led_value(qsx_processor: Bridge):
     """Test that setting the value of a keypad LED produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.set_value("1631", 50))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_value("1631", 50)
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="UpdateRequest",
@@ -2165,12 +2171,14 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_whitetune_level(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_whitetune_level(qsx_processor: Bridge):
     """
     Test that setting the level of a White Tune zone without a fade time produces the
     right command.
     """
-    task = event_loop.create_task(qsx_processor.target.set_value("989", 50))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_value("989", 50)
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2188,14 +2196,14 @@ async def test_qsx_set_whitetune_level(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge):
     """
     Test that setting the temperature of a lumaris device produces the
     right command.
     """
     kelvin = 2700
     color = color_value.WarmCoolColorValue(kelvin)
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         qsx_processor.target.set_value("989", color_value=color)
     )
     command, _ = await qsx_processor.leap.requests.get()
@@ -2212,7 +2220,9 @@ async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
     qsx_processor.leap.requests.task_done()
     task.cancel()
 
-    task = event_loop.create_task(qsx_processor.target.set_warm_dim("989", True))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_warm_dim("989", True)
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2230,12 +2240,14 @@ async def test_qsx_set_whitetune_temperature(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_ketra_level(qsx_processor: Bridge):
     """
     Test that setting the level of a Ketra lamp without a fade time produces the
     right command.
     """
-    task = event_loop.create_task(qsx_processor.target.set_value("985", 50))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_value("985", 50)
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2253,7 +2265,7 @@ async def test_qsx_set_ketra_level(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_ketra_color(qsx_processor: Bridge):
     """
     Test that setting the color of a Ketra lamp produces the
     right command.
@@ -2261,7 +2273,7 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
     hue = 150
     saturation = 30
     full_color = color_value.FullColorValue(hue, saturation)
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         qsx_processor.target.set_value("985", color_value=full_color)
     )
     command, _ = await qsx_processor.leap.requests.get()
@@ -2284,7 +2296,7 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
 
     kelvin = 2700
     warm_color = color_value.WarmCoolColorValue(kelvin)
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         qsx_processor.target.set_value("985", color_value=warm_color)
     )
     command, _ = await qsx_processor.leap.requests.get()
@@ -2303,7 +2315,9 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
     qsx_processor.leap.requests.task_done()
     task.cancel()
 
-    task = event_loop.create_task(qsx_processor.target.set_warm_dim("985", True))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_warm_dim("985", True)
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
@@ -2325,12 +2339,12 @@ async def test_qsx_set_ketra_color(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
+async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge):
     """
     Test that setting the level of a Ketra lamp with a fade time produces the
     right command.
     """
-    task = event_loop.create_task(
+    task = asyncio.get_running_loop().create_task(
         qsx_processor.target.set_value("985", 50, fade_time=timedelta(seconds=4))
     )
     command, _ = await qsx_processor.leap.requests.get()
@@ -2350,9 +2364,11 @@ async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge, event_loop):
 
 
 @pytest.mark.asyncio
-async def test_qsx_tap_button(qsx_processor: Bridge, event_loop):
+async def test_qsx_tap_button(qsx_processor: Bridge):
     """Test that tapping a keypad button produces the right command."""
-    task = event_loop.create_task(qsx_processor.target.tap_button("1422"))
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.tap_button("1422")
+    )
     command, _ = await qsx_processor.leap.requests.get()
     assert command == Request(
         communique_type="CreateRequest",
