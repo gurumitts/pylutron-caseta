@@ -7,9 +7,10 @@ import logging
 import os
 import re
 from typing import (
+    Any,
     AsyncGenerator,
-    Awaitable,
     Callable,
+    Coroutine,
     Dict,
     List,
     NamedTuple,
@@ -63,7 +64,7 @@ class Request(NamedTuple):
 
 
 class _FakeLeap:
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests: "asyncio.Queue[Tuple[Request, asyncio.Future[Response]]]" = (
             asyncio.Queue()
         )
@@ -146,7 +147,7 @@ class Bridge:
     def __init__(self):
         """Create a new Bridge in a disconnected state."""
         self.connections = asyncio.Queue()
-        self.leap: _FakeLeap = None
+        self.leap = None
 
         self.button_list_result = response_from_json_file("buttons.json")
         self.occupancy_group_list_result = response_from_json_file(
@@ -179,7 +180,7 @@ class Bridge:
         connect_task = asyncio.get_running_loop().create_task(self.target.connect())
         fake_leap = await self.connections.get()
 
-        async def wait(coro: Awaitable[T]) -> T:
+        async def wait(coro: Coroutine[Any, Any, T]) -> T:
             # abort if SmartBridge reports it has finished connecting early
             task = asyncio.get_running_loop().create_task(coro)
             race = await asyncio.wait(

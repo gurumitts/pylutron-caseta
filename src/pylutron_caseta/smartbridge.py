@@ -1112,11 +1112,11 @@ class Smartbridge:
                 parent_id = id_from_href(area["Parent"]["href"])
             self.areas.setdefault(
                 area_id,
-                dict(
-                    id=area_id,
-                    name=area["Name"],
-                    parent_id=parent_id,
-                ),
+                {
+                    "id": area_id,
+                    "name": area["Name"],
+                    "parent_id": parent_id,
+                },
             )
 
     async def _load_occupancy_groups(self):
@@ -1168,11 +1168,11 @@ class Smartbridge:
             return
         self.occupancy_groups.setdefault(
             occgroup_id,
-            dict(
-                occupancy_group_id=occgroup_id,
-                status=OCCUPANCY_GROUP_UNKNOWN,
-                sensors=occsensor_ids,
-            ),
+            {
+                "occupancy_group_id": occgroup_id,
+                "status": OCCUPANCY_GROUP_UNKNOWN,
+                "sensors": occsensor_ids,
+            },
         ).update(
             name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
             device_name="Occupancy",
@@ -1209,14 +1209,14 @@ class Smartbridge:
 
         occgroup = self.occupancy_groups.setdefault(
             occgroup_area_id,
-            dict(
-                occupancy_group_id=occgroup_area_id,
-                status=OCCUPANCY_GROUP_UNKNOWN,
-                sensors=[],
-                name=f"{self.areas[occgroup_area_id]['name']} Occupancy",
-                device_name="Occupancy",
-                area=occgroup_area_id,
-            ),
+            {
+                "occupancy_group_id": occgroup_area_id,
+                "status": OCCUPANCY_GROUP_UNKNOWN,
+                "sensors": [],
+                "name": f"{self.areas[occgroup_area_id]['name']} Occupancy",
+                "device_name": "Occupancy",
+                "area": occgroup_area_id,
+            },
         )
         occgroup["sensors"].append(occdevice_id)
 
