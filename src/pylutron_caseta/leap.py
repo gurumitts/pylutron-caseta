@@ -166,7 +166,8 @@ class LeapProtocol:
         self._writer.close()
 
         for request in self._in_flight_requests.values():
-            request.set_exception(BridgeDisconnectedError())
+            if not request.done():
+                request.set_exception(BridgeDisconnectedError())
         self._in_flight_requests.clear()
         self._tagged_subscriptions.clear()
 
