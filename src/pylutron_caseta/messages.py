@@ -55,6 +55,7 @@ class ResponseHeader(NamedTuple):
     StatusCode: Optional[ResponseStatus] = None
     Url: Optional[str] = None
     MessageBodyType: Optional[str] = None
+    Paging: Optional[dict] = None
 
     @classmethod
     def from_json(cls, data: dict) -> "ResponseHeader":
@@ -66,6 +67,7 @@ class ResponseHeader(NamedTuple):
             StatusCode=StatusCode,
             Url=data.get("Url", None),
             MessageBodyType=data.get("MessageBodyType", None),
+            Paging=data.get("Paging", None),
         )
 
 

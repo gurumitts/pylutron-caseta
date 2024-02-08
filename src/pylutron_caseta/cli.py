@@ -261,6 +261,7 @@ async def _connect(
     help="The path to the client certificate key.",
 )
 @click.option("-d", "--data", help="The JSON data to send with the request.")
+@click.option("-p", "--paging", help="The JSON Paging dict to send with the request.")
 @click.option(
     "-f",
     "--fail",
@@ -286,6 +287,7 @@ async def leap(
     cert: str,
     key: str,
     data: Optional[str],
+    paging: Optional[str],
     fail: bool,
     output: TextIO,
     verbose: bool,
@@ -301,11 +303,14 @@ async def leap(
         else:
             body = json.loads(data)
 
+        if paging:
+            paging = json.loads(paging)
+
         res = resource.path
         if resource.query is not None and len(resource.query) > 0:
             res += f"?{resource.query}"
 
-        response = await connection.request(request, res, body)
+        response = await connection.request(request, res, body, paging=paging)
 
     if (
         fail
@@ -316,19 +321,19 @@ async def leap(
 
     if verbose:
         # LeapProtocol discards the original JSON so reconstruct it here.
-        output.write(
-            json.dumps(
-                {
-                    "Header": {
-                        "StatusCode": str(response.Header.StatusCode),
-                        "Url": response.Header.Url,
-                        "MessageBodyType": response.Header.MessageBodyType,
-                    },
-                    "CommuniqueType": response.CommuniqueType,
-                    "Body": response.Body,
-                }
-            )
-        )
+        header = {
+            "Header": {
+                "StatusCode": str(response.Header.StatusCode),
+                "Url": response.Header.Url,
+                "MessageBodyType": response.Header.MessageBodyType,
+                },
+            "CommuniqueType": response.CommuniqueType,
+            "Body": response.Body,
+        }
+        if response.Header.Paging:
+            header["Header"]["Paging"] = response.Header.Paging
+
+        output.write(json.dumps(header))
     else:
         output.write(json.dumps(response.Body))
 

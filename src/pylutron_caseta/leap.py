@@ -39,6 +39,7 @@ class LeapProtocol:
         url: str,
         body: Optional[dict] = None,
         tag: Optional[str] = None,
+        paging: Optional[dict] = None,
     ) -> Response:
         """Make a request to the bridge and return the response."""
         if tag is None:
@@ -50,6 +51,9 @@ class LeapProtocol:
             "CommuniqueType": communique_type,
             "Header": {"ClientTag": tag, "Url": url},
         }
+
+        if paging is not None:
+            cmd["Header"]["Paging"] = paging
 
         if body is not None:
             cmd["Body"] = body
