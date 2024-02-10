@@ -272,7 +272,7 @@ class Smartbridge:
         # merge the Body of multiple paged Responses together
         merged = responses.pop(0)
         if merged.Body:
-            merged_type = list(merged.Body.keys())[0]
+            merged_type = next(merged.Body.keys())
             for response in responses:
                 merged.Body[merged_type].extend(response.Body[merged_type])
 
