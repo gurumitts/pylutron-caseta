@@ -1008,7 +1008,7 @@ class Smartbridge:
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
-            for button_json in button_expanded_json["Buttons"]:
+            for button_json in button_expanded_json.get("Buttons",[]):
                 await self._load_ra3_button(button_json, self.devices[device_id])
 
     async def _load_ra3_button(self, button_json, keypad_device):
