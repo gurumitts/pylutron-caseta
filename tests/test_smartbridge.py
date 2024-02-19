@@ -63,6 +63,7 @@ class Request(NamedTuple):
     communique_type: str
     url: str
     body: Optional[dict] = None
+    paging: Optional[dict] = None
 
 
 class _FakeLeap:
@@ -77,11 +78,17 @@ class _FakeLeap:
         self._unsolicited: List[Callable[[Response], None]] = []
 
     async def request(
-        self, communique_type: str, url: str, body: Optional[dict] = None
+        self,
+        communique_type: str,
+        url: str,
+        body: Optional[dict] = None,
+        paging: Optional[dict] = None,
     ) -> Response:
         """Make a request to the bridge and return the response."""
         future: asyncio.Future = asyncio.get_running_loop().create_future()
-        obj = Request(communique_type=communique_type, url=url, body=body)
+        obj = Request(
+            communique_type=communique_type, url=url, body=body, paging=paging
+        )
 
         await self.requests.put((obj, future))
 
