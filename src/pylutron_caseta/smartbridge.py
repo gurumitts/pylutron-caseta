@@ -257,7 +257,9 @@ class Smartbridge:
 
         while True:
             async with asyncio_timeout(REQUEST_TIMEOUT):
-                response = await self._leap.request(communique_type, url, body, paging=paging)
+                response = await self._leap.request(
+                    communique_type, url, body, paging=paging
+                )
 
             status = response.Header.StatusCode
             if status is None or not status.is_successful():
@@ -271,10 +273,12 @@ class Smartbridge:
 
         # merge the Body of multiple paged Responses together
         merged = responses.pop(0)
-        if merged.Body:
-            merged_type = next(merged.Body.keys())
-            for response in responses:
-                merged.Body[merged_type].extend(response.Body[merged_type])
+        if merged.Body is not None:
+            merged_type = next(iter(merged.Body), None)
+            if merged_type is not None:
+                for response in responses:
+                    if response.Body is not None:
+                        merged.Body[merged_type].extend(response.Body[merged_type])
 
         return merged
 

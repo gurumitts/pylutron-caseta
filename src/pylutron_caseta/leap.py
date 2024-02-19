@@ -47,7 +47,7 @@ class LeapProtocol:
 
         future: asyncio.Future = asyncio.get_running_loop().create_future()
 
-        cmd = {
+        cmd: dict = {
             "CommuniqueType": communique_type,
             "Header": {"ClientTag": tag, "Url": url},
         }

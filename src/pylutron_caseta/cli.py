@@ -298,19 +298,14 @@ async def leap(
     LEAP is similar to JSON over HTTP, and this tool is similar to Curl.
     """
     async with _connect(resource, cacert, cert, key) as connection:
-        if data is None:
-            body = None
-        else:
-            body = json.loads(data)
-
-        if paging:
-            paging = json.loads(paging)
+        body = json.loads(data) if data is not None else None
+        paging_json = json.loads(paging) if paging is not None else None
 
         res = resource.path
         if resource.query is not None and len(resource.query) > 0:
             res += f"?{resource.query}"
 
-        response = await connection.request(request, res, body, paging=paging)
+        response = await connection.request(request, res, body, paging=paging_json)
 
     if (
         fail
@@ -321,12 +316,12 @@ async def leap(
 
     if verbose:
         # LeapProtocol discards the original JSON so reconstruct it here.
-        message = {
+        message: dict = {
             "Header": {
                 "StatusCode": str(response.Header.StatusCode),
                 "Url": response.Header.Url,
                 "MessageBodyType": response.Header.MessageBodyType,
-                },
+            },
             "CommuniqueType": response.CommuniqueType,
             "Body": response.Body,
         }
