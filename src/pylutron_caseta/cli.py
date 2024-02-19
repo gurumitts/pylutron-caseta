@@ -321,7 +321,7 @@ async def leap(
 
     if verbose:
         # LeapProtocol discards the original JSON so reconstruct it here.
-        header = {
+        message = {
             "Header": {
                 "StatusCode": str(response.Header.StatusCode),
                 "Url": response.Header.Url,
@@ -331,9 +331,9 @@ async def leap(
             "Body": response.Body,
         }
         if response.Header.Paging:
-            header["Header"]["Paging"] = response.Header.Paging
+            message["Header"]["Paging"] = response.Header.Paging
 
-        output.write(json.dumps(header))
+        output.write(json.dumps(message))
     else:
         output.write(json.dumps(response.Body))
 
