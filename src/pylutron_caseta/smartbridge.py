@@ -251,14 +251,36 @@ class Smartbridge:
         if self._leap is None:
             raise BridgeDisconnectedError()
 
-        async with asyncio_timeout(REQUEST_TIMEOUT):
-            response = await self._leap.request(communique_type, url, body)
+        # LEAP APIs support pagination, so repeat requests until fully collected
+        responses = []
+        paging = None
 
-        status = response.Header.StatusCode
-        if status is None or not status.is_successful():
-            raise BridgeResponseError(response)
+        while True:
+            async with asyncio_timeout(REQUEST_TIMEOUT):
+                response = await self._leap.request(
+                    communique_type, url, body, paging=paging
+                )
 
-        return response
+            status = response.Header.StatusCode
+            if status is None or not status.is_successful():
+                raise BridgeResponseError(response)
+
+            responses.append(response)
+
+            paging = response.Header.Paging
+            if not paging:
+                break
+
+        # merge the Body of multiple paged Responses together
+        merged = responses.pop(0)
+        if merged.Body is not None:
+            merged_type = next(iter(merged.Body), None)
+            if merged_type is not None:
+                for response in responses:
+                    if response.Body is not None:
+                        merged.Body[merged_type].extend(response.Body[merged_type])
+
+        return merged
 
     async def _subscribe(
         self,
@@ -1008,7 +1030,7 @@ class Smartbridge:
         )
 
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
-            for button_json in button_expanded_json["Buttons"]:
+            for button_json in button_expanded_json.get("Buttons", []):
                 await self._load_ra3_button(button_json, self.devices[device_id])
 
     async def _load_ra3_button(self, button_json, keypad_device):

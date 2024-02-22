@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2024-02-22
+
+### Added
+- Support for over 99 areas.
+
+### Fixed
+- An error would occur if a button group contained no buttons.
+
 ## [0.19.0] - 2024-01-27
 
 ### Added
@@ -288,7 +296,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.19.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.20.0...HEAD
+[0.19.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.18.3...v0.19.0
 [0.18.3]: https://github.com/gurumitts/pylutron-caseta/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/gurumitts/pylutron-caseta/compare/v0.18.1...v0.18.2

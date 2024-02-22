@@ -17,5 +17,5 @@
 			]
 		}
 	},
-	"updateContentCommand": "./.devcontainer/updateContent.sh"
+	"updateContentCommand": "bash ./.devcontainer/updateContent.sh"
 }
