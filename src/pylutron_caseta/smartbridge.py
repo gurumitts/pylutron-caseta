@@ -797,9 +797,9 @@ class Smartbridge:
                 # Load processor as devices[1] for compatibility with lutron_caseta HA
                 # integration
                 load_coros = [
-                    await self._load_ra3_processor(),
-                    await self._load_ra3_devices(),
-                    await self._load_ra3_occupancy_groups(),
+                    self._load_ra3_processor(),
+                    self._load_ra3_devices(),
+                    self._load_ra3_occupancy_groups(),
                 ]
                 await asyncio.gather(*load_coros)
                 # Second step is to subscribe to everything in the load step
