@@ -1,12 +1,13 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
-from datetime import timedelta
 import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from datetime import timedelta
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
+
 from .color_value import ColorMode, WarmDimmingColorValue
 
 try:
@@ -17,14 +18,14 @@ except ImportError:
 
 from . import (
     _LEAP_DEVICE_TYPES,
+    BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
-    BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
-from .leap import open_connection, id_from_href, LeapProtocol
+from .leap import LeapProtocol, id_from_href, open_connection
 from .messages import Response
 from .utils import asyncio_timeout
 
@@ -795,30 +796,50 @@ class Smartbridge:
 
                 # Load processor as devices[1] for compatibility with lutron_caseta HA
                 # integration
-                await self._load_ra3_processor()
-                await self._load_ra3_devices()
-                await self._subscribe_to_button_status()
-                await self._load_ra3_occupancy_groups()
-                await self._subscribe_to_ra3_occupancy_groups()
+                load_coros = [
+                    await self._load_ra3_processor(),
+                    await self._load_ra3_devices(),
+                    await self._load_ra3_occupancy_groups(),
+                ]
+                await asyncio.gather(*load_coros)
+                # Second step is to subscribe to everything in the load step
+                subscribe_coros = [
+                    self._subscribe_to_multi_zone_status(),
+                    self._subscribe_to_ra3_occupancy_groups(),
+                    self._subscribe_to_button_status(),
+                ]
+                await asyncio.gather(*subscribe_coros)
             else:
                 # Caseta Bridge Device detected
                 _LOG.debug("Caseta bridge detected")
 
-                await self._load_devices()
-                await self._load_buttons()
-                await self._load_lip_devices()
-                await self._load_scenes()
-                await self._load_occupancy_groups()
-                await self._subscribe_to_occupancy_groups()
-                await self._subscribe_to_button_status()
+                load_coros = [
+                    self._load_devices(),
+                    self._load_buttons(),
+                    self._load_lip_devices(),
+                    self._load_scenes(),
+                    self._load_occupancy_groups(),
+                ]
+                await asyncio.gather(*load_coros)
+                # Second step is to subscribe to everything in the load step
+                subscribe_coros = [
+                    self._subscribe_to_occupancy_groups(),
+                    self._subscribe_to_button_status(),
+                ]
+                await asyncio.gather(*subscribe_coros)
 
+                # Request zone status
+                request_coros: List[Coroutine[Any, Any, None]] = []
                 for device in self.devices.values():
                     if device.get("zone") is not None:
                         _LOG.debug("Requesting zone information from %s", device)
-                        response = await self._request(
-                            "ReadRequest", f"/zone/{device['zone']}/status"
+                        request_coros.append(
+                            await self._request(
+                                "ReadRequest", f"/zone/{device['zone']}/status"
+                            )
                         )
-                        self._handle_one_zone_status(response)
+                for response in await asyncio.gather(*request_coros):
+                    self._handle_one_zone_status(response)
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
@@ -900,12 +921,10 @@ class Smartbridge:
             )
 
     async def _load_ra3_devices(self):
+        coros: List[Coroutine[Any, Any, None]] = []
         for area in self.areas.values():
-            await self._load_ra3_control_stations(area)
-            await self._load_ra3_zones(area)
-
-        # caseta does this by default, but we need to do it manually for RA3
-        await self._subscribe_to_multi_zone_status()
+            coros.append(self._load_ra3_control_stations(area))
+            coros.append(self._load_ra3_zones(area))
 
     async def _load_ra3_processor(self):
         # Load processor as devices[1] for compatibility with lutron_caseta HA
@@ -952,14 +971,17 @@ class Smartbridge:
         if station_json.Body is None:
             return
         station_json = station_json.Body["ControlStations"]
+        station_coros: list[Coroutine[Any, Any, None]] = []
         for station in station_json:
             station_name = station["Name"]
             ganged_devices_json = station["AssociatedGangedDevices"]
 
             for device_json in ganged_devices_json:
-                await self._load_ra3_station_device(
-                    area_name, station_name, device_json
+                station_coros.append(
+                    self._load_ra3_station_device(area_name, station_name, device_json)
                 )
+
+        await asyncio.gather(*station_coros)
 
     async def _load_ra3_station_device(
         self, control_station_area_name, control_station_name, device_json
@@ -1029,9 +1051,14 @@ class Smartbridge:
             area=id_from_href(device_json.Body["Device"]["AssociatedArea"]["href"]),
         )
 
+        button_coros: list[Coroutine[Any, Any, None]] = []
         for button_expanded_json in button_group_json.Body["ButtonGroupsExpanded"]:
             for button_json in button_expanded_json.get("Buttons", []):
-                await self._load_ra3_button(button_json, self.devices[device_id])
+                button_coros.append(
+                    self._load_ra3_button(button_json, self.devices[device_id])
+                )
+
+        await asyncio.gather(*button_coros)
 
     async def _load_ra3_button(self, button_json, keypad_device):
         """
