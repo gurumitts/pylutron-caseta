@@ -829,12 +829,12 @@ class Smartbridge:
                 await asyncio.gather(*subscribe_coros)
 
                 # Request zone status
-                request_coros: List[Coroutine[Any, Any, None]] = []
+                request_coros: List[Coroutine[Any, Any, Response]] = []
                 for device in self.devices.values():
                     if device.get("zone") is not None:
                         _LOG.debug("Requesting zone information from %s", device)
                         request_coros.append(
-                            await self._request(
+                            self._request(
                                 "ReadRequest", f"/zone/{device['zone']}/status"
                             )
                         )
