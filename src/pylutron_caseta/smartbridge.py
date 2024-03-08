@@ -926,6 +926,8 @@ class Smartbridge:
             coros.append(self._load_ra3_control_stations(area))
             coros.append(self._load_ra3_zones(area))
 
+        await asyncio.gather(*coros)
+
     async def _load_ra3_processor(self):
         # Load processor as devices[1] for compatibility with lutron_caseta HA
         # integration
