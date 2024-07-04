@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for PowPak0-10V dimmers.
+
 ## [0.20.0] - 2024-02-22
 
 ### Added
