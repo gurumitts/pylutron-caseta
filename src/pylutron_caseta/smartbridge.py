@@ -12,6 +12,7 @@ import sys
 
 if sys.version_info >= (3, 12):
     from typing import Self
+
     SmartBridgeSelfType = Self
 else:
     SmartBridgeSelfType = "Smartbridge"
