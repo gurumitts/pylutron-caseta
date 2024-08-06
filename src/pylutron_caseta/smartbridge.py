@@ -117,7 +117,7 @@ class Smartbridge:
 
     @classmethod
     def _create_tls_context(
-        keyfile: str, certfile: str, ca_certs: str
+        cls, keyfile: str, certfile: str, ca_certs: str
     ) -> ssl.SSLContext:
         """Create a TLS context for the Smart Bridge.
 
