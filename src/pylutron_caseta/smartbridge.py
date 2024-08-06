@@ -47,7 +47,7 @@ class Smartbridge:
     """
 
     def __init__(
-        self, connect: Callable[[Coroutine[Any, Any, LeapProtocol]], LeapProtocol]
+        self, connect: Callable[[], Coroutine[Any, Any, LeapProtocol]]
     ) -> None:
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
