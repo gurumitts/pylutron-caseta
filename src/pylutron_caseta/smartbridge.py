@@ -6,7 +6,7 @@ import math
 import socket
 import ssl
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 
 from .color_value import ColorMode, WarmDimmingColorValue
 
@@ -46,7 +46,9 @@ class Smartbridge:
     It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, connect: Callable[[], LeapProtocol]):
+    def __init__(
+        self, connect: Callable[[Coroutine[Any, Any, LeapProtocol]], LeapProtocol]
+    ):
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
         self.buttons: Dict[str, dict] = {}
