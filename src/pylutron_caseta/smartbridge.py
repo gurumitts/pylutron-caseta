@@ -115,9 +115,9 @@ class Smartbridge:
 
         await self._login_completed
 
-    @classmethod
+    @staticmethod
     def _create_tls_context(
-        cls, keyfile: str, certfile: str, ca_certs: str
+        keyfile: str, certfile: str, ca_certs: str
     ) -> ssl.SSLContext:
         """Create a TLS context for the Smart Bridge.
 
