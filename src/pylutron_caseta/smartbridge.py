@@ -8,6 +8,13 @@ import socket
 import ssl
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from .color_value import ColorMode, WarmDimmingColorValue
+import sys
+
+if sys.version_info >= (3, 12):
+    from typing import Self
+    SmartBridgeSelfType = Self
+else:
+    SmartBridgeSelfType = "Smartbridge"
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -131,7 +138,7 @@ class Smartbridge:
         certfile: str,
         ca_certs: str,
         port: int = LEAP_PORT,
-    ) -> "Smartbridge":
+    ) -> SmartBridgeSelfType:
         """Initialize the Smart Bridge using TLS over IPv4."""
 
         async def _connect() -> LeapProtocol:
