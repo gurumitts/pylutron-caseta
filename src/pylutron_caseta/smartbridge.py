@@ -1,14 +1,15 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
-from datetime import timedelta
 import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional, Tuple, Union
-from .color_value import ColorMode, WarmDimmingColorValue
 import sys
+from datetime import timedelta
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
+from .color_value import ColorMode, WarmDimmingColorValue
 
 if sys.version_info >= (3, 12):
     from typing import Self
@@ -25,14 +26,14 @@ except ImportError:
 
 from . import (
     _LEAP_DEVICE_TYPES,
+    BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
-    BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
-from .leap import open_connection, id_from_href, LeapProtocol
+from .leap import LeapProtocol, id_from_href, open_connection
 from .messages import Response
 from .utils import asyncio_timeout
 
