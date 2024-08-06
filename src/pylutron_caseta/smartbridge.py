@@ -107,15 +107,37 @@ class Smartbridge:
         await self._login_completed
 
     @classmethod
-    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
-        """Initialize the Smart Bridge using TLS over IPv4."""
+    def _create_tls_context(
+        keyfile: str, certfile: str, ca_certs: str
+    ) -> ssl.SSLContext:
+        """Create a TLS context for the Smart Bridge.
+
+        This is called in the executor to avoid blocking the event loop
+        since calling load_cert_chain and load_verify_locations does
+        blocking disk IO.
+        """
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
+        return ssl_context
 
-        async def _connect():
+    @classmethod
+    def create_tls(
+        cls,
+        hostname: str,
+        keyfile: str,
+        certfile: str,
+        ca_certs: str,
+        port: int = LEAP_PORT,
+    ) -> "Smartbridge":
+        """Initialize the Smart Bridge using TLS over IPv4."""
+
+        async def _connect() -> LeapProtocol:
+            ssl_context = await get_loop().run_in_executor(
+                None, cls._create_tls_context, keyfile, certfile, ca_certs
+            )
             res = await open_connection(
                 hostname,
                 port,
