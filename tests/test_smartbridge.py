@@ -953,7 +953,7 @@ async def test_is_connected(bridge: Bridge):
     """Test the is_connected method returns connection state."""
     assert bridge.target.is_connected() is True
 
-    def connect():
+    async def connect():
         raise NotImplementedError()
 
     other = smartbridge.Smartbridge(connect)
@@ -1564,7 +1564,7 @@ async def test_is_ra3_connected(ra3_bridge: Bridge):
     """Test the is_connected method returns connection state."""
     assert ra3_bridge.target.is_connected() is True
 
-    def connect():
+    async def connect():
         raise NotImplementedError()
 
     other = smartbridge.Smartbridge(connect)
