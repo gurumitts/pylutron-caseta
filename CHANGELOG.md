@@ -5,83 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.21.1] - 2024-08-11
+
+### Fixed
+
+- Connecting to the bridge no longer does blocking file I/O in the async event loop.
 
 ## [0.21.0] - 2024-07-04
 
 ### Added
+
 - Support for PowPak0-10V dimmers.
 
 ## [0.20.0] - 2024-02-22
 
 ### Added
+
 - Support for over 99 areas.
 
 ### Fixed
+
 - An error would occur if a button group contained no buttons.
 
 ## [0.19.0] - 2024-01-27
 
 ### Added
+
 - Support for Lumaris Tape Light and Ketra color.
 
 ## [0.18.3] - 2023-10-07
 
 ### Fixed
+
 - Reconnecting could sometimes fail.
 
 ## [0.18.2] - 2023-09-03
 
 ### Added
+
 - Support for Palladiom Wire-Free shades.
 
 ### Fixed
+
 - Restored support for Wall Mounted Motion Sensor on RA3 23.4 firmware.
 
 ## [0.18.1] - 2023-02-03
 
 ### Fixed
+
 - Increased maximum message size for compatibility with 22.08.16f000 firmware.
 
 ## [0.18.0] - 2022-01-17
 
 ### Added
+
 - Support for Sunnata hybrid keypads.
 
 ## [0.17.1] - 2022-10-23
 
 ### Fixed
+
 - Now discovers the complete area list with working parent_area relationship.
 
 ## [0.17.0] - 2022-10-18
 
 ### Added
+
 - Support for RadioRA 2 PhantomKeypad.
 
 ### Fixed
+
 - leap-scan now detects devices besides Caseta.
 
 ## [0.16.0] - 2022-09-28
 
 ### Changed
+
 - The `name` field on QSX and RadioRA 3 devices now more closely matches the format of the name field on Caseta devices.
 
 ### Added
+
 - Devices now have an `area` field containing the area ID and a `device_name` field containing the name of the device without any prefixes or suffixes added by this library. These fields should be used instead of trying to parse the same values out of the `name` field.
 
 ## [0.15.2] - 2022-09-19
 
 ### Added
+
 - Support for new Claro and Diva devices on Caseta.
 
 ## [0.15.1] - 2022-09-10
 
 ### Changed
+
 - To match the previous behavior with Caseta, the `name` field on the button devices created for QSX and RadioRA 3 no longer contains the button name. The button name is still available in the `button_name` field.
 
 ## [0.15.0] - 2022-09-10
 
 ### Added
+
 - Support for HomeWorks QSX and RadioRA 3.
 - Support for RadioRA 2 InLineDimmer and InLineSwitch.
 
@@ -301,7 +322,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.21.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.18.3...v0.19.0

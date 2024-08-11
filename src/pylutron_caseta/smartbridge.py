@@ -1,13 +1,15 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
-from datetime import timedelta
 import logging
 import math
 import socket
 import ssl
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from datetime import timedelta
+from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
+
 from .color_value import ColorMode, WarmDimmingColorValue
+
 
 try:
     from asyncio import get_running_loop as get_loop
@@ -17,14 +19,14 @@ except ImportError:
 
 from . import (
     _LEAP_DEVICE_TYPES,
+    BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
-    BUTTON_STATUS_RELEASED,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
-from .leap import open_connection, id_from_href, LeapProtocol
+from .leap import LeapProtocol, id_from_href, open_connection
 from .messages import Response
 from .utils import asyncio_timeout
 
@@ -44,7 +46,9 @@ class Smartbridge:
     It uses an SSL interface known as the LEAP server.
     """
 
-    def __init__(self, connect: Callable[[], LeapProtocol]):
+    def __init__(
+        self, connect: Callable[[], Coroutine[Any, Any, LeapProtocol]]
+    ) -> None:
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
         self.buttons: Dict[str, dict] = {}
@@ -106,16 +110,38 @@ class Smartbridge:
 
         await self._login_completed
 
-    @classmethod
-    def create_tls(cls, hostname, keyfile, certfile, ca_certs, port=LEAP_PORT):
-        """Initialize the Smart Bridge using TLS over IPv4."""
+    @staticmethod
+    def _create_tls_context(
+        keyfile: str, certfile: str, ca_certs: str
+    ) -> ssl.SSLContext:
+        """Create a TLS context for the Smart Bridge.
+
+        This is called in the executor to avoid blocking the event loop
+        since calling load_cert_chain and load_verify_locations does
+        blocking disk IO.
+        """
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
+        return ssl_context
 
-        async def _connect():
+    @classmethod
+    def create_tls(
+        cls,
+        hostname: str,
+        keyfile: str,
+        certfile: str,
+        ca_certs: str,
+        port: int = LEAP_PORT,
+    ) -> "Smartbridge":
+        """Initialize the Smart Bridge using TLS over IPv4."""
+
+        async def _connect() -> LeapProtocol:
+            ssl_context = await get_loop().run_in_executor(
+                None, cls._create_tls_context, keyfile, certfile, ca_certs
+            )
             res = await open_connection(
                 hostname,
                 port,
