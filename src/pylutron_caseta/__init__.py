@@ -39,6 +39,7 @@ _LEAP_DEVICE_TYPES = {
         "SerenaHoneycombShade",
         "SerenaRollerShade",
         "TriathlonHoneycombShade",
+        "TriathlonEssentialsRollerShade",
         "TriathlonRollerShade",
         "QsWirelessShade",
         "QsWirelessHorizontalSheerBlind",
