@@ -9,7 +9,7 @@ import ssl
 import urllib.parse
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator, List, Optional, TextIO
+from typing import Any, AsyncIterator, List, Optional, TextIO, BinaryIO
 from urllib.parse import urlparse
 
 import click
@@ -289,7 +289,7 @@ async def leap(
     data: Optional[str],
     paging: Optional[str],
     fail: bool,
-    output: TextIO,
+    output: BinaryIO,
     verbose: bool,
 ):
     """
