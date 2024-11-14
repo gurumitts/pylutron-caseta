@@ -57,7 +57,7 @@ class JsonSocket:
             return None
 
         LOGGER.debug("received: %s", buffer)
-        return orjson.loads(buffer.decode("UTF-8"))
+        return orjson.loads(buffer)
 
     async def async_write_json(self, obj):
         """Write an object."""

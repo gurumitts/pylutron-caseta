@@ -85,7 +85,7 @@ class LeapProtocol:
             if received == b"":
                 break
 
-            resp_json = orjson.loads(received.decode("UTF-8"))
+            resp_json = orjson.loads(received)
 
             if isinstance(resp_json, dict):
                 tag = resp_json.get("Header", {}).pop("ClientTag", None)

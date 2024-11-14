@@ -109,7 +109,7 @@ async def test_call(pipe: Pipe):
     """Test basic call and response."""
     task = asyncio.create_task(pipe.leap.request("ReadRequest", "/test"))
 
-    received = orjson.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     # message should contain ClientTag
     tag = received.get("Header", {}).pop("ClientTag", None)
@@ -232,7 +232,7 @@ async def test_subscribe_tagged(pipe: Pipe):
 
     task = asyncio.create_task(pipe.leap.subscribe("/test", handler))
 
-    received = orjson.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     # message should contain ClientTag
     tag = received.get("Header", {}).pop("ClientTag", None)
@@ -287,7 +287,7 @@ async def test_subscribe_tagged_404(pipe: Pipe):
 
     task = asyncio.create_task(pipe.leap.subscribe("/test", _handler))
 
-    received = orjson.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     tag = received.get("Header", {}).pop("ClientTag", None)
     response_obj = {
