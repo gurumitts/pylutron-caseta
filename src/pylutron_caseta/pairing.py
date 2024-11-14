@@ -1,7 +1,7 @@
 """Guide the user through pairing and save the necessary files."""
 
 import asyncio
-import json
+import orjson as json
 import logging
 import socket
 import ssl
@@ -61,7 +61,7 @@ class JsonSocket:
 
     async def async_write_json(self, obj):
         """Write an object."""
-        buffer = f"{json.dumps(obj)}\r\n".encode("ASCII")
+        buffer = json.dumps(obj) + b"\r\n"
         self._writer.write(buffer)
         LOGGER.debug("sent: %s", buffer)
 

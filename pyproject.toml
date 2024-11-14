@@ -18,6 +18,7 @@ maintainers = [
 dependencies = [
     "async_timeout>=3.0.1;python_version<'3.11'",
     "cryptography",
+    "orjson",
 ]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",

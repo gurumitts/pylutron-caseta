@@ -2,7 +2,7 @@
 
 import asyncio
 import functools
-import json
+import orjson as json
 import logging
 import socket
 import ssl
@@ -271,7 +271,7 @@ async def _connect(
 @click.option(
     "-o",
     "--output",
-    type=click.File("w", encoding="utf8"),
+    type=click.File("wb"),
     default="-",
     help="Save the response into a file.",
 )
@@ -332,4 +332,4 @@ async def leap(
     else:
         output.write(json.dumps(response.Body))
 
-    output.write("\n")
+    output.write(b"\n")

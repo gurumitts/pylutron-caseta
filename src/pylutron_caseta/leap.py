@@ -1,7 +1,7 @@
 """LEAP protocol layer."""
 
 import asyncio
-import json
+import orjson as json
 import logging
 import re
 import uuid
@@ -68,7 +68,7 @@ class LeapProtocol:
         future.add_done_callback(clean_up)
 
         try:
-            text = json.dumps(cmd).encode("UTF-8")
+            text = json.dumps(cmd)
             _LOG.debug("sending %s", text)
             self._writer.write(text + b"\r\n")
 
