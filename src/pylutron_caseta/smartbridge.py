@@ -83,6 +83,19 @@ class Smartbridge:
             and self._login_completed.exception() is None
         )
 
+    async def test_connection(self) -> bool:
+        """Attempt to connect to the bridge."""
+        try:
+            async with asyncio_timeout(CONNECT_TIMEOUT):
+                leap = await self._connect()
+                leap.close()
+            return True
+        except asyncio.TimeoutError:
+            _LOG.warning("Test connection to bridge timed out")
+        except Exception as e:
+            _LOG.warning("Test connection to bridge failed: %s", e)
+        return False
+ 
     async def connect(self):
         """Connect to the bridge."""
         # reset any existing connection state
