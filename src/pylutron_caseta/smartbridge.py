@@ -95,7 +95,7 @@ class Smartbridge:
         except Exception as e:
             _LOG.warning("Test connection to bridge failed: %s", e)
         return False
- 
+
     async def connect(self):
         """Connect to the bridge."""
         # reset any existing connection state
