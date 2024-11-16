@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pylutron-caseta"
-version = "0.22.0"
+version = "0.23.0"
 description = "Provides an API to the Lutron Smartbridge"
 readme = "README.md"
 license = "Apache-2.0"

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.23.0] - 2024-11-15
+
+### Added
+
+- Support for Lumaris RGB + Tunable White Tape Light.
+
 ## [0.22.0] - 2024-10-04
 
 ### Added
