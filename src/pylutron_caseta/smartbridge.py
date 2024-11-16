@@ -360,6 +360,8 @@ class Smartbridge:
         command = {}
         if device.get("type") == "SpectrumTune":
             command = color_value.get_spectrum_tuning_level_parameters()
+        elif device.get("type") == "ColorTune":
+            command = color_value.get_spectrum_tuning_level_parameters()
         elif device.get("type") == "WhiteTune":
             command = color_value.get_white_tuning_level_parameters()
 
@@ -427,6 +429,29 @@ class Smartbridge:
             )
             return
 
+        # Handle Lumaris RGB + Tunable White Tape Light
+        if device.get("type") == "ColorTune":
+            spectrum_params: Dict[str, Union[str, int]] = {}
+            if value is not None:
+                spectrum_params["Level"] = value
+            if color_value is not None:
+                spectrum_params.update(
+                    color_value.get_spectrum_tuning_level_parameters()
+                )
+            if fade_time is not None:
+                spectrum_params["FadeTime"] = _format_duration(fade_time)
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToSpectrumTuningLevel",
+                        "SpectrumTuningLevelParameters": spectrum_params,
+                    }
+                },
+            )
+            return
+            
         # Handle Lumaris Tape Light
         if device.get("type") == "WhiteTune":
             white_params: Dict[str, Union[str, int]] = {}

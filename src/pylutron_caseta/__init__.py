@@ -15,8 +15,9 @@ _LEAP_DEVICE_TYPES = {
         "Dimmed",
         "SpectrumTune",  # Ketra lamps
         "DivaSmartDimmer",
-        "WhiteTune",  # Lumaris Tape Light
+        "WhiteTune",  # Lumaris Tunable White Tape Light
         "PowPak0-10V",
+        "ColorTune", # Lumaris RGB + Tunable White Tape Light
     ],
     "switch": [
         "WallSwitch",
