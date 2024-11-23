@@ -406,31 +406,8 @@ class Smartbridge:
         if not zone_id:
             return
 
-        # Handle Ketra lamps
-        if device.get("type") == "SpectrumTune":
-            spectrum_params: Dict[str, Union[str, int]] = {}
-            if value is not None:
-                spectrum_params["Level"] = value
-            if color_value is not None:
-                spectrum_params.update(
-                    color_value.get_spectrum_tuning_level_parameters()
-                )
-            if fade_time is not None:
-                spectrum_params["FadeTime"] = _format_duration(fade_time)
-            await self._request(
-                "CreateRequest",
-                f"/zone/{zone_id}/commandprocessor",
-                {
-                    "Command": {
-                        "CommandType": "GoToSpectrumTuningLevel",
-                        "SpectrumTuningLevelParameters": spectrum_params,
-                    }
-                },
-            )
-            return
-
-        # Handle Lumaris RGB + Tunable White Tape Light
-        if device.get("type") == "ColorTune":
+        # Handle Ketra lamps and Lumaris RGB + Tunable White Tape Light
+        if ((device.get("type") == "SpectrumTune") or (device.get("type") == "ColorTune")):
             spectrum_params: Dict[str, Union[str, int]] = {}
             if value is not None:
                 spectrum_params["Level"] = value
