@@ -1,7 +1,6 @@
 """Guide the user through pairing and save the necessary files."""
 
 import asyncio
-import json
 import logging
 import socket
 import ssl
@@ -9,6 +8,7 @@ import tempfile
 from typing import Callable, Optional, Tuple, TypedDict
 import os
 
+import orjson
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -57,12 +57,12 @@ class JsonSocket:
             return None
 
         LOGGER.debug("received: %s", buffer)
-        return json.loads(buffer.decode("UTF-8"))
+        return orjson.loads(buffer)
 
     async def async_write_json(self, obj):
         """Write an object."""
-        buffer = f"{json.dumps(obj)}\r\n".encode("ASCII")
-        self._writer.write(buffer)
+        buffer = orjson.dumps(obj)
+        self._writer.writelines((buffer, b"\r\n"))
         LOGGER.debug("sent: %s", buffer)
 
     def __del__(self):
