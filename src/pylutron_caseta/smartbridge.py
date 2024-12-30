@@ -407,7 +407,7 @@ class Smartbridge:
             return
 
         # Handle Ketra lamps and Lumaris RGB + Tunable White Tape Light
-        if ((device.get("type") == "SpectrumTune") or (device.get("type") == "ColorTune")):
+        if device.get("type") in ["SpectrumTune", "ColorTune"]:
             spectrum_params: Dict[str, Union[str, int]] = {}
             if value is not None:
                 spectrum_params["Level"] = value
@@ -428,7 +428,7 @@ class Smartbridge:
                 },
             )
             return
-            
+
         # Handle Lumaris Tape Light
         if device.get("type") == "WhiteTune":
             white_params: Dict[str, Union[str, int]] = {}
