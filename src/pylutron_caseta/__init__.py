@@ -17,7 +17,7 @@ _LEAP_DEVICE_TYPES = {
         "DivaSmartDimmer",
         "WhiteTune",  # Lumaris Tunable White Tape Light
         "PowPak0-10V",
-        "ColorTune", # Lumaris RGB + Tunable White Tape Light
+        "ColorTune",  # Lumaris RGB + Tunable White Tape Light
     ],
     "switch": [
         "WallSwitch",
