@@ -2,7 +2,7 @@
 import asyncio
 from collections import defaultdict
 from datetime import timedelta
-import json
+import orjson
 import logging
 import os
 import re
@@ -54,7 +54,7 @@ def response_from_json_file(filename: str) -> Response:
     """Fetch a response from a saved JSON file."""
     responsedir = os.path.join(os.path.split(__file__)[0], "responses")
     with open(os.path.join(responsedir, filename), "r", encoding="utf-8") as ifh:
-        return Response.from_json(json.load(ifh))
+        return Response.from_json(orjson.loads(ifh.read()))
 
 
 class Request(NamedTuple):
