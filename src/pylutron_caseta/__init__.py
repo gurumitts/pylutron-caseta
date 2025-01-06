@@ -47,6 +47,7 @@ _LEAP_DEVICE_TYPES = {
         "QsWirelessWoodBlind",
         "RightDrawDrape",
         "Shade",
+        "Tilt",
         "SerenaTiltOnlyWoodBlind",
         "PalladiomWireFreeShade",
     ],

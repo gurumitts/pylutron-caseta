@@ -275,6 +275,30 @@
                     "href": "/devicerule/125"
                 }],
                 "AddressedState": "Addressed"
+            },
+            {
+                "href": "/device/11",
+                "Name": "WoodBlinds",
+                "FullyQualifiedName": ["Living Room", "WoodBlinds"],
+                "Parent": {
+                    "href": "/project"
+                },
+                "SerialNumber": 4569,
+                "ModelNumber": "TLT-EDU-B-J",
+                "DeviceType": "Tilt",
+                "LocalZones": [{
+                    "href": "/zone/4"
+                }],
+                "AssociatedArea": {
+                    "href": "/area/3"
+                },
+                "LinkNodes": [{
+                    "href": "/device/11/linknode/19"
+                }],
+                "DeviceRules": [{
+                    "href": "/devicerule/126"
+                }],
+                "AddressedState": "Addressed"
             }
         ]
     }

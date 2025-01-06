@@ -280,7 +280,7 @@ class Bridge:
 
         # Check the zone status on each zone
         requested_zones = []
-        for _ in range(0, 4):
+        for _ in range(0, 5):
             request, response = await wait(leap.requests.get())
             logging.info("Read %s", request)
             assert request.communique_type == "ReadRequest"
@@ -308,6 +308,7 @@ class Bridge:
             "/zone/1/status",
             "/zone/2/status",
             "/zone/3/status",
+            "/zone/4/status",
             "/zone/6/status",
         ]
 
@@ -838,6 +839,21 @@ async def test_device_list(bridge: Bridge):
             "tilt": None,
             "occupancy_sensors": None,
         },
+        "11": {
+            "area": "3",
+            "device_id": "11",
+            "device_name": "WoodBlinds",
+            "name": "Living Room_WoodBlinds",
+            "type": "Tilt",
+            "zone": "4",
+            "model": "TLT-EDU-B-J",
+            "serial": 4569,
+            "current_state": -1,
+            "fan_speed": None,
+            "button_groups": None,
+            "tilt": None,
+            "occupancy_sensors": None,
+        },
     }
 
     assert devices == expected_devices
@@ -875,6 +891,19 @@ async def test_device_list(bridge: Bridge):
             Body={"ZoneStatus": {"Tilt": 25, "Zone": {"href": "/zone/3"}}},
         )
     )
+
+    bridge.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/4/status",
+            ),
+            Body={"ZoneStatus": {"Tilt": 40, "Zone": {"href": "/zone/4"}}},
+        )
+    )
+
     devices = bridge.target.get_devices()
     assert devices["2"]["current_state"] == 100
     assert devices["2"]["fan_speed"] is None
@@ -882,6 +911,8 @@ async def test_device_list(bridge: Bridge):
     assert devices["3"]["fan_speed"] == FAN_MEDIUM
     assert devices["10"]["current_state"] == -1
     assert devices["10"]["tilt"] == 25
+    assert devices["11"]["current_state"] == -1
+    assert devices["11"]["tilt"] == 40
 
     devices = bridge.target.get_devices_by_domain("light")
     assert len(devices) == 1
@@ -906,10 +937,13 @@ async def test_device_list(bridge: Bridge):
     assert devices[0]["device_id"] == "3"
 
     devices = bridge.target.get_devices_by_domain("cover")
-    assert [device["device_id"] for device in devices] == ["7", "10"]
+    assert [device["device_id"] for device in devices] == ["7", "10", "11"]
 
     devices = bridge.target.get_devices_by_type("SerenaTiltOnlyWoodBlind")
     assert [device["device_id"] for device in devices] == ["10"]
+
+    devices = bridge.target.get_devices_by_type("Tilt")
+    assert [device["device_id"] for device in devices] == ["11"]
 
 
 @pytest.mark.asyncio
