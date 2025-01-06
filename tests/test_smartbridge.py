@@ -2371,6 +2371,80 @@ async def test_qsx_set_ketra_level_with_fade(qsx_processor: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_qsx_set_LumarisRGB_color(qsx_processor: Bridge):
+    """
+    Test that setting the color of a Lumaris RGB produces the
+    right command.
+    """
+    hue = 150
+    saturation = 30
+    full_color = color_value.FullColorValue(hue, saturation)
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_value("991", color_value=full_color)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/991/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "HSVTuningLevel": {"Hue": hue, "Saturation": saturation}
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    kelvin = 2700
+    warm_color = color_value.WarmCoolColorValue(kelvin)
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_value("991", color_value=warm_color)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/991/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {"WhiteTuningLevel": {"Kelvin": kelvin}}
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+
+    task = asyncio.get_running_loop().create_task(
+        qsx_processor.target.set_warm_dim("991", True)
+    )
+    command, _ = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/991/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToSpectrumTuningLevel",
+                "SpectrumTuningLevelParameters": {
+                    "ColorTuningStatus": {
+                        "CurveDimming": {"Curve": {"href": "/curve/1"}}
+                    }
+                },
+            }
+        },
+    )
+    qsx_processor.leap.requests.task_done()
+    task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
 async def test_qsx_tap_button(qsx_processor: Bridge):
     """Test that tapping a keypad button produces the right command."""
     task = asyncio.get_running_loop().create_task(
