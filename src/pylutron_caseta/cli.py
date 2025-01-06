@@ -2,16 +2,16 @@
 
 import asyncio
 import functools
-import json
 import logging
 import socket
 import ssl
 import urllib.parse
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator, List, Optional, TextIO
+from typing import Any, AsyncIterator, List, Optional, TextIO, BinaryIO
 from urllib.parse import urlparse
 
+import orjson
 import click
 import xdg
 from zeroconf import DNSQuestionType, InterfaceChoice, ServiceListener
@@ -271,7 +271,7 @@ async def _connect(
 @click.option(
     "-o",
     "--output",
-    type=click.File("w", encoding="utf8"),
+    type=click.File("wb"),
     default="-",
     help="Save the response into a file.",
 )
@@ -289,7 +289,7 @@ async def leap(
     data: Optional[str],
     paging: Optional[str],
     fail: bool,
-    output: TextIO,
+    output: BinaryIO,
     verbose: bool,
 ):
     """
@@ -298,8 +298,8 @@ async def leap(
     LEAP is similar to JSON over HTTP, and this tool is similar to Curl.
     """
     async with _connect(resource, cacert, cert, key) as connection:
-        body = json.loads(data) if data is not None else None
-        paging_json = json.loads(paging) if paging is not None else None
+        body = orjson.loads(data) if data is not None else None
+        paging_json = orjson.loads(paging) if paging is not None else None
 
         res = resource.path
         if resource.query is not None and len(resource.query) > 0:
@@ -328,8 +328,8 @@ async def leap(
         if response.Header.Paging:
             message["Header"]["Paging"] = response.Header.Paging
 
-        output.write(json.dumps(message))
+        output.write(orjson.dumps(message))
     else:
-        output.write(json.dumps(response.Body))
+        output.write(orjson.dumps(response.Body))
 
-    output.write("\n")
+    output.write(b"\n")

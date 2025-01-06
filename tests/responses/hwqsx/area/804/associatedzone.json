@@ -83,6 +83,25 @@
             "Max": 5000
           }
         }
+      },
+      {
+        "href": "/zone/991",
+        "Name": "Lumaris Tape Strip RGB+TW",
+        "ControlType": "ColorTune",
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "SortOrder": 2,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 5000
+          }
+        }
       }
     ]
   }

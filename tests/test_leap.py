@@ -1,6 +1,6 @@
 """Tests to validate low-level network interactions."""
 import asyncio
-import json
+import orjson
 from typing import AsyncGenerator, Iterable, NamedTuple, Tuple
 
 import pytest
@@ -109,7 +109,7 @@ async def test_call(pipe: Pipe):
     """Test basic call and response."""
     task = asyncio.create_task(pipe.leap.request("ReadRequest", "/test"))
 
-    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     # message should contain ClientTag
     tag = received.get("Header", {}).pop("ClientTag", None)
@@ -123,7 +123,7 @@ async def test_call(pipe: Pipe):
         "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
         "Body": {"ok": True},
     }
-    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_obj) + b"\r\n"
     pipe.test_writer.write(response_bytes)
 
     result = await task
@@ -148,7 +148,7 @@ async def test_read_invalid(pipe):
     """Test reading when invalid data is received."""
     pipe.test_writer.write(b"?\r\n")
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(orjson.JSONDecodeError):
         await pipe.leap_loop
 
 
@@ -190,7 +190,7 @@ async def test_unsolicited(pipe):
         "Header": {"StatusCode": "200 OK", "Url": "/test"},
         "Body": {"Index": 0},
     }
-    response_bytes = f"{json.dumps(response_dict)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_dict) + b"\r\n"
     pipe.test_writer.write(response_bytes)
     response = Response.from_json(response_dict)
 
@@ -203,7 +203,7 @@ async def test_unsolicited(pipe):
     pipe.leap.unsubscribe_unsolicited(handler1)
 
     response_dict["Body"]["Index"] = 1
-    response_bytes = f"{json.dumps(response_dict)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_dict) + b"\r\n"
     pipe.test_writer.write(response_bytes)
     response = Response.from_json(response_dict)
 
@@ -232,7 +232,7 @@ async def test_subscribe_tagged(pipe: Pipe):
 
     task = asyncio.create_task(pipe.leap.subscribe("/test", handler))
 
-    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     # message should contain ClientTag
     tag = received.get("Header", {}).pop("ClientTag", None)
@@ -249,7 +249,7 @@ async def test_subscribe_tagged(pipe: Pipe):
         "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
         "Body": {"ok": True},
     }
-    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_obj) + b"\r\n"
     pipe.test_writer.write(response_bytes)
 
     result, received_tag = await task
@@ -267,7 +267,7 @@ async def test_subscribe_tagged(pipe: Pipe):
         "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": "/test"},
         "Body": {"ok": True},
     }
-    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_obj) + b"\r\n"
     pipe.test_writer.write(response_bytes)
 
     await asyncio.wait_for(handler_called.wait(), 1.0)
@@ -287,14 +287,14 @@ async def test_subscribe_tagged_404(pipe: Pipe):
 
     task = asyncio.create_task(pipe.leap.subscribe("/test", _handler))
 
-    received = json.loads((await pipe.test_reader.readline()).decode("utf-8"))
+    received = orjson.loads(await pipe.test_reader.readline())
 
     tag = received.get("Header", {}).pop("ClientTag", None)
     response_obj = {
         "CommuniqueType": "SubscribeResponse",
         "Header": {"ClientTag": tag, "StatusCode": "404 Not Found", "Url": "/test"},
     }
-    response_bytes = f"{json.dumps(response_obj)}\r\n".encode("utf-8")
+    response_bytes = orjson.dumps(response_obj) + b"\r\n"
     pipe.test_writer.write(response_bytes)
 
     result, _ = await task

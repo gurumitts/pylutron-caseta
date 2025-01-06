@@ -360,6 +360,8 @@ class Smartbridge:
         command = {}
         if device.get("type") == "SpectrumTune":
             command = color_value.get_spectrum_tuning_level_parameters()
+        elif device.get("type") == "ColorTune":
+            command = color_value.get_spectrum_tuning_level_parameters()
         elif device.get("type") == "WhiteTune":
             command = color_value.get_white_tuning_level_parameters()
 
@@ -404,8 +406,8 @@ class Smartbridge:
         if not zone_id:
             return
 
-        # Handle Ketra lamps
-        if device.get("type") == "SpectrumTune":
+        # Handle Ketra lamps and Lumaris RGB + Tunable White Tape Light
+        if device.get("type") in ["SpectrumTune", "ColorTune"]:
             spectrum_params: Dict[str, Union[str, int]] = {}
             if value is not None:
                 spectrum_params["Level"] = value

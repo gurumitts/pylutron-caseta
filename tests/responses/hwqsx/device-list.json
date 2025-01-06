@@ -177,6 +177,32 @@
         "AddressedState": "Unaddressed"
       },
       {
+        "Name": "Lumaris Tape Strip RGB+TW",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "href": "/device/991",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "HWL-MTK-RT-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/991"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/989/linknode/992"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61a0101"
+        },
+        "AddressedState": "Unaddressed"
+      },
+      {
         "Name": "Keypad 1",
         "DeviceType": "PalladiomKeypad",
         "AssociatedArea": {

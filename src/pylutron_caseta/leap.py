@@ -1,11 +1,12 @@
 """LEAP protocol layer."""
 
 import asyncio
-import json
 import logging
 import re
 import uuid
 from typing import Callable, Dict, List, Optional, Tuple
+
+import orjson
 
 from . import BridgeDisconnectedError
 from .messages import Response
@@ -68,9 +69,9 @@ class LeapProtocol:
         future.add_done_callback(clean_up)
 
         try:
-            text = json.dumps(cmd).encode("UTF-8")
+            text = orjson.dumps(cmd)
             _LOG.debug("sending %s", text)
-            self._writer.write(text + b"\r\n")
+            self._writer.writelines((text, b"\r\n"))
 
             return await future
         finally:
@@ -84,7 +85,7 @@ class LeapProtocol:
             if received == b"":
                 break
 
-            resp_json = json.loads(received.decode("UTF-8"))
+            resp_json = orjson.loads(received)
 
             if isinstance(resp_json, dict):
                 tag = resp_json.get("Header", {}).pop("ClientTag", None)
