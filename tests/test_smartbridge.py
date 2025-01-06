@@ -945,6 +945,7 @@ async def test_device_list(bridge: Bridge):
     devices = bridge.target.get_devices_by_type("Tilt")
     assert [device["device_id"] for device in devices] == ["11"]
 
+
 @pytest.mark.asyncio
 async def test_lip_device_list(bridge: Bridge):
     """Test methods getting devices."""
