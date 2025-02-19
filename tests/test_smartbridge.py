@@ -6,7 +6,6 @@ from datetime import timedelta
 import orjson
 import logging
 import os
-from contextlib import suppress
 import re
 from typing import (
     Any,
@@ -226,8 +225,6 @@ class Bridge:
             self.connections.task_done()
             for task in (connect_task, *running_tasks):
                 task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await task
 
     async def _accept_connection(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
