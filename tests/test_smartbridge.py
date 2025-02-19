@@ -1,10 +1,12 @@
 """Tests to validate ssl interactions."""
+
 import asyncio
 from collections import defaultdict
 from datetime import timedelta
 import orjson
 import logging
 import os
+from contextlib import suppress
 import re
 from typing import (
     Any,
@@ -18,7 +20,6 @@ from typing import (
     Tuple,
     TypeVar,
 )
-
 import pytest
 import pytest_asyncio
 
@@ -153,7 +154,9 @@ T = TypeVar("T")
 class Bridge:
     """A test harness around SmartBridge."""
 
-    def __init__(self):
+    def __init__(
+        self, on_connect_callback: Optional[Callable[[], None]] = None
+    ) -> None:
         """Create a new Bridge in a disconnected state."""
         self.connections = asyncio.Queue()
         self.leap = None
@@ -182,37 +185,51 @@ class Bridge:
             await self.connections.put(leap)
             return leap
 
-        self.target = smartbridge.Smartbridge(fake_connect)
+        self.target = smartbridge.Smartbridge(fake_connect, on_connect_callback)
 
     async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
-        connect_task = asyncio.get_running_loop().create_task(self.target.connect())
-        fake_leap = await self.connections.get()
+        loop = asyncio.get_running_loop()
+        running_tasks: set[asyncio.Task] = set()
+        try:
+            connect_task = loop.create_task(self.target.connect())
 
-        async def wait(coro: Coroutine[Any, Any, T]) -> T:
-            # abort if SmartBridge reports it has finished connecting early
-            task = asyncio.get_running_loop().create_task(coro)
-            race = await asyncio.wait(
-                (connect_task, task), timeout=10, return_when=asyncio.FIRST_COMPLETED
-            )
-            done, _ = race
-            assert len(done) > 0, "operation timed out"
-            if len(done) == 1 and connect_task in done:
-                raise connect_task.exception()
-            result = await task
-            return result
+            async def wait(coro: Coroutine[Any, Any, T]) -> T:
+                # abort if SmartBridge reports it has finished connecting early
+                task = loop.create_task(coro)
+                running_tasks.add(task)
+                race = await asyncio.wait(
+                    (connect_task, task),
+                    timeout=10,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                done, _ = race
+                assert len(done) > 0, "operation timed out"
+                if len(done) == 1 and connect_task in done:
+                    task.cancel()
+                    running_tasks.remove(task)
+                    raise connect_task.exception()
+                result = await task
+                running_tasks.remove(task)
+                return result
 
-        if processor == CASETA_PROCESSOR:
-            await self._accept_connection(fake_leap, wait)
-        elif processor == RA3_PROCESSOR:
-            await self._accept_connection_ra3(fake_leap, wait)
-        elif processor == HWQSX_PROCESSOR:
-            await self._accept_connection_qsx(fake_leap, wait)
+            fake_leap = await self.connections.get()
+            if processor == CASETA_PROCESSOR:
+                await self._accept_connection(fake_leap, wait)
+            elif processor == RA3_PROCESSOR:
+                await self._accept_connection_ra3(fake_leap, wait)
+            elif processor == HWQSX_PROCESSOR:
+                await self._accept_connection_qsx(fake_leap, wait)
 
-        await connect_task
+            await connect_task
 
-        self.leap = fake_leap
-        self.connections.task_done()
+            self.leap = fake_leap
+        finally:
+            self.connections.task_done()
+            for task in (connect_task, *running_tasks):
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
     async def _accept_connection(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
@@ -636,7 +653,7 @@ async def fixture_bridge_uninit() -> AsyncGenerator[Bridge, None]:
 
 
 @pytest_asyncio.fixture(name="bridge")
-async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+async def fixture_bridge(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, None]:
     """Create a bridge attached to a fake reader and writer."""
     await bridge_uninit.initialize(CASETA_PROCESSOR)
 
@@ -644,7 +661,7 @@ async def fixture_bridge(bridge_uninit) -> AsyncGenerator[Bridge, None]:
 
 
 @pytest_asyncio.fixture(name="ra3_bridge")
-async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+async def fixture_bridge_ra3(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, None]:
     """Create a RA3 bridge attached to a fake reader and writer."""
     await bridge_uninit.initialize(RA3_PROCESSOR)
 
@@ -652,7 +669,7 @@ async def fixture_bridge_ra3(bridge_uninit) -> AsyncGenerator[Bridge, None]:
 
 
 @pytest_asyncio.fixture(name="qsx_processor")
-async def fixture_bridge_qsx(bridge_uninit) -> AsyncGenerator[Bridge, None]:
+async def fixture_bridge_qsx(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, None]:
     """Create a QSX processor attached to a fake reader and writer."""
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
 
@@ -2930,3 +2947,24 @@ async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
     }
 
     assert ra3_bridge.target.occupancy_groups == expected_groups
+
+
+@pytest.mark.asyncio
+async def test_create_tls_with_on_connect_callback() -> None:
+    """Test that the on connect callback is called."""
+    loop = asyncio.get_running_loop()
+    init_future: asyncio.Future[None] = loop.create_future()
+
+    def _on_connect_callback() -> None:
+        init_future.set_result(None)
+
+    bridge = Bridge(on_connect_callback=_on_connect_callback)
+
+    init_task = asyncio.create_task(bridge.initialize(CASETA_PROCESSOR))
+    await init_future
+    init_task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await init_task
+
+    await bridge.target.close()
