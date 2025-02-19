@@ -2948,7 +2948,7 @@ async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_create_tls_with_on_connect_callback() -> None:
+async def test_on_connect_callback() -> None:
     """Test that the on connect callback is called."""
     loop = asyncio.get_running_loop()
     init_future: asyncio.Future[None] = loop.create_future()
