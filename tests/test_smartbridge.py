@@ -154,7 +154,7 @@ T = TypeVar("T")
 class Bridge:
     """A test harness around SmartBridge."""
 
-    def __init__(self, on_connect_callback = None):
+    def __init__(self, on_connect_callback=None):
         """Create a new Bridge in a disconnected state."""
         self.connections = asyncio.Queue()
         self.leap = None
