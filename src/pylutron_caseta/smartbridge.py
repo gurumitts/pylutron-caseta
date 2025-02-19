@@ -5,6 +5,7 @@ import logging
 import math
 import socket
 import ssl
+import sys
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 
@@ -608,7 +609,12 @@ class Smartbridge:
             while True:
                 await self._monitor_once()
         except asyncio.CancelledError:
-            pass
+            if (
+                sys.version_info >= (3, 11)
+                and (task := asyncio.current_task())
+                and task.cancelling()
+            ):
+                raise
         except Exception as ex:
             _LOG.critical("monitor loop has exited", exc_info=1)
             if not self._login_completed.done():
@@ -851,7 +857,12 @@ class Smartbridge:
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
         except asyncio.CancelledError:
-            pass
+            if (
+                sys.version_info >= (3, 11)
+                and (task := asyncio.current_task())
+                and task.cancelling()
+            ):
+                raise
         except Exception as ex:
             if not self._login_completed.done():
                 self._login_completed.set_exception(ex)
@@ -867,7 +878,12 @@ class Smartbridge:
             _LOG.warning("ping was not answered. closing connection.")
             self._leap.close()
         except asyncio.CancelledError:
-            pass
+            if (
+                sys.version_info >= (3, 11)
+                and (task := asyncio.current_task())
+                and task.cancelling()
+            ):
+                raise
         except Exception:
             _LOG.warning("ping failed. closing connection.", exc_info=1)
             self._leap.close()
