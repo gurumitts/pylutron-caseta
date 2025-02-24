@@ -5,7 +5,6 @@ import logging
 import math
 import socket
 import ssl
-import sys
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 from .color_value import ColorMode, WarmDimmingColorValue
