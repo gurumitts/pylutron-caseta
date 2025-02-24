@@ -8,7 +8,6 @@ import ssl
 import sys
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
-
 from .color_value import ColorMode, WarmDimmingColorValue
 
 
@@ -48,7 +47,9 @@ class Smartbridge:
     """
 
     def __init__(
-        self, connect: Callable[[], Coroutine[Any, Any, LeapProtocol]]
+        self,
+        connect: Callable[[], Coroutine[Any, Any, LeapProtocol]],
+        on_connect_callback: Optional[Callable[[], None]] = None,
     ) -> None:
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
@@ -70,6 +71,7 @@ class Smartbridge:
         self._leap: Optional[LeapProtocol] = None
         self._monitor_task: Optional[asyncio.Task] = None
         self._ping_task: Optional[asyncio.Task] = None
+        self._on_connect_callback = on_connect_callback
 
     @property
     def logged_in(self):
@@ -84,7 +86,7 @@ class Smartbridge:
             and self._login_completed.exception() is None
         )
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connect to the bridge."""
         # reset any existing connection state
         if self._login_task is not None:
@@ -136,6 +138,7 @@ class Smartbridge:
         certfile: str,
         ca_certs: str,
         port: int = LEAP_PORT,
+        on_connect_callback: Optional[Callable[[], None]] = None,
     ) -> "Smartbridge":
         """Initialize the Smart Bridge using TLS over IPv4."""
 
@@ -152,7 +155,7 @@ class Smartbridge:
             )
             return res
 
-        return cls(_connect)
+        return cls(_connect, on_connect_callback)
 
     def add_subscriber(self, device_id: str, callback_: Callable[[], None]):
         """
@@ -630,6 +633,9 @@ class Smartbridge:
             self._leap = await self._connect()
             self._leap.subscribe_unsolicited(self._handle_unsolicited)
             _LOG.debug("Successfully connected to Smart Bridge.")
+
+            if self._on_connect_callback:
+                self._on_connect_callback()
 
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -1452,10 +1458,9 @@ class Smartbridge:
     async def close(self):
         """Disconnect from the bridge."""
         _LOG.info("Processing Smartbridge.close() call")
-        if self._monitor_task is not None and not self._monitor_task.cancelled():
-            self._monitor_task.cancel()
-        if self._ping_task is not None and not self._ping_task.cancelled():
-            self._ping_task.cancel()
+        for task in (self._monitor_task, self._ping_task, self._login_task):
+            if task is not None and not task.done():
+                task.cancel()
 
 
 def _format_duration(duration: timedelta) -> str:
