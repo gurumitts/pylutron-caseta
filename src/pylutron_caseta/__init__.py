@@ -50,6 +50,7 @@ _LEAP_DEVICE_TYPES = {
         "Tilt",
         "SerenaTiltOnlyWoodBlind",
         "PalladiomWireFreeShade",
+        "SerenaEssentialsRollerShade"
     ],
     "sensor": [
         "Pico1Button",
