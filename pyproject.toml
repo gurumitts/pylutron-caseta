@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pylutron-caseta"
-version = "0.23.0"
+version = "0.24.0"
 description = "Provides an API to the Lutron Smartbridge"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.8.0"
+requires-python = ">=3.9.0"
 authors = [
     { name = "gurumitts" },
 ]
@@ -67,7 +67,7 @@ run = [
 ]
 
 [[tool.hatch.envs.lint.matrix]]
-python = ["3.12"]
+python = ["3.13"]
 
 [tool.hatch.envs.test]
 dependencies = [
@@ -85,4 +85,4 @@ run = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
