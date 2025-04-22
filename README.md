@@ -61,10 +61,8 @@ async def example():
     await bridge.close()
 
 
-# Because pylutron_caseta uses asyncio,
-# it must be run within the context of an asyncio event loop.
-loop = asyncio.get_event_loop()
-loop.run_until_complete(example())
+# Run the example function within an asyncio loop.
+asyncio.run(example())
 ```
 
 ### The leap tool
