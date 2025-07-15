@@ -95,6 +95,7 @@ RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
 
 BUTTON_STATUS_PRESSED = "Press"
 BUTTON_STATUS_RELEASED = "Release"
+BUTTON_STATUS_MULTITAP = "MultiTap"
 
 
 class BridgeDisconnectedError(Exception):
