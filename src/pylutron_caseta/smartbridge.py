@@ -309,6 +309,8 @@ class Smartbridge:
                     if response.Body is not None:
                         merged.Body[merged_type].extend(response.Body[merged_type])
 
+        if merged.Header.MessageBodyType == "OneZoneStatus":
+            self._handle_one_zone_status(merged)
         return merged
 
     async def _subscribe(
@@ -683,19 +685,27 @@ class Smartbridge:
         warm_dim = WarmDimmingColorValue.get_warm_dim_from_leap(status)
 
         _LOG.debug("zone=%s level=%s", zone, level)
+        state_changed = False
         device = self.get_device_by_zone_id(zone)
-        if level >= 0:
+        if level >= 0 and device.get("current_state") != level:
             device["current_state"] = level
-        device["fan_speed"] = fan_speed
-        device["tilt"] = tilt
+            state_changed = True
+        if device.get("fan_speed") != fan_speed:
+            device["fan_speed"] = fan_speed
+            state_changed = True
+        if device.get("tilt") != tilt:
+            device["tilt"] = tilt
+            state_changed = True
         # only update color if it's not None, since color is not reported on brightness
         # changes
-        if color is not None:
+        if color is not None and device.get("color") != color:
             device["color"] = color
-        if warm_dim is not None:
+            state_changed = True
+        if warm_dim is not None and device.get("warm_dim") != warm_dim:
             device["warm_dim"] = warm_dim
+            state_changed = True
 
-        if device["device_id"] in self._subscribers:
+        if device["device_id"] in self._subscribers and state_changed:
             self._subscribers[device["device_id"]]()
 
     def _handle_button_status(self, response: Response):
