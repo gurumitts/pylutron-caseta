@@ -678,34 +678,32 @@ class Smartbridge:
 
     def _handle_zone_status(self, status):
         zone = id_from_href(status["Zone"]["href"])
-        level = status.get("Level", -1)
-        fan_speed = status.get("FanSpeed", None)
-        tilt = status.get("Tilt", None)
-        color = ColorMode.get_color_from_leap(status)
-        warm_dim = WarmDimmingColorValue.get_warm_dim_from_leap(status)
-
-        _LOG.debug("zone=%s level=%s", zone, level)
-        state_changed = False
         device = self.get_device_by_zone_id(zone)
-        if level >= 0 and device.get("current_state") != level:
-            device["current_state"] = level
-            state_changed = True
-        if device.get("fan_speed") != fan_speed:
-            device["fan_speed"] = fan_speed
-            state_changed = True
-        if device.get("tilt") != tilt:
-            device["tilt"] = tilt
-            state_changed = True
+
+        updates = {
+            "current_state": status.get("Level", -1),
+            "fan_speed": status.get("FanSpeed", None),
+            "tilt": status.get("Tilt", None),
+            "color": ColorMode.get_color_from_leap(status),
+            "warm_dim": WarmDimmingColorValue.get_warm_dim_from_leap(status),
+        }
+        _LOG.debug("zone=%s level=%s", zone, updates["current_state"])
+
+        state_changed = any(device.get(key) != updates[key] for key in updates.keys())
+
+        if updates["current_state"] >= 0:
+            device["current_state"] = updates["current_state"]
+        device["fan_speed"] = updates["fan_speed"]
+        device["tilt"] = updates["tilt"]
+
         # only update color if it's not None, since color is not reported on brightness
         # changes
-        if color is not None and device.get("color") != color:
-            device["color"] = color
-            state_changed = True
-        if warm_dim is not None and device.get("warm_dim") != warm_dim:
-            device["warm_dim"] = warm_dim
-            state_changed = True
+        if updates["color"] is not None:
+            device["color"] = updates["color"]
+        if updates["warm_dim"] is not None:
+            device["warm_dim"] = updates["warm_dim"]
 
-        if device["device_id"] in self._subscribers and state_changed:
+        if state_changed and device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
     def _handle_button_status(self, response: Response):
