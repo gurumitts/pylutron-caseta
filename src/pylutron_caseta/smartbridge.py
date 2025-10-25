@@ -62,7 +62,7 @@ class Smartbridge:
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
-        self._smart_away_subscribers: Callable[[str], None] = {}
+        self._smart_away_subscriber: Callable[[str], None] = {}
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -193,7 +193,7 @@ class Smartbridge:
 
         :param callback_: callback to invoke
         """
-        self._smart_away_subscribers = callback_
+        self._smart_away_subscriber = callback_
 
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the bridge/processor."""
@@ -857,7 +857,8 @@ class Smartbridge:
         smart_away_id = id_from_href(status["href"])
         self.smart_away_state = status["EnabledState"]
         # Notify any subscribers of the change to Smart Away status
-        self._smart_away_subscribers = (self.smart_away_state)
+        if self._smart_away_subscriber is not None:
+            self._smart_away_subscriber = (self.smart_away_state)
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
@@ -1316,13 +1317,6 @@ class Smartbridge:
                     "parent_id": parent_id,
                 },
             )
-
-    async def _load_smart_away_state(self):
-        """Load the Smart Away state from the Smart Bridge."""
-        _LOG.debug("Loading Smart Away State from the Smart Bridge")
-        smart_away_json = await self._request("ReadRequest", "/system/away/1/status")
-        smart_away_status = smart_away_json.Body["AwayStatus"]
-        self.smart_away_state = smart_away_status["EnabledState"]
 
     async def _load_occupancy_groups(self):
         """Load the occupancy groups from the Smart Bridge."""
