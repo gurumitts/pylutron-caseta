@@ -62,7 +62,7 @@ class Smartbridge:
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
-        self._smart_away_subscriber: Callable[[str], None] = {}
+        self._smart_away_subscriber: Optional[Callable[[str], None]] = None
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
