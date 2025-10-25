@@ -62,7 +62,7 @@ class Smartbridge:
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
-        self._smart_away_subscribers: Dict[str, Callable[[str], None]] = {}
+        self._smart_away_subscribers: Callable[[str], None] = {}
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -187,14 +187,13 @@ class Smartbridge:
         """
         self._button_subscribers[button_id] = callback_
 
-    def add_smart_away_subscriber(self, smart_away_id: str, callback_: Callable[[str], None]):
+    def add_smart_away_subscriber(self, callback_: Callable[[str], None]):
         """
         Add a listener to be notified of Smart Away state changes.
 
-        :param smart_away_id: away id, e.g., 1
         :param callback_: callback to invoke
         """
-        self._smart_away_subscribers[smart_away_id] = callback_
+        self._smart_away_subscribers = callback_
 
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the bridge/processor."""
@@ -890,7 +889,6 @@ class Smartbridge:
 
                 await self._load_devices()
                 await self._load_buttons()
-                await self._load_smart_away_state()
                 await self._load_lip_devices()
                 await self._load_scenes()
                 await self._load_occupancy_groups()
