@@ -854,7 +854,6 @@ class Smartbridge:
             return
 
         status = response.Body["AwayStatus"]
-        smart_away_id = id_from_href(status["href"])
         self.smart_away_state = status["EnabledState"]
         # Notify any subscribers of the change to Smart Away status
         if self._smart_away_subscriber is not None:
