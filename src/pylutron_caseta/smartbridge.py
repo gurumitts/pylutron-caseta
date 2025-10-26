@@ -600,7 +600,7 @@ class Smartbridge:
         """
         await self._request(
             "UpdateRequest",
-            f"/system/away/1/status",
+            "/system/away/1/status",
             {"AwayStatus": {"EnabledState": "Enabled"}},
         )
 
@@ -610,7 +610,7 @@ class Smartbridge:
         """
         await self._request(
             "UpdateRequest",
-            f"/system/away/1/status",
+            "/system/away/1/status",
             {"AwayStatus": {"EnabledState": "Disabled"}},
         )    
 
@@ -1493,7 +1493,7 @@ class Smartbridge:
         _LOG.debug("Subscribing to Smart Away status updates")
         try:
             response, _ = await self._subscribe(
-                f"/system/away/1/status",
+                "/system/away/1/status",
                 self._handle_smart_away_status,
             )
             _LOG.debug("Subscribed to Smart Away status")
