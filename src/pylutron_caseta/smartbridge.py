@@ -612,7 +612,7 @@ class Smartbridge:
             "UpdateRequest",
             "/system/away/1/status",
             {"AwayStatus": {"EnabledState": "Disabled"}},
-        )    
+        )
 
     async def get_smart_away_status(self):
         """
