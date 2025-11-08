@@ -1,0 +1,14 @@
+{
+    "CommuniqueType": "SubscribeResponse",
+    "Header": {
+        "StatusCode": "200 OK",
+        "Url": "/system/away/1/status"
+    },
+    "Body": {
+        "AwayStatus": {
+            "href": "/system/away/1/status",
+            "EnabledState": "Enabled",
+            "ActiveState": "Active"
+        }
+    }
+}

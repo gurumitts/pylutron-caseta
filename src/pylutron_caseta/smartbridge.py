@@ -57,10 +57,12 @@ class Smartbridge:
         self.scenes: Dict[str, dict] = {}
         self.occupancy_groups: Dict[str, dict] = {}
         self.areas: Dict[str, dict] = {}
+        self.smart_away_state: str = ""
         self._connect = connect
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
+        self._smart_away_subscriber: Optional[Callable[[str], None]] = None
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
         # don't need to wait for "login" on reconnect.
@@ -184,6 +186,14 @@ class Smartbridge:
         :param callback_: callback to invoke
         """
         self._button_subscribers[button_id] = callback_
+
+    def add_smart_away_subscriber(self, callback_: Callable[[str], None]):
+        """
+        Add a listener to be notified of Smart Away state changes.
+
+        :param callback_: callback to invoke
+        """
+        self._smart_away_subscriber = callback_
 
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the bridge/processor."""
@@ -584,6 +594,33 @@ class Smartbridge:
                 {"Command": {"CommandType": "PressAndRelease"}},
             )
 
+    async def activate_smart_away(self):
+        """
+        Activate Smart Away
+        """
+        await self._request(
+            "UpdateRequest",
+            "/system/away/1/status",
+            {"AwayStatus": {"EnabledState": "Enabled"}},
+        )
+
+    async def deactivate_smart_away(self):
+        """
+        Deactivate Smart Away
+        """
+        await self._request(
+            "UpdateRequest",
+            "/system/away/1/status",
+            {"AwayStatus": {"EnabledState": "Disabled"}},
+        )
+
+    async def get_smart_away_status(self):
+        """
+        Returns the status of Smart Away
+        """
+        response = await self._request("ReadRequest", "/system/away/1/status")
+        return response.Body["AwayStatus"]["EnabledState"]
+
     async def tap_button(self, button_id: str):
         """
         Send a press and release message for the given button ID.
@@ -811,6 +848,17 @@ class Smartbridge:
         ):
             self._handle_button_led_status(response)
 
+    def _handle_smart_away_status(self, response: Response):
+        _LOG.debug("Handling Smart Away status: %s", response)
+        if response.Body is None:
+            return
+
+        status = response.Body["AwayStatus"]
+        self.smart_away_state = status["EnabledState"]
+        # Notify any subscribers of the change to Smart Away status
+        if self._smart_away_subscriber is not None:
+            self._smart_away_subscriber(self.smart_away_state)
+
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         try:
@@ -845,6 +893,7 @@ class Smartbridge:
                 await self._load_occupancy_groups()
                 await self._subscribe_to_occupancy_groups()
                 await self._subscribe_to_button_status()
+                await self._subscribe_to_smart_away_status()
 
                 for device in self.devices.values():
                     if device.get("zone") is not None:
@@ -1438,6 +1487,20 @@ class Smartbridge:
             _LOG.error("Failed zone subscription: %s", ex.response)
             return
         self._handle_multi_zone_status(response)
+
+    async def _subscribe_to_smart_away_status(self):
+        """Subscribe to Smart Away status updates."""
+        _LOG.debug("Subscribing to Smart Away status updates")
+        try:
+            response, _ = await self._subscribe(
+                "/system/away/1/status",
+                self._handle_smart_away_status,
+            )
+            _LOG.debug("Subscribed to Smart Away status")
+            self._handle_smart_away_status(response)
+        except BridgeResponseError as ex:
+            _LOG.error("Failed device status subscription: %s", ex.response)
+            return
 
     async def close(self):
         """Disconnect from the bridge."""

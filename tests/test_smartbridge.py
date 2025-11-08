@@ -162,6 +162,9 @@ class Bridge:
         self.occupancy_group_list_result = response_from_json_file(
             "occupancygroups.json"
         )
+        self.smart_away_subscription_data_result = response_from_json_file(
+            "smartaway.json"
+        )
         self.occupancy_group_subscription_data_result = response_from_json_file(
             "occupancygroupsubscribe.json"
         )
@@ -289,6 +292,14 @@ class Bridge:
             )
             response.set_result(self.button_subscription_data_result)
             leap.requests.task_done()
+
+        # Subscribe request on /system/away/1/status
+        request, response = await wait(leap.requests.get())
+        assert request == Request(
+            communique_type="SubscribeRequest", url="/system/away/1/status"
+        )
+        response.set_result(self.smart_away_subscription_data_result)
+        leap.requests.task_done()
 
         # Check the zone status on each zone
         requested_zones = []
