@@ -857,7 +857,7 @@ class Smartbridge:
         self.smart_away_state = status["EnabledState"]
         # Notify any subscribers of the change to Smart Away status
         if self._smart_away_subscriber is not None:
-            self._smart_away_subscriber(self.smart_away_state)
+            self._smart_away_subscriber()
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
