@@ -63,6 +63,7 @@ _LEAP_DEVICE_TYPES = {
         "Pico4ButtonScene",
         "Pico4ButtonZone",
         "Pico4Button2Group",
+        "PaddleSwitchPico",
         "FourGroupRemote",
         "SeeTouchTabletopKeypad",
         "SunnataKeypad",
