@@ -229,6 +229,25 @@ class Bridge:
             for task in (connect_task, *running_tasks):
                 task.cancel()
 
+    @staticmethod
+    def _battery_status_response(url: str, level_state: str = "Good") -> Response:
+        """Build a device status response with battery information."""
+        return Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneDeviceStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url=url,
+            ),
+            Body={
+                "DeviceStatus": {
+                    "href": url,
+                    "Device": {"href": url.removesuffix("/status")},
+                    "BatteryStatus": {"LevelState": level_state},
+                }
+            },
+        )
+
     async def _accept_connection(self, leap, wait):
         """Accept a connection from SmartBridge (implementation)."""
         # Read request on /areas
@@ -334,6 +353,15 @@ class Bridge:
             "/zone/4/status",
             "/zone/6/status",
         ]
+
+        for device in self.target.get_devices_by_domain("cover"):
+            request, response = await wait(leap.requests.get())
+            assert request == Request(
+                communique_type="ReadRequest",
+                url=f"/device/{device['device_id']}/status",
+            )
+            response.set_result(self._battery_status_response(request.url))
+            leap.requests.task_done()
 
     async def _process_station(self, result, leap, wait, bridge_type):
         if result.Body is None:
@@ -804,6 +832,7 @@ async def test_device_list(bridge: Bridge):
         },
         "7": {
             "area": "3",
+            "battery_status": "Good",
             "device_id": "7",
             "device_name": "Living Shade 3",
             "name": "Living Room_Living Shade 3",
@@ -849,6 +878,7 @@ async def test_device_list(bridge: Bridge):
         },
         "10": {
             "area": "3",
+            "battery_status": "Good",
             "device_id": "10",
             "device_name": "Blinds",
             "name": "Living Room_Blinds",
@@ -864,6 +894,7 @@ async def test_device_list(bridge: Bridge):
         },
         "11": {
             "area": "3",
+            "battery_status": "Good",
             "device_id": "11",
             "device_name": "WoodBlinds",
             "name": "Living Room_WoodBlinds",
