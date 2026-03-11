@@ -269,9 +269,16 @@ class Smartbridge:
         return self.scenes[scene_id]
 
     async def get_battery_status(self, device_id: str) -> Optional[str]:
-        """Read and cache the battery status for a device, if available."""
+        """Read the battery status for a device, if available."""
         response = await self._request("ReadRequest", f"/device/{device_id}/status")
-        return self._handle_device_status(device_id, response)
+        if response.Body is None:
+            return None
+
+        return (
+            response.Body.get("DeviceStatus", {})
+            .get("BatteryStatus", {})
+            .get("LevelState")
+        )
 
     def is_connected(self) -> bool:
         """Will return True if currently connected to the Smart Bridge."""
@@ -864,40 +871,6 @@ class Smartbridge:
         if self._smart_away_subscriber is not None:
             self._smart_away_subscriber(self.smart_away_state)
 
-    def _handle_device_status(
-        self, device_id: str, response: Response
-    ) -> Optional[str]:
-        """Cache battery state from a device status response."""
-        _LOG.debug("Handling device status for %s: %s", device_id, response)
-        if response.Body is None:
-            return None
-
-        level_state = (
-            response.Body.get("DeviceStatus", {})
-            .get("BatteryStatus", {})
-            .get("LevelState")
-        )
-        if device_id not in self.devices or level_state is None:
-            return None
-
-        self.devices[device_id]["battery_status"] = level_state
-        callback = self._subscribers.get(device_id)
-        if callback is not None:
-            callback()
-        return level_state
-
-    async def _load_battery_statuses(self) -> None:
-        """Populate battery state for cover devices that expose it."""
-        for device in self.get_devices_by_domain("cover"):
-            try:
-                await self.get_battery_status(device["device_id"])
-            except BridgeResponseError as ex:
-                _LOG.debug(
-                    "Skipping battery status for device %s: %s",
-                    device["device_id"],
-                    ex.response,
-                )
-
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
         try:
@@ -941,8 +914,6 @@ class Smartbridge:
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
                         self._handle_one_zone_status(response)
-
-                await self._load_battery_statuses()
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
@@ -1022,8 +993,6 @@ class Smartbridge:
                 device_name=device["Name"],
                 area=area_id,
             )
-            if device["DeviceType"] in _LEAP_DEVICE_TYPES["cover"]:
-                self.devices[device_id].setdefault("battery_status", None)
 
     async def _load_ra3_devices(self):
         for area in self.areas.values():

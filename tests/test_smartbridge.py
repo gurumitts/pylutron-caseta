@@ -354,15 +354,6 @@ class Bridge:
             "/zone/6/status",
         ]
 
-        for device in self.target.get_devices_by_domain("cover"):
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="ReadRequest",
-                url=f"/device/{device['device_id']}/status",
-            )
-            response.set_result(self._battery_status_response(request.url))
-            leap.requests.task_done()
-
     async def _process_station(self, result, leap, wait, bridge_type):
         if result.Body is None:
             return
@@ -832,7 +823,6 @@ async def test_device_list(bridge: Bridge):
         },
         "7": {
             "area": "3",
-            "battery_status": "Good",
             "device_id": "7",
             "device_name": "Living Shade 3",
             "name": "Living Room_Living Shade 3",
@@ -878,7 +868,6 @@ async def test_device_list(bridge: Bridge):
         },
         "10": {
             "area": "3",
-            "battery_status": "Good",
             "device_id": "10",
             "device_name": "Blinds",
             "name": "Living Room_Blinds",
@@ -894,7 +883,6 @@ async def test_device_list(bridge: Bridge):
         },
         "11": {
             "area": "3",
-            "battery_status": "Good",
             "device_id": "11",
             "device_name": "WoodBlinds",
             "name": "Living Room_WoodBlinds",
@@ -998,6 +986,20 @@ async def test_device_list(bridge: Bridge):
 
     devices = bridge.target.get_devices_by_type("Tilt")
     assert [device["device_id"] for device in devices] == ["11"]
+
+
+@pytest.mark.asyncio
+async def test_get_battery_status(bridge: Bridge):
+    """Test reading battery status on demand."""
+    task = asyncio.create_task(bridge.target.get_battery_status("7"))
+
+    request, response = await asyncio.wait_for(bridge.leap.requests.get(), 10)
+    assert request == Request(communique_type="ReadRequest", url="/device/7/status")
+    response.set_result(bridge._battery_status_response(request.url))
+    bridge.leap.requests.task_done()
+
+    assert await asyncio.wait_for(task, 10) == "Good"
+    assert "battery_status" not in bridge.target.get_device_by_id("7")
 
 
 @pytest.mark.asyncio
