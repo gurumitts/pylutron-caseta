@@ -268,6 +268,18 @@ class Smartbridge:
         """
         return self.scenes[scene_id]
 
+    async def get_battery_status(self, device_id: str) -> Optional[str]:
+        """Read the battery status for a device, if available."""
+        response = await self._request("ReadRequest", f"/device/{device_id}/status")
+        if response.Body is None:
+            return None
+
+        return (
+            response.Body.get("DeviceStatus", {})
+            .get("BatteryStatus", {})
+            .get("LevelState")
+        )
+
     def is_connected(self) -> bool:
         """Will return True if currently connected to the Smart Bridge."""
         return self.logged_in
