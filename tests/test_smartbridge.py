@@ -1476,6 +1476,184 @@ async def test_set_tilt(bridge: Bridge):
     task.cancel()
 
 
+def _tuning_read_response(high: float = 100, low: float = 18.9, energy: float = 100):
+    """Build a ReadResponse for /zone/1/tuningsettings."""
+    return Response(
+        CommuniqueType="ReadResponse",
+        Header=ResponseHeader(
+            StatusCode=ResponseStatus(200, "OK"),
+            Url="/zone/1/tuningsettings",
+        ),
+        Body={
+            "TuningSettings": {
+                "href": "/zone/1/tuningsettings",
+                "HighEndTrim": high,
+                "EnergyTrim": energy,
+                "LowEndTrim": low,
+            }
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_set_zone_high_end_trim(bridge: Bridge):
+    """Test that setting the high-end trim reads then writes."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_zone_high_end_trim("2", 80)
+    )
+    # First request: read current tuning to validate against LowEndTrim.
+    read_request, read_response = await bridge.leap.requests.get()
+    assert read_request == Request(
+        communique_type="ReadRequest", url="/zone/1/tuningsettings"
+    )
+    read_response.set_result(_tuning_read_response())
+    bridge.leap.requests.task_done()
+
+    # Second request: write the new HighEndTrim.
+    command, response = await bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="UpdateRequest",
+        url="/zone/1/tuningsettings",
+        body={"TuningSettings": {"HighEndTrim": 80}},
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="UpdateResponse",
+            Header=ResponseHeader(
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1/tuningsettings",
+            ),
+        )
+    )
+    bridge.leap.requests.task_done()
+    await task
+
+
+@pytest.mark.asyncio
+async def test_set_zone_low_end_trim(bridge: Bridge):
+    """Test that setting the low-end trim reads then writes."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_zone_low_end_trim("2", 20)
+    )
+    read_request, read_response = await bridge.leap.requests.get()
+    assert read_request == Request(
+        communique_type="ReadRequest", url="/zone/1/tuningsettings"
+    )
+    read_response.set_result(_tuning_read_response(high=100, low=18.9))
+    bridge.leap.requests.task_done()
+
+    command, response = await bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="UpdateRequest",
+        url="/zone/1/tuningsettings",
+        body={"TuningSettings": {"LowEndTrim": 20}},
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="UpdateResponse",
+            Header=ResponseHeader(
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1/tuningsettings",
+            ),
+        )
+    )
+    bridge.leap.requests.task_done()
+    await task
+
+
+@pytest.mark.asyncio
+async def test_set_zone_high_end_trim_rejects_below_low(bridge: Bridge):
+    """HighEndTrim cannot be set below the current LowEndTrim."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_zone_high_end_trim("2", 10)
+    )
+    read_request, read_response = await bridge.leap.requests.get()
+    assert read_request.communique_type == "ReadRequest"
+    read_response.set_result(_tuning_read_response(high=100, low=18.9))
+    bridge.leap.requests.task_done()
+
+    with pytest.raises(ValueError):
+        await task
+    # No write should have been issued.
+    assert bridge.leap.requests.empty()
+
+
+@pytest.mark.asyncio
+async def test_set_zone_low_end_trim_rejects_above_high(bridge: Bridge):
+    """LowEndTrim cannot be set above the current HighEndTrim."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_zone_low_end_trim("2", 50)
+    )
+    read_request, read_response = await bridge.leap.requests.get()
+    assert read_request.communique_type == "ReadRequest"
+    read_response.set_result(_tuning_read_response(high=35, low=18.9))
+    bridge.leap.requests.task_done()
+
+    with pytest.raises(ValueError):
+        await task
+    assert bridge.leap.requests.empty()
+
+
+@pytest.mark.asyncio
+async def test_read_zone_tuning(bridge: Bridge):
+    """Test reading the tuning settings for a dimmable zone."""
+    task = asyncio.get_running_loop().create_task(bridge.target.read_zone_tuning("2"))
+    command, response = await bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="ReadRequest",
+        url="/zone/1/tuningsettings",
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/1/tuningsettings",
+            ),
+            Body={
+                "TuningSettings": {
+                    "href": "/zone/1/tuningsettings",
+                    "HighEndTrim": 35,
+                    "EnergyTrim": 100,
+                    "LowEndTrim": 18.9,
+                }
+            },
+        )
+    )
+    bridge.leap.requests.task_done()
+    result = await task
+    assert result == {
+        "href": "/zone/1/tuningsettings",
+        "HighEndTrim": 35,
+        "EnergyTrim": 100,
+        "LowEndTrim": 18.9,
+    }
+
+
+@pytest.mark.asyncio
+async def test_trim_methods_reject_unsupported_device_types(bridge: Bridge):
+    """Trim methods should refuse devices whose type doesn't expose tuning."""
+    # Device "3" is a CasetaFanSpeedController — not a dimmer.
+    with pytest.raises(ValueError):
+        await bridge.target.set_zone_high_end_trim("3", 50)
+    with pytest.raises(ValueError):
+        await bridge.target.set_zone_low_end_trim("3", 50)
+    with pytest.raises(ValueError):
+        await bridge.target.read_zone_tuning("3")
+    # No requests should have been issued to the bridge.
+    assert bridge.leap.requests.empty()
+
+
+@pytest.mark.asyncio
+async def test_trim_methods_reject_out_of_range_values(bridge: Bridge):
+    """Trim setters should validate the 0-100 range before contacting bridge."""
+    with pytest.raises(ValueError):
+        await bridge.target.set_zone_high_end_trim("2", 101)
+    with pytest.raises(ValueError):
+        await bridge.target.set_zone_low_end_trim("2", -1)
+    assert bridge.leap.requests.empty()
+
+
 @pytest.mark.asyncio
 async def test_lower_cover(bridge: Bridge):
     """Test that lowering a cover produces the right commands."""

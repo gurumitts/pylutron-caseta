@@ -22,6 +22,7 @@ from . import (
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
+    TRIM_SUPPORTED_DEVICE_TYPES,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
@@ -279,6 +280,80 @@ class Smartbridge:
             .get("BatteryStatus", {})
             .get("LevelState")
         )
+
+    def _get_trim_zone_id(self, device_id: str) -> str:
+        """Return the zone id for a device, validating trim support.
+
+        :raises KeyError: if the device id is unknown
+        :raises ValueError: if the device type does not support tuning settings
+            or has no associated zone
+        """
+        device = self.devices[device_id]
+        if device.get("type") not in TRIM_SUPPORTED_DEVICE_TYPES:
+            raise ValueError(
+                f"Device {device_id} (type {device.get('type')}) "
+                "does not support tuning settings"
+            )
+        zone_id = device.get("zone")
+        if not zone_id:
+            raise ValueError(f"Device {device_id} has no associated zone")
+        return zone_id
+
+    async def _read_zone_tuning(self, zone_id: str) -> dict:
+        """Read TuningSettings for a zone (zone-id form, no type validation)."""
+        response = await self._request("ReadRequest", f"/zone/{zone_id}/tuningsettings")
+        if response.Body is None:
+            return {}
+        return response.Body["TuningSettings"]
+
+    async def set_zone_high_end_trim(
+        self, device_id: str, value: Union[int, float]
+    ) -> None:
+        """Set the high-end trim (0-100) for a dimmable device's zone.
+
+        Performs a read of the current TuningSettings to ensure the new
+        HighEndTrim is not below the current LowEndTrim, since the bridge
+        does not enforce this constraint.
+        """
+        if not 0 <= value <= 100:
+            raise ValueError("HighEndTrim must be 0-100")
+        zone_id = self._get_trim_zone_id(device_id)
+        current = await self._read_zone_tuning(zone_id)
+        low = current.get("LowEndTrim")
+        if low is not None and value < low:
+            raise ValueError(f"HighEndTrim {value} would be below LowEndTrim {low}")
+        await self._request(
+            "UpdateRequest",
+            f"/zone/{zone_id}/tuningsettings",
+            {"TuningSettings": {"HighEndTrim": value}},
+        )
+
+    async def set_zone_low_end_trim(
+        self, device_id: str, value: Union[int, float]
+    ) -> None:
+        """Set the low-end trim (0-100) for a dimmable device's zone.
+
+        Performs a read of the current TuningSettings to ensure the new
+        LowEndTrim is not above the current HighEndTrim, since the bridge
+        does not enforce this constraint.
+        """
+        if not 0 <= value <= 100:
+            raise ValueError("LowEndTrim must be 0-100")
+        zone_id = self._get_trim_zone_id(device_id)
+        current = await self._read_zone_tuning(zone_id)
+        high = current.get("HighEndTrim")
+        if high is not None and value > high:
+            raise ValueError(f"LowEndTrim {value} would be above HighEndTrim {high}")
+        await self._request(
+            "UpdateRequest",
+            f"/zone/{zone_id}/tuningsettings",
+            {"TuningSettings": {"LowEndTrim": value}},
+        )
+
+    async def read_zone_tuning(self, device_id: str) -> dict:
+        """Return the current TuningSettings dict for a dimmable device's zone."""
+        zone_id = self._get_trim_zone_id(device_id)
+        return await self._read_zone_tuning(zone_id)
 
     def is_connected(self) -> bool:
         """Will return True if currently connected to the Smart Bridge."""
