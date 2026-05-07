@@ -1003,6 +1003,29 @@ async def test_get_battery_status(bridge: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_get_battery_status_not_found(bridge: Bridge):
+    """Test missing battery status endpoint returns no battery status."""
+    task = asyncio.create_task(bridge.target.get_battery_status("7"))
+
+    request, response = await asyncio.wait_for(bridge.leap.requests.get(), 10)
+    assert request == Request(communique_type="ReadRequest", url="/device/7/status")
+    response.set_result(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneDeviceStatus",
+                StatusCode=ResponseStatus(404, "Not Found"),
+                Url=request.url,
+            ),
+            Body=None,
+        )
+    )
+    bridge.leap.requests.task_done()
+
+    assert await asyncio.wait_for(task, 10) is None
+
+
+@pytest.mark.asyncio
 async def test_lip_device_list(bridge: Bridge):
     """Test methods getting devices."""
     devices = bridge.target.lip_devices
