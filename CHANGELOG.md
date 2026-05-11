@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- High-end and low-end trim controls for dimmable zones
+  (`set_zone_high_end_trim`, `set_zone_low_end_trim`, and `read_zone_tuning`).
+  Restricted to dimmer device types that support `TuningSettings`.
+
 ## [0.28.0] - 2026-04-05
 
 ### Added
