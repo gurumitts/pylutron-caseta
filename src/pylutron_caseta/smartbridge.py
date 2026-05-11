@@ -270,7 +270,13 @@ class Smartbridge:
 
     async def get_battery_status(self, device_id: str) -> Optional[str]:
         """Read the battery status for a device, if available."""
-        response = await self._request("ReadRequest", f"/device/{device_id}/status")
+        try:
+            response = await self._request("ReadRequest", f"/device/{device_id}/status")
+        except BridgeResponseError as ex:
+            if ex.code is not None and ex.code.code == 404:
+                return None
+            raise
+
         if response.Body is None:
             return None
 
