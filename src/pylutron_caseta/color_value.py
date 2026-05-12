@@ -108,6 +108,8 @@ class WarmDimmingColorValue:
         Check whether warm dimming is active for a zone status.
 
         Returns None if the zone status does not contain warm dimming information.
+        Returns False if warm diming is inactive
+        Returns True if warm diming is active
         """
         if zone_status is None:
             return None
@@ -118,7 +120,7 @@ class WarmDimmingColorValue:
 
         curve_dimming = color_status.get("CurveDimming")
         if curve_dimming is None:
-            return None
+            return False
 
         return "Curve" in curve_dimming
 
