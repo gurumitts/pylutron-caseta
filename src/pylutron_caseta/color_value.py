@@ -108,10 +108,8 @@ class WarmDimmingColorValue:
         Check whether warm dimming is active for a zone status.
 
         Returns None if the zone status does not contain warm dimming information.
-        Returns False if ColorTuningStatus is present but CurveDimming is absent,
-        meaning the bridge has sent a non-warm-dim color update (e.g. HSVTuningLevel
-        from a Ketra fixture) and warm-dim mode should be cleared.
-        Returns True if CurveDimming is present and contains a Curve entry.
+        Returns False if warm diming is inactive
+        Returns True if warm diming is active
         """
         if zone_status is None:
             return None
@@ -122,7 +120,6 @@ class WarmDimmingColorValue:
 
         curve_dimming = color_status.get("CurveDimming")
         if curve_dimming is None:
-            # ColorTuningStatus is present but no CurveDimming — warm-dim is off
             return False
 
         return "Curve" in curve_dimming
