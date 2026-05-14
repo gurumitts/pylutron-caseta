@@ -76,6 +76,7 @@ _LEAP_DEVICE_TYPES = {
         "AlisseKeypad",
         "PalladiomKeypad",
         "PhantomKeypad",
+        "N-CVLpqtTTOIeG-4hcjKgw",  # Vierti Hybrid Keypad (HD-4B, HD-3RL)
     ],
 }
 
