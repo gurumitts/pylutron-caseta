@@ -1093,7 +1093,7 @@ class Smartbridge:
         elif "Keypad" in device_type:
             device_type_friendly = "Keypad"
         elif device_type == "N-CVLpqtTTOIeG-4hcjKgw":
-            device_type_friendly = "ViertiKeypad"
+            device_type_friendly = "Keypad"
 
         if "SerialNumber" in device_json.Body["Device"]:
             device_serial = device_json.Body["Device"]["SerialNumber"]
