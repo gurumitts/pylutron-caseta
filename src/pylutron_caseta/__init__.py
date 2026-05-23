@@ -95,6 +95,12 @@ RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
     "RPSWallMountedOccupancySensor",
 ]
 
+# Device types whose zones expose HighEndTrim/LowEndTrim.
+TRIM_SUPPORTED_DEVICE_TYPES = [
+    "WallDimmer",
+    "DivaSmartDimmer",
+]
+
 BUTTON_STATUS_PRESSED = "Press"
 BUTTON_STATUS_RELEASED = "Release"
 BUTTON_STATUS_MULTITAP = "MultiTap"
