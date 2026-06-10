@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `BUTTON_STATUS_LONG_HOLD` constant for the `LongHold` LEAP button event
+  emitted by HomeWorks QSX processors.
+
 ## [0.29.0] - 2026-06-09
 
 ### Added
