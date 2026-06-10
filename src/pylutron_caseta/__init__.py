@@ -4,6 +4,33 @@ from typing import Optional
 
 from .messages import Response, ResponseStatus
 
+_PICOS = [
+    "Pico1Button",
+    "Pico2Button",
+    "Pico2ButtonRaiseLower",
+    "Pico3Button",
+    "Pico3ButtonRaiseLower",
+    "Pico4Button",
+    "Pico4ButtonScene",
+    "Pico4ButtonZone",
+    "Pico4Button2Group",
+    "PaddleSwitchPico",
+]
+
+_KEYPADS = [
+    "SeeTouchTabletopKeypad",
+    "SunnataKeypad",
+    "SunnataHybridKeypad",
+    "SeeTouchHybridKeypad",
+    "SeeTouchKeypad",
+    "HomeownerKeypad",
+    "GrafikTHybridKeypad",
+    "AlisseKeypad",
+    "PalladiomKeypad",
+    "PhantomKeypad",
+    "N-CVLpqtTTOIeG-4hcjKgw",  # Vierti Hybrid Keypad (HD-4B, HD-3RL)
+]
+
 _LEAP_DEVICE_TYPES = {
     "light": [
         "WallDimmer",
@@ -54,29 +81,11 @@ _LEAP_DEVICE_TYPES = {
         "SerenaEssentialsRollerShade",
     ],
     "sensor": [
-        "Pico1Button",
-        "Pico2Button",
-        "Pico2ButtonRaiseLower",
-        "Pico3Button",
-        "Pico3ButtonRaiseLower",
-        "Pico4Button",
-        "Pico4ButtonScene",
-        "Pico4ButtonZone",
-        "Pico4Button2Group",
-        "PaddleSwitchPico",
         "FourGroupRemote",
-        "SeeTouchTabletopKeypad",
-        "SunnataKeypad",
-        "SunnataHybridKeypad",
-        "SeeTouchHybridKeypad",
         "SeeTouchInternational",
-        "SeeTouchKeypad",
-        "HomeownerKeypad",
-        "GrafikTHybridKeypad",
-        "AlisseKeypad",
-        "PalladiomKeypad",
-        "PhantomKeypad",
-    ],
+    ]
+    + _PICOS
+    + _KEYPADS,
 }
 
 FAN_OFF = "Off"
