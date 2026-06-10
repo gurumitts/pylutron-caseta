@@ -17,7 +17,9 @@ except ImportError:
     from asyncio import get_event_loop as get_loop
 
 from . import (
+    _KEYPADS,
     _LEAP_DEVICE_TYPES,
+    _PICOS,
     BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
@@ -1094,9 +1096,9 @@ class Smartbridge:
             (control_station_area_name, control_station_name)
         )
 
-        if "Pico" in device_type:
+        if device_type in _PICOS:
             device_type_friendly = "Pico"
-        elif "Keypad" in device_type:
+        elif device_type in _KEYPADS:
             device_type_friendly = "Keypad"
 
         if "SerialNumber" in device_json.Body["Device"]:
