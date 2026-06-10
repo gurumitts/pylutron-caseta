@@ -32,6 +32,7 @@ jobs:
         run: |
           hatch run test.py${{ matrix.python-version }}:run
       - name: Collect code coverage
+        if: matrix.python-version == '3.14'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
