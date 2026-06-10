@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Support for Vierti Hybrid Keypad.
+
+### Changed
+
+- Device status 404 errors return `None` instead of raising.
+
+### Fixed
+
+- Warm-dim mode should be cleared correctly.
+
 ## [0.28.0] - 2026-04-05
 
 ### Added
