@@ -32,6 +32,7 @@ from pylutron_caseta import (
     OCCUPANCY_GROUP_UNKNOWN,
     BUTTON_STATUS_PRESSED,
     BridgeDisconnectedError,
+    BridgeResponseError,
     smartbridge,
     color_value,
 )
@@ -2064,7 +2065,7 @@ async def test_ra3_area_list(ra3_bridge: Bridge):
 async def test_ra3_natural_light_optimization_list(ra3_bridge: Bridge):
     """Test the list of Natural Light Optimizations loaded by the bridge."""
     task = asyncio.get_running_loop().create_task(
-        ra3_bridge.target.get_natural_light_optimizations()
+        ra3_bridge.target.refresh_natural_light_optimizations()
     )
 
     command, response = await ra3_bridge.leap.requests.get()
@@ -2086,6 +2087,9 @@ async def test_ra3_natural_light_optimization_list(ra3_bridge: Bridge):
     natural_light_optimizations = await task
 
     assert set(natural_light_optimizations) == {"9001", "9003"}
+    assert ra3_bridge.target.get_natural_light_optimizations() is (
+        natural_light_optimizations
+    )
     assert natural_light_optimizations["9001"] == {
         "natural_light_optimization_id": "9001",
         "enabled_state": "Enabled",
@@ -2120,7 +2124,7 @@ async def test_ra3_natural_light_optimization_list(ra3_bridge: Bridge):
 async def test_ra3_natural_light_optimization_not_supported(ra3_bridge: Bridge):
     """Test unsupported Natural Light Optimization discovery."""
     task = asyncio.get_running_loop().create_task(
-        ra3_bridge.target.get_natural_light_optimizations()
+        ra3_bridge.target.refresh_natural_light_optimizations()
     )
 
     command, response = await ra3_bridge.leap.requests.get()
@@ -2141,6 +2145,63 @@ async def test_ra3_natural_light_optimization_not_supported(ra3_bridge: Bridge):
     ra3_bridge.leap.requests.task_done()
 
     assert await task == {}
+
+
+@pytest.mark.asyncio
+async def test_ra3_natural_light_optimization_refresh_is_atomic(
+    ra3_bridge: Bridge,
+):
+    """Test failed refreshes do not expose empty or partial NLO data."""
+    existing_natural_light_optimizations = {
+        "9000": {
+            "natural_light_optimization_id": "9000",
+            "enabled_state": "Enabled",
+        }
+    }
+    ra3_bridge.target.natural_light_optimizations = (
+        existing_natural_light_optimizations.copy()
+    )
+
+    task = asyncio.get_running_loop().create_task(
+        ra3_bridge.target.refresh_natural_light_optimizations()
+    )
+
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="ReadRequest", url="/system/naturallightoptimization"
+    )
+    response.set_result(response_from_json_file("ra3/naturallightoptimization.json"))
+    ra3_bridge.leap.requests.task_done()
+
+    assert (
+        ra3_bridge.target.natural_light_optimizations
+        == existing_natural_light_optimizations
+    )
+
+    command, response = await ra3_bridge.leap.requests.get()
+    assert command == Request(
+        communique_type="ReadRequest", url="/system/naturallightoptimization/status"
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="MultipleNaturalLightOptimizationStatus",
+                StatusCode=ResponseStatus(500, "Internal Server Error"),
+                Url="/system/naturallightoptimization/status",
+            ),
+            Body=None,
+        )
+    )
+    ra3_bridge.leap.requests.task_done()
+
+    with pytest.raises(BridgeResponseError):
+        await task
+
+    assert (
+        ra3_bridge.target.natural_light_optimizations
+        == existing_natural_light_optimizations
+    )
 
 
 @pytest.mark.asyncio
