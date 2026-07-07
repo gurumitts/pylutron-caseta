@@ -1644,6 +1644,47 @@ async def test_reconnect_error(bridge: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_relogin_failure_closes_connection(bridge: Bridge):
+    """Test that a failed re-login tears down the connection and retries.
+
+    Regression test for the "half-alive" state seen when a processor reboots:
+    if a request made during re-login fails (for example, it times out because
+    the processor is still starting up), the bridge must close the connection
+    and retry login on a new connection instead of leaving a session where
+    commands work but status subscriptions were never re-established.
+    """
+    time = 0.0
+    asyncio.get_running_loop().time = lambda: time  # type: ignore [method-assign]
+
+    bridge.disconnect()
+
+    await asyncio.sleep(0.0)
+    time += smartbridge.RECONNECT_DELAY
+
+    # Accept the new connection, but fail the first login request, simulating
+    # a processor that accepts connections but is too slow to answer.
+    leap = await bridge.connections.get()
+    request, response = await leap.requests.get()
+    assert request == Request(communique_type="ReadRequest", url="/area")
+    response.set_exception(asyncio.TimeoutError())
+    leap.requests.task_done()
+    bridge.connections.task_done()
+
+    # The bridge should close the half-logged-in connection and reconnect.
+    # accept_connection completes the full login sequence, including
+    # re-subscribing to status updates.
+    # Yield until the monitor loop has observed the closed connection and
+    # scheduled its reconnect delay, then advance the clock past the delay.
+    for _ in range(10):
+        await asyncio.sleep(0.0)
+    time += smartbridge.RECONNECT_DELAY
+
+    await bridge.accept_connection()
+
+    assert bridge.target.is_connected()
+
+
+@pytest.mark.asyncio
 async def test_reconnect_timeout():
     """Test that SmartBridge can reconnect if the remote does not respond."""
     bridge = Bridge()
