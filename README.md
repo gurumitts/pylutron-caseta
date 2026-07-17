@@ -94,6 +94,14 @@ zone notification. Applications that estimate position should correlate
 their own commands or separately observed controls and otherwise treat the
 position as unknown.
 
+These limitations describe the QSX `OpenCloseStop` notifications observed so
+far; they are not a guarantee that every device, project, or future Lutron
+release will omit the same attributes. The existing zone-status handler
+already consumes `Level` when one is present. If another implementation later
+reports direction, command, motion, or source attributes, support can be
+extended from captured protocol evidence without changing the general
+`OpenCloseStop` discovery classification.
+
 ### The leap tool
 
 For development and testing of new features, there is a `leap` command in the cli extras (`pip install pylutron_caseta[cli]`) which can be used for communicating directly with the bridge, similar to using `curl`.
