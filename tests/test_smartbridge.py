@@ -2290,6 +2290,48 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge):
     await qsx_processor.target.close()
 
 
+@pytest.mark.parametrize(
+    ("method_name", "command_type"),
+    [
+        ("raise_cover", "Raise"),
+        ("lower_cover", "Lower"),
+        ("stop_cover", "Stop"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_qsx_open_close_stop_cover_command(
+    qsx_processor: Bridge, method_name: str, command_type: str
+):
+    """Test commands for an OpenCloseStop cover without inventing state."""
+    devices = qsx_processor.target.get_devices_by_domain("cover")
+    device = next(device for device in devices if device["device_id"] == "1999")
+    assert device["type"] == "OpenCloseStop"
+    assert device["current_state"] == -1
+
+    method = getattr(qsx_processor.target, method_name)
+    task = asyncio.get_running_loop().create_task(method("1999"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/1999/commandprocessor",
+        body={"Command": {"CommandType": command_type}},
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/1999/commandprocessor",
+            ),
+        ),
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+
+    assert device["current_state"] == -1
+    await qsx_processor.target.close()
+
+
 @pytest.mark.asyncio
 async def test_qsx_set_whitetune_level(qsx_processor: Bridge):
     """
