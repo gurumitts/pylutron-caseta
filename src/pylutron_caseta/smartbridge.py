@@ -1,12 +1,15 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
+from copy import deepcopy
+from dataclasses import dataclass
+from enum import Enum
 import logging
 import math
 import socket
 import ssl
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
+from typing import Any, Callable, Coroutine, Dict, List, Mapping, Optional, Tuple, Union
 from .color_value import ColorMode, WarmDimmingColorValue
 
 
@@ -40,6 +43,23 @@ REQUEST_TIMEOUT = 5.0
 RECONNECT_DELAY = 2.0
 
 
+class ZoneStatusEventOrigin(Enum):
+    """Identify whether a zone status is a snapshot or a live update."""
+
+    INITIAL = "initial"
+    UPDATE = "update"
+
+
+@dataclass(frozen=True)
+class ZoneStatusEvent:
+    """Describe a zone status without interpreting device-specific attributes."""
+
+    zone_id: str
+    device_id: str
+    status: Mapping[str, Any]
+    origin: ZoneStatusEventOrigin
+
+
 class Smartbridge:
     """
     A representation of the Lutron Caseta Smart Bridge.
@@ -62,6 +82,7 @@ class Smartbridge:
         self.smart_away_state: str = ""
         self._connect = connect
         self._subscribers: Dict[str, Callable[[], None]] = {}
+        self._zone_status_subscribers: List[Callable[[ZoneStatusEvent], None]] = []
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
         self._smart_away_subscriber: Optional[Callable[[str], None]] = None
@@ -168,6 +189,21 @@ class Smartbridge:
         :param callback_: callback to invoke
         """
         self._subscribers[device_id] = callback_
+
+    def add_zone_status_subscriber(
+        self, callback_: Callable[[ZoneStatusEvent], None]
+    ) -> Callable[[], None]:
+        """Subscribe to raw zone statuses and return an idempotent unsubscribe call."""
+        if not callable(callback_):
+            raise TypeError("callback must be callable")
+
+        self._zone_status_subscribers.append(callback_)
+
+        def unsubscribe() -> None:
+            if callback_ in self._zone_status_subscribers:
+                self._zone_status_subscribers.remove(callback_)
+
+        return unsubscribe
 
     def add_occupancy_subscriber(
         self, occupancy_group_id: str, callback_: Callable[[], None]
@@ -729,9 +765,11 @@ class Smartbridge:
         body = response.Body
         if body is None:
             return
-        self._handle_zone_status(body["ZoneStatus"])
+        self._handle_zone_status(body["ZoneStatus"], ZoneStatusEventOrigin.UPDATE)
 
-    def _handle_zone_status(self, status):
+    def _handle_zone_status(
+        self, status: dict[str, Any], origin: ZoneStatusEventOrigin
+    ) -> None:
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
         fan_speed = status.get("FanSpeed", None)
@@ -754,6 +792,18 @@ class Smartbridge:
 
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
+
+        event = ZoneStatusEvent(
+            zone_id=zone,
+            device_id=device["device_id"],
+            status=deepcopy(status),
+            origin=origin,
+        )
+        for callback in tuple(self._zone_status_subscribers):
+            try:
+                callback(event)
+            except Exception:  # pylint: disable=broad-except
+                _LOG.exception("Zone status subscriber raised an exception")
 
     def _handle_button_status(self, response: Response):
         _LOG.debug("Handling button status: %s", response)
@@ -791,14 +841,18 @@ class Smartbridge:
             if button_led_id in self._subscribers:
                 self._subscribers[button_led_id]()
 
-    def _handle_multi_zone_status(self, response: Response):
+    def _handle_multi_zone_status(
+        self,
+        response: Response,
+        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.UPDATE,
+    ) -> None:
         _LOG.debug("Handling multi zone status: %s", response)
 
         if response.Body is None:
             return
 
         for zonestatus in response.Body["ZoneStatuses"]:
-            self._handle_zone_status(zonestatus)
+            self._handle_zone_status(zonestatus, origin)
 
     def _handle_occupancy_group_status(self, response: Response):
         _LOG.debug("Handling occupancy group status: %s", response)
@@ -1506,7 +1560,7 @@ class Smartbridge:
         except BridgeResponseError as ex:
             _LOG.error("Failed zone subscription: %s", ex.response)
             return
-        self._handle_multi_zone_status(response)
+        self._handle_multi_zone_status(response, ZoneStatusEventOrigin.INITIAL)
 
     async def _subscribe_to_smart_away_status(self):
         """Subscribe to Smart Away status updates."""
