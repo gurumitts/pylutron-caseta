@@ -18,6 +18,7 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    cast,
 )
 import pytest
 import pytest_asyncio
@@ -2358,6 +2359,7 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
     status: Dict[str, Any] = {
         "Zone": {"href": "/zone/1999"},
         "FutureDirection": "Opening",
+        "FutureSources": [{"href": "/device/123"}],
     }
     bridge_uninit.leap.send_unsolicited(
         Response(
@@ -2377,7 +2379,17 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
     assert update_event.origin is smartbridge.ZoneStatusEventOrigin.UPDATE
     assert update_event.status["FutureDirection"] == "Opening"
     assert update_event.status["Zone"]["href"] == "/zone/1999"
+    assert update_event.status["FutureSources"][0]["href"] == "/device/123"
     assert bridge_uninit.target.get_device_by_id("1999")["current_state"] == -1
+
+    with pytest.raises(TypeError):
+        cast(Any, update_event.status)["FutureDirection"] = "Closing"
+    with pytest.raises(TypeError):
+        update_event.status["Zone"]["href"] = "/zone/mutated"
+    with pytest.raises(AttributeError):
+        update_event.status["FutureSources"].append({"href": "/device/456"})
+
+    assert second_events[-1].status == update_event.status
 
     unsubscribe()
     unsubscribe()

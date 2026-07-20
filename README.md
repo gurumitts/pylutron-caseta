@@ -102,6 +102,10 @@ reports direction, command, motion, or source attributes, support can be
 extended from captured protocol evidence without changing the general
 `OpenCloseStop` discovery classification.
 
+Raw zone-status subscribers receive a recursively immutable copy of each
+status. A subscriber cannot modify the event observed by another subscriber;
+mapping values are read-only and list values are exposed as tuples.
+
 ### The leap tool
 
 For development and testing of new features, there is a `leap` command in the cli extras (`pip install pylutron_caseta[cli]`) which can be used for communicating directly with the bridge, similar to using `curl`.

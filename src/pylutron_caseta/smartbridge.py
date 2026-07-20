@@ -9,6 +9,7 @@ import math
 import socket
 import ssl
 from datetime import timedelta
+from types import MappingProxyType
 from typing import Any, Callable, Coroutine, Dict, List, Mapping, Optional, Tuple, Union
 from .color_value import ColorMode, WarmDimmingColorValue
 
@@ -58,6 +59,17 @@ class ZoneStatusEvent:
     device_id: str
     status: Mapping[str, Any]
     origin: ZoneStatusEventOrigin
+
+
+def _immutable_copy(value: Any) -> Any:
+    """Copy a JSON-like value into recursively immutable containers."""
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _immutable_copy(item) for key, item in value.items()}
+        )
+    if isinstance(value, list):
+        return tuple(_immutable_copy(item) for item in value)
+    return deepcopy(value)
 
 
 class Smartbridge:
@@ -796,7 +808,7 @@ class Smartbridge:
         event = ZoneStatusEvent(
             zone_id=zone,
             device_id=device["device_id"],
-            status=deepcopy(status),
+            status=_immutable_copy(status),
             origin=origin,
         )
         for callback in tuple(self._zone_status_subscribers):
