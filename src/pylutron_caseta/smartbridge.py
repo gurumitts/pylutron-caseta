@@ -767,9 +767,12 @@ class Smartbridge:
         if button_id in self.buttons:
             self.buttons[button_id]["current_state"] = button_event
             # Notify any subscribers of the change to button status
-            if button_id in self._button_subscribers:
-                self._button_subscribers[button_id](button_event)
+#            if button_id in self._button_subscribers:
+#                self._button_subscribers[button_id](button_event)
+            if str(button_id) in self._button_subscribers:
+                self._button_subscribers[str(button_id)](button_event)
 
+                
     def _handle_button_led_status(self, response: Response):
         """
         Handle events for button LED status changes.
