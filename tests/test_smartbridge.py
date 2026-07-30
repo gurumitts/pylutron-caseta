@@ -153,10 +153,11 @@ T = TypeVar("T")
 class Bridge:
     """A test harness around SmartBridge."""
 
-    def __init__(self, on_connect_callback=None):
+    def __init__(self, on_connect_callback=None, on_disconnect_callback=None):
         """Create a new Bridge in a disconnected state."""
         self.connections = asyncio.Queue()
         self.leap = None
+        self._on_disconnect_callback = on_disconnect_callback
 
         self.button_list_result = response_from_json_file("buttons.json")
         self.occupancy_group_list_result = response_from_json_file(
@@ -185,7 +186,9 @@ class Bridge:
             await self.connections.put(leap)
             return leap
 
-        self.target = smartbridge.Smartbridge(fake_connect, on_connect_callback)
+        self.target = smartbridge.Smartbridge(
+            fake_connect, on_connect_callback, on_disconnect_callback
+        )
 
     async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
@@ -3030,3 +3033,43 @@ async def test_on_connect_callback() -> None:
         await init_task
 
     await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_on_disconnect_callback() -> None:
+    """Test that the on disconnect callback is called when connection is lost."""
+    loop = asyncio.get_running_loop()
+    disconnect_future: asyncio.Future[None] = loop.create_future()
+
+    def _on_disconnect_callback() -> None:
+        if not disconnect_future.done():
+            disconnect_future.set_result(None)
+
+    bridge = Bridge(on_disconnect_callback=_on_disconnect_callback)
+    await bridge.initialize(CASETA_PROCESSOR)
+
+    # Simulate connection loss by closing the leap connection
+    bridge.leap.close()
+
+    # Wait for disconnect callback to be called
+    await asyncio.wait_for(disconnect_future, timeout=5.0)
+
+    await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_on_disconnect_callback_not_called_on_intentional_close() -> None:
+    """Test that the on disconnect callback is NOT called on intentional close()."""
+    disconnect_called = False
+
+    def _on_disconnect_callback() -> None:
+        nonlocal disconnect_called
+        disconnect_called = True
+
+    bridge = Bridge(on_disconnect_callback=_on_disconnect_callback)
+    await bridge.initialize(CASETA_PROCESSOR)
+
+    # Intentionally close the bridge - should NOT trigger disconnect callback
+    await bridge.target.close()
+
+    assert not disconnect_called

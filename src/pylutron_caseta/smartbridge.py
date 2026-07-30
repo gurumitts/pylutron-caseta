@@ -51,6 +51,7 @@ class Smartbridge:
         self,
         connect: Callable[[], Coroutine[Any, Any, LeapProtocol]],
         on_connect_callback: Optional[Callable[[], None]] = None,
+        on_disconnect_callback: Optional[Callable[[], None]] = None,
     ) -> None:
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
@@ -75,6 +76,8 @@ class Smartbridge:
         self._monitor_task: Optional[asyncio.Task] = None
         self._ping_task: Optional[asyncio.Task] = None
         self._on_connect_callback = on_connect_callback
+        self._on_disconnect_callback = on_disconnect_callback
+        self._connected = False
 
     @property
     def logged_in(self):
@@ -142,6 +145,7 @@ class Smartbridge:
         ca_certs: str,
         port: int = LEAP_PORT,
         on_connect_callback: Optional[Callable[[], None]] = None,
+        on_disconnect_callback: Optional[Callable[[], None]] = None,
     ) -> "Smartbridge":
         """Initialize the Smart Bridge using TLS over IPv4."""
 
@@ -158,7 +162,7 @@ class Smartbridge:
             )
             return res
 
-        return cls(_connect, on_connect_callback)
+        return cls(_connect, on_connect_callback, on_disconnect_callback)
 
     def add_subscriber(self, device_id: str, callback_: Callable[[], None]):
         """
@@ -687,6 +691,7 @@ class Smartbridge:
 
             if self._on_connect_callback:
                 self._on_connect_callback()
+            self._connected = True
 
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -698,6 +703,9 @@ class Smartbridge:
             self._ping_task = asyncio.get_running_loop().create_task(self._ping())
 
             await self._leap.run()
+            if self._connected and self._on_disconnect_callback:
+                self._on_disconnect_callback()
+            self._connected = False
             _LOG.warning("LEAP session ended. Reconnecting...")
             await asyncio.sleep(RECONNECT_DELAY)
         # ignore OSError too.
@@ -709,6 +717,9 @@ class Smartbridge:
             asyncio.TimeoutError,
             BridgeDisconnectedError,
         ) as ex:
+            if self._connected and self._on_disconnect_callback:
+                self._on_disconnect_callback()
+            self._connected = False
             _LOG.warning("Reconnecting after error: %s", ex)
             await asyncio.sleep(RECONNECT_DELAY)
         finally:

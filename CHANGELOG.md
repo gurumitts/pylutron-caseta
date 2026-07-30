@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Optional callback for disconnection events.
 - `BUTTON_STATUS_LONG_HOLD` constant for the `LongHold` LEAP button event
   emitted by HomeWorks QSX processors.
 
