@@ -79,6 +79,7 @@ _LEAP_DEVICE_TYPES = {
         "SerenaTiltOnlyWoodBlind",
         "PalladiomWireFreeShade",
         "SerenaEssentialsRollerShade",
+        "OpenCloseStop",
     ],
     "sensor": [
         "FourGroupRemote",

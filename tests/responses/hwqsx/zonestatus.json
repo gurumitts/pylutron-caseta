@@ -58,6 +58,11 @@
       "StatusAccuracy": "Good"
     },
     {
+      "Zone": {
+        "href": "/zone/1999"
+      }
+    },
+    {
       "href": "/zone/1362/status",
       "Level": 0,
       "Zone": {

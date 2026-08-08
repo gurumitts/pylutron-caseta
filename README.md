@@ -65,6 +65,43 @@ async def example():
 asyncio.run(example())
 ```
 
+### Open/close/stop covers
+
+HomeWorks QSX and RadioRA 3 projects expose logical zones through the LEAP
+`/area/{area_id}/associatedzone` resource. `pylutron-caseta` represents each
+zone as a device and uses its `ControlType` for domain classification. A zone
+whose control type is exactly `OpenCloseStop` is returned by
+`get_devices_by_domain("cover")`, regardless of its zone ID, area name, load
+name, or physical motor controller.
+
+This supports any HomeWorks QSX or RadioRA 3 project that reports the same
+LEAP control type; it is not specific to a particular processor serial number
+or motor module. It does not imply support for older HomeWorks protocols or
+for a different, previously unknown `ControlType`. `OpenCloseStop` also does
+not identify whether the physical load is a shade, blind, curtain, or another
+kind of open/close motor.
+
+These zones accept `raise_cover`, `lower_cover`, and `stop_cover`, which send
+the LEAP `Raise`, `Lower`, and `Stop` commands. When the processor does not
+report a level, `current_state` remains `-1`; Raise and Lower do not
+optimistically change it to 100 or 0.
+
+An `OpenCloseStop` zone notification may contain only the zone identity, with
+no level, direction, command, motion state, or command source. Such a
+notification invokes the existing device subscriber but cannot by itself
+distinguish Raise from Lower. Callers also must not rely on Stop producing a
+zone notification. Applications that estimate position should correlate
+their own commands or separately observed controls and otherwise treat the
+position as unknown.
+
+These limitations describe the QSX `OpenCloseStop` notifications observed so
+far; they are not a guarantee that every device, project, or future Lutron
+release will omit the same attributes. The existing zone-status handler
+already consumes `Level` when one is present. If another implementation later
+reports direction, command, motion, or source attributes, support can be
+extended from captured protocol evidence without changing the general
+`OpenCloseStop` discovery classification.
+
 ### The leap tool
 
 For development and testing of new features, there is a `leap` command in the cli extras (`pip install pylutron_caseta[cli]`) which can be used for communicating directly with the bridge, similar to using `curl`.

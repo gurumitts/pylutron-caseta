@@ -527,18 +527,18 @@ class Smartbridge:
     async def raise_cover(self, device_id: str):
         """Will raise a cover."""
         await self._send_zone_create_request(device_id, "Raise")
-        # If set_value is called, we get an optimistic callback right
-        # away with the value, if we use Raise we have to set it
-        # as one won't come unless Stop is called or something goes wrong.
-        self.devices[device_id]["current_state"] = 100
+        # Position-capable covers need an optimistic endpoint because Raise does not
+        # produce an immediate callback. OpenCloseStop zones have no position state.
+        if self.devices[device_id]["type"] != "OpenCloseStop":
+            self.devices[device_id]["current_state"] = 100
 
     async def lower_cover(self, device_id: str):
         """Will lower a cover."""
         await self._send_zone_create_request(device_id, "Lower")
-        # If set_value is called, we get an optimistic callback right
-        # away with the value, if we use Lower we have to set it
-        # as one won't come unless Stop is called or something goes wrong.
-        self.devices[device_id]["current_state"] = 0
+        # Position-capable covers need an optimistic endpoint because Lower does not
+        # produce an immediate callback. OpenCloseStop zones have no position state.
+        if self.devices[device_id]["type"] != "OpenCloseStop":
+            self.devices[device_id]["current_state"] = 0
 
     async def set_fan(self, device_id: str, value: str):
         """

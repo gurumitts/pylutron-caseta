@@ -32,6 +32,19 @@
           "href": "/area/1020"
         },
         "SortOrder": 0
+      },
+      {
+        "href": "/zone/1999",
+        "Name": "Motorized Window Treatment",
+        "ControlType": "OpenCloseStop",
+        "Category": {
+          "Type": "",
+          "IsLight": false
+        },
+        "AssociatedArea": {
+          "href": "/area/1020"
+        },
+        "SortOrder": 1
       }
     ]
   }
