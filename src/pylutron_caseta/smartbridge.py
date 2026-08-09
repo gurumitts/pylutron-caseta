@@ -59,11 +59,13 @@ class Smartbridge:
         self.scenes: Dict[str, dict] = {}
         self.occupancy_groups: Dict[str, dict] = {}
         self.areas: Dict[str, dict] = {}
+        self.natural_light_optimizations: Dict[str, dict] = {}
         self.smart_away_state: str = ""
         self._connect = connect
         self._subscribers: Dict[str, Callable[[], None]] = {}
         self._occupancy_subscribers: Dict[str, Callable[[], None]] = {}
         self._button_subscribers: Dict[str, Callable[[str], None]] = {}
+        self._natural_light_optimization_subscribers: Dict[str, Callable[[], None]] = {}
         self._smart_away_subscriber: Optional[Callable[[str], None]] = None
         self._login_task: Optional[asyncio.Task] = None
         # Use future so we can wait before the login starts and
@@ -197,6 +199,19 @@ class Smartbridge:
         """
         self._smart_away_subscriber = callback_
 
+    def add_natural_light_optimization_subscriber(
+        self, natural_light_optimization_id: str, callback_: Callable[[], None]
+    ):
+        """
+        Add a listener to be notified of Natural Light Optimization state changes.
+
+        :param natural_light_optimization_id: Natural Light Optimization id, e.g., 2
+        :param callback_: callback to invoke
+        """
+        self._natural_light_optimization_subscribers[
+            natural_light_optimization_id
+        ] = callback_
+
     def get_devices(self) -> Dict[str, dict]:
         """Will return all known devices connected to the bridge/processor."""
         return self.devices
@@ -261,6 +276,40 @@ class Smartbridge:
     def get_scenes(self) -> Dict[str, dict]:
         """Will return all known scenes from the Smart Bridge."""
         return self.scenes
+
+    def get_natural_light_optimizations(self) -> Dict[str, dict]:
+        """Will return all known Natural Light Optimizations."""
+        return self.natural_light_optimizations
+
+    async def refresh_natural_light_optimizations(self) -> Dict[str, dict]:
+        """Read Natural Light Optimizations from the bridge."""
+        natural_light_optimizations: Dict[str, dict] = {}
+        try:
+            natural_light_optimization_json = await self._request(
+                "ReadRequest", "/system/naturallightoptimization"
+            )
+        except BridgeResponseError as ex:
+            if _bridge_error_is_not_supported(ex):
+                self.natural_light_optimizations = natural_light_optimizations
+                return self.natural_light_optimizations
+            raise
+
+        if natural_light_optimization_json.Body is not None:
+            for natural_light_optimization in natural_light_optimization_json.Body.get(
+                "NaturalLightOptimizations", []
+            ):
+                self._process_natural_light_optimization(
+                    natural_light_optimization,
+                    natural_light_optimizations,
+                )
+
+            await self._load_natural_light_optimization_statuses(
+                natural_light_optimizations
+            )
+
+        self.natural_light_optimizations = natural_light_optimizations
+
+        return self.natural_light_optimizations
 
     def get_scene_by_id(self, scene_id: str) -> dict:
         """
@@ -641,6 +690,36 @@ class Smartbridge:
         response = await self._request("ReadRequest", "/system/away/1/status")
         return response.Body["AwayStatus"]["EnabledState"]
 
+    async def subscribe_to_natural_light_optimization_status(self) -> None:
+        """Subscribe to Natural Light Optimization status updates."""
+        try:
+            response, _ = await self._subscribe(
+                "/system/naturallightoptimization/status",
+                self._handle_natural_light_optimization_status,
+            )
+        except BridgeResponseError as ex:
+            if _bridge_error_is_not_supported(ex):
+                return
+            raise
+        self._handle_natural_light_optimization_status(response)
+
+    async def set_natural_light_optimization_enabled(
+        self, natural_light_optimization_id: str, enabled: bool
+    ) -> None:
+        """Enable or disable a Natural Light Optimization."""
+        enabled_state = "Enabled" if enabled else "Disabled"
+        response = await self._request(
+            "UpdateRequest",
+            f"/naturallightoptimization/{natural_light_optimization_id}/status",
+            {"NaturalLightOptimizationStatus": {"EnabledState": enabled_state}},
+        )
+        if response.Body is None:
+            self._set_natural_light_optimization_enabled_state(
+                natural_light_optimization_id, enabled_state
+            )
+            return
+        self._handle_natural_light_optimization_status(response)
+
     async def tap_button(self, button_id: str):
         """
         Send a press and release message for the given button ID.
@@ -878,6 +957,44 @@ class Smartbridge:
         # Notify any subscribers of the change to Smart Away status
         if self._smart_away_subscriber is not None:
             self._smart_away_subscriber(self.smart_away_state)
+
+    def _handle_natural_light_optimization_status(
+        self,
+        response: Response,
+        natural_light_optimizations: Optional[Dict[str, dict]] = None,
+    ):
+        _LOG.debug("Handling Natural Light Optimization status: %s", response)
+        if response.Body is None:
+            return
+
+        statuses = []
+        if "NaturalLightOptimizationStatuses" in response.Body:
+            statuses.extend(response.Body["NaturalLightOptimizationStatuses"])
+        if "NaturalLightOptimizationStatus" in response.Body:
+            statuses.append(response.Body["NaturalLightOptimizationStatus"])
+
+        for status in statuses:
+            natural_light_optimization_href = status.get(
+                "NaturalLightOptimization", {}
+            ).get("href")
+            if natural_light_optimization_href is None:
+                status_href = status.get("href")
+                if status_href is not None and status_href.endswith("/status"):
+                    natural_light_optimization_href = status_href.removesuffix(
+                        "/status"
+                    )
+            if natural_light_optimization_href is None:
+                continue
+
+            natural_light_optimization_id = id_from_href(
+                natural_light_optimization_href
+            )
+            enabled_state = status["EnabledState"]
+            self._set_natural_light_optimization_enabled_state(
+                natural_light_optimization_id,
+                enabled_state,
+                natural_light_optimizations,
+            )
 
     async def _login(self):
         """Connect and login to the Smart Bridge LEAP server using SSL."""
@@ -1438,6 +1555,105 @@ class Smartbridge:
         )
         occgroup["sensors"].append(occdevice_id)
 
+    async def _load_natural_light_optimization_statuses(
+        self,
+        natural_light_optimizations: Optional[Dict[str, dict]] = None,
+    ):
+        """Read Natural Light Optimization status."""
+        try:
+            response = await self._request(
+                "ReadRequest", "/system/naturallightoptimization/status"
+            )
+        except BridgeResponseError as ex:
+            if _bridge_error_is_not_supported(ex):
+                return
+            raise
+
+        self._handle_natural_light_optimization_status(
+            response,
+            natural_light_optimizations,
+        )
+
+    def _process_natural_light_optimization(
+        self,
+        natural_light_optimization,
+        natural_light_optimizations: Dict[str, dict],
+    ):
+        """Process a Natural Light Optimization definition."""
+        natural_light_optimization_id = id_from_href(natural_light_optimization["href"])
+        associated_areas = natural_light_optimization.get("AssociatedAreas", [])
+        areas = [id_from_href(area["href"]) for area in associated_areas]
+        area_names = [area["Name"] for area in associated_areas if "Name" in area]
+        if area_names:
+            name = f"{', '.join(area_names)} Natural Light Optimization"
+        else:
+            name = f"Natural Light Optimization {natural_light_optimization_id}"
+
+        affected_zones = []
+        for area in associated_areas:
+            for zone in area.get("AffectedZones", []):
+                affected_zones.append(
+                    {
+                        "zone_id": id_from_href(zone["href"]),
+                        "href": zone["href"],
+                        "name": zone.get("Name"),
+                    }
+                )
+
+        affected_resources = [
+            affected_resource["Resource"]["href"]
+            for affected_resource in natural_light_optimization.get(
+                "AffectedResources", []
+            )
+        ]
+
+        natural_light_optimizations.setdefault(
+            natural_light_optimization_id,
+            {
+                "natural_light_optimization_id": natural_light_optimization_id,
+                "enabled_state": None,
+            },
+        ).update(
+            href=natural_light_optimization["href"],
+            name=name,
+            device_name="Natural Light Optimization",
+            area=areas[0] if len(areas) > 0 else None,
+            areas=areas,
+            affected_zones=affected_zones,
+            affected_resources=affected_resources,
+            start_time=natural_light_optimization.get("StartTime"),
+            end_time=natural_light_optimization.get("EndTime"),
+        )
+
+    def _set_natural_light_optimization_enabled_state(
+        self,
+        natural_light_optimization_id: str,
+        enabled_state: str,
+        natural_light_optimizations: Optional[Dict[str, dict]] = None,
+    ):
+        """Update Natural Light Optimization enabled state and notify subscribers."""
+        notify_subscribers = natural_light_optimizations is None
+        if natural_light_optimizations is None:
+            natural_light_optimizations = self.natural_light_optimizations
+
+        if natural_light_optimization_id not in natural_light_optimizations:
+            _LOG.debug(
+                "Received status for unknown Natural Light Optimization %s",
+                natural_light_optimization_id,
+            )
+            return
+
+        natural_light_optimizations[natural_light_optimization_id][
+            "enabled_state"
+        ] = enabled_state
+        if notify_subscribers and (
+            natural_light_optimization_id
+            in self._natural_light_optimization_subscribers
+        ):
+            self._natural_light_optimization_subscribers[
+                natural_light_optimization_id
+            ]()
+
     async def _subscribe_to_ra3_occupancy_groups(self):
         """Subscribe to ra3 occupancy group (area) status updates."""
         _LOG.debug("Subscribing to occupancy group (ra3: area) status updates")
@@ -1538,3 +1754,8 @@ def _format_duration(duration: timedelta) -> str:
     minutes = int(total_minutes % 60)
     hours = int(total_minutes / 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+
+def _bridge_error_is_not_supported(ex: BridgeResponseError) -> bool:
+    """Check whether a bridge response indicates an unsupported optional API."""
+    return ex.code is not None and ex.code.code in (404, 405)
