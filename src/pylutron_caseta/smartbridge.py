@@ -930,6 +930,21 @@ class Smartbridge:
         except Exception as ex:
             if not self._login_completed.done():
                 self._login_completed.set_exception(ex)
+            else:
+                # The initial login already completed on a previous
+                # connection, so nothing is awaiting this task and the
+                # failure would otherwise be silent. If the connection were
+                # left open, requests would keep working but the
+                # subscriptions that deliver zone, button, and occupancy
+                # status updates were never re-established, leaving the
+                # bridge half-alive. Close the connection so that _monitor
+                # reconnects and login is retried until it completes.
+                _LOG.warning(
+                    "Re-login failed after reconnect. Closing connection.",
+                    exc_info=1,
+                )
+                if self._leap is not None:
+                    self._leap.close()
             raise
 
     async def _ping(self):
