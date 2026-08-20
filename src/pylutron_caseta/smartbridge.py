@@ -77,7 +77,7 @@ class Smartbridge:
         self._ping_task: Optional[asyncio.Task] = None
         self._on_connect_callback = on_connect_callback
         self._on_disconnect_callback = on_disconnect_callback
-        self._connected = False
+        self._notified_connected = False
 
     @property
     def logged_in(self):
@@ -691,7 +691,7 @@ class Smartbridge:
 
             if self._on_connect_callback:
                 self._on_connect_callback()
-            self._connected = True
+            self._notified_connected = True
 
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -703,11 +703,7 @@ class Smartbridge:
             self._ping_task = asyncio.get_running_loop().create_task(self._ping())
 
             await self._leap.run()
-            if self._connected and self._on_disconnect_callback:
-                self._on_disconnect_callback()
-            self._connected = False
             _LOG.warning("LEAP session ended. Reconnecting...")
-            await asyncio.sleep(RECONNECT_DELAY)
         # ignore OSError too.
         # sometimes you get OSError instead of ConnectionError.
         except (
@@ -717,11 +713,7 @@ class Smartbridge:
             asyncio.TimeoutError,
             BridgeDisconnectedError,
         ) as ex:
-            if self._connected and self._on_disconnect_callback:
-                self._on_disconnect_callback()
-            self._connected = False
             _LOG.warning("Reconnecting after error: %s", ex)
-            await asyncio.sleep(RECONNECT_DELAY)
         finally:
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -734,6 +726,16 @@ class Smartbridge:
             if self._leap is not None:
                 self._leap.close()
                 self._leap = None
+
+        if self._notified_connected:
+            self._notified_connected = False
+            if self._on_disconnect_callback:
+                try:
+                    self._on_disconnect_callback()
+                except Exception:
+                    _LOG.exception("Got exception from on_disconnect_callback")
+
+        await asyncio.sleep(RECONNECT_DELAY)
 
     def _handle_one_zone_status(self, response: Response):
         _LOG.debug("Handling single zone status: %s", response)
