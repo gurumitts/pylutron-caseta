@@ -2426,6 +2426,73 @@ async def test_qsx_reconnect_zone_status_is_initial(bridge_uninit: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_caseta_initial_and_reconnect_zone_status_is_initial(
+    bridge_uninit: Bridge,
+):
+    """Test explicit Caseta status reads are reported as snapshots."""
+    events: List[smartbridge.ZoneStatusEvent] = []
+    bridge_uninit.target.add_zone_status_subscriber(events.append)
+
+    await bridge_uninit.initialize(CASETA_PROCESSOR)
+    assert events
+    assert all(
+        event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
+    ), [(event.zone_id, event.origin) for event in events]
+
+    events.clear()
+    bridge_uninit.disconnect()
+    await bridge_uninit.accept_connection(CASETA_PROCESSOR)
+
+    assert events
+    assert all(
+        event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
+    )
+
+
+@pytest.mark.asyncio
+async def test_zone_status_subscriptions_are_independent(bridge_uninit: Bridge):
+    """Test duplicate callbacks unsubscribe independently and isolate failures."""
+    with pytest.raises(TypeError):
+        bridge_uninit.target.add_zone_status_subscriber(cast(Any, None))
+
+    events: List[smartbridge.ZoneStatusEvent] = []
+    unsubscribe_first = bridge_uninit.target.add_zone_status_subscriber(events.append)
+    unsubscribe_second = bridge_uninit.target.add_zone_status_subscriber(events.append)
+
+    def raise_from_subscriber(_event: smartbridge.ZoneStatusEvent) -> None:
+        raise RuntimeError("subscriber failed")
+
+    def send_zone_update() -> None:
+        bridge_uninit.leap.send_unsolicited(
+            Response(
+                CommuniqueType="ReadResponse",
+                Header=ResponseHeader(
+                    MessageBodyType="OneZoneStatus",
+                    StatusCode=ResponseStatus(200, "OK"),
+                    Url="/zone/1999/status",
+                ),
+                Body={"ZoneStatus": {"Zone": {"href": "/zone/1999"}}},
+            )
+        )
+
+    await bridge_uninit.initialize(HWQSX_PROCESSOR)
+    events.clear()
+    unsubscribe_raising = bridge_uninit.target.add_zone_status_subscriber(
+        raise_from_subscriber
+    )
+
+    unsubscribe_first()
+    unsubscribe_first()
+    send_zone_update()
+    assert len(events) == 1
+
+    unsubscribe_raising()
+    unsubscribe_second()
+    send_zone_update()
+    assert len(events) == 1
+
+
+@pytest.mark.asyncio
 async def test_qsx_set_whitetune_level(qsx_processor: Bridge):
     """
     Test that setting the level of a White Tune zone without a fade time produces the

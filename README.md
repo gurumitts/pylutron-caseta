@@ -102,9 +102,19 @@ reports direction, command, motion, or source attributes, support can be
 extended from captured protocol evidence without changing the general
 `OpenCloseStop` discovery classification.
 
-Raw zone-status subscribers receive a recursively immutable copy of each
-status. A subscriber cannot modify the event observed by another subscriber;
-mapping values are read-only and list values are exposed as tuples.
+### Raw zone-status events
+
+`Smartbridge.add_zone_status_subscriber` provides an opt-in event stream for
+callers that need the original zone status in addition to normalized device
+state. Each event identifies the zone and resolved device, includes the raw
+status payload, and classifies the status as an initial snapshot or an
+operational update. The method supports multiple subscribers and returns an
+idempotent unsubscribe callback; existing device subscribers are unchanged.
+
+Subscribers receive a recursively immutable copy of each status. A subscriber
+cannot modify the event observed by another subscriber; mapping values are
+read-only and list values are exposed as tuples. Subscriber exceptions are
+logged without interrupting normal state processing or other subscribers.
 
 ### The leap tool
 

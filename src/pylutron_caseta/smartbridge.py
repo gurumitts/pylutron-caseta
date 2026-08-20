@@ -210,10 +210,14 @@ class Smartbridge:
             raise TypeError("callback must be callable")
 
         self._zone_status_subscribers.append(callback_)
+        subscribed = True
 
         def unsubscribe() -> None:
-            if callback_ in self._zone_status_subscribers:
-                self._zone_status_subscribers.remove(callback_)
+            nonlocal subscribed
+            if not subscribed:
+                return
+            subscribed = False
+            self._zone_status_subscribers.remove(callback_)
 
         return unsubscribe
 
@@ -772,12 +776,16 @@ class Smartbridge:
                 self._leap.close()
                 self._leap = None
 
-    def _handle_one_zone_status(self, response: Response):
+    def _handle_one_zone_status(
+        self,
+        response: Response,
+        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.UPDATE,
+    ) -> None:
         _LOG.debug("Handling single zone status: %s", response)
         body = response.Body
         if body is None:
             return
-        self._handle_zone_status(body["ZoneStatus"], ZoneStatusEventOrigin.UPDATE)
+        self._handle_zone_status(body["ZoneStatus"], origin)
 
     def _handle_zone_status(
         self, status: dict[str, Any], origin: ZoneStatusEventOrigin
@@ -804,6 +812,9 @@ class Smartbridge:
 
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
+
+        if not self._zone_status_subscribers:
+            return
 
         event = ZoneStatusEvent(
             zone_id=zone,
@@ -987,7 +998,9 @@ class Smartbridge:
                         response = await self._request(
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
-                        self._handle_one_zone_status(response)
+                        self._handle_one_zone_status(
+                            response, ZoneStatusEventOrigin.INITIAL
+                        )
 
             if not self._login_completed.done():
                 self._login_completed.set_result(None)
