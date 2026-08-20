@@ -1,5 +1,12 @@
 {
-  "ZoneStatuses": [
+  "CommuniqueType": "SubscribeResponse",
+  "Header": {
+    "MessageBodyType": "MultipleZoneStatus",
+    "StatusCode": "200 OK",
+    "Url": "/zone/status"
+  },
+  "Body": {
+    "ZoneStatuses": [
     {
       "href": "/zone/816/status",
       "Level": 0,
@@ -126,5 +133,6 @@
       },
       "StatusAccuracy": "Good"
     }
-  ]
+    ]
+  }
 }
