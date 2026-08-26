@@ -1579,6 +1579,605 @@ async def test_activate_scene(bridge: Bridge):
     task.cancel()
 
 
+def _read_response(url: str, body_type: str, body: dict) -> Response:
+    """Build a ReadResponse for scene programming tests."""
+    return Response(
+        CommuniqueType="ReadResponse",
+        Header=ResponseHeader(
+            MessageBodyType=body_type,
+            StatusCode=ResponseStatus(200, "OK"),
+            Url=url,
+        ),
+        Body=body,
+    )
+
+
+async def _serve(
+    leap,
+    communique_type: str,
+    url: str,
+    response: Optional[Response] = None,
+    body: Optional[dict] = None,
+):
+    """Answer the next request, asserting it is the expected one.
+
+    With no ``response``, answer an empty 200 — what a write gets back.
+    """
+    request, fut = await leap.requests.get()
+    assert request.communique_type == communique_type, request
+    assert request.url == url, request
+    if body is not None:
+        assert request.body == body, request
+    if response is None:
+        response = Response(
+            Header=ResponseHeader(StatusCode=ResponseStatus(200, "OK")), Body={}
+        )
+    fut.set_result(response)
+    leap.requests.task_done()
+
+
+async def _serve_scene_preset_walk(
+    leap, scene_id: str, preset_body: dict, button_name: str = "scene 1"
+) -> None:
+    """Serve the virtual button -> programming model -> preset reads."""
+    await _serve(
+        leap,
+        "ReadRequest",
+        f"/virtualbutton/{scene_id}",
+        _read_response(
+            f"/virtualbutton/{scene_id}",
+            "OneVirtualButtonDefinition",
+            {
+                "VirtualButton": {
+                    "href": f"/virtualbutton/{scene_id}",
+                    "Name": button_name,
+                    "ProgrammingModel": {"href": f"/programmingmodel/{scene_id}"},
+                }
+            },
+        ),
+    )
+    await _serve(
+        leap,
+        "ReadRequest",
+        f"/programmingmodel/{scene_id}",
+        _read_response(
+            f"/programmingmodel/{scene_id}",
+            "OneProgrammingModelDefinition",
+            {
+                "ProgrammingModel": {
+                    "href": f"/programmingmodel/{scene_id}",
+                    "Preset": {"href": f"/preset/{scene_id}"},
+                }
+            },
+        ),
+    )
+    await _serve(
+        leap,
+        "ReadRequest",
+        f"/preset/{scene_id}",
+        _read_response(
+            f"/preset/{scene_id}", "OnePresetDefinition", {"Preset": preset_body}
+        ),
+    )
+
+
+_SCENE_1_PRESET = {
+    "href": "/preset/1",
+    "DimmedLevelAssignments": [{"href": "/dimmedlevelassignment/9"}],
+    "SwitchedLevelAssignments": [{"href": "/switchedlevelassignment/33"}],
+    # the legacy untyped view mirrors the typed assignments and is ignored
+    "PresetAssignments": [
+        {"href": "/presetassignment/9"},
+        {"href": "/presetassignment/33"},
+    ],
+}
+
+_DIMMED_9 = _read_response(
+    "/dimmedlevelassignment/9",
+    "OneDimmedLevelAssignmentDefinition",
+    {
+        "DimmedLevelAssignment": {
+            "href": "/dimmedlevelassignment/9",
+            "AssignableResource": {"href": "/zone/1"},
+            "Level": 50,
+            "FadeTime": "2",
+            "DelayTime": "0",
+        }
+    },
+)
+
+_SWITCHED_33 = _read_response(
+    "/switchedlevelassignment/33",
+    "OneSwitchedLevelAssignmentDefinition",
+    {
+        "SwitchedLevelAssignment": {
+            "href": "/switchedlevelassignment/33",
+            "AssignableResource": {"href": "/zone/99"},
+            "SwitchedLevel": "On",
+            "DelayTime": "0",
+        }
+    },
+)
+
+
+def _zone_response(zone_id: str, control_type: str) -> Response:
+    return _read_response(
+        f"/zone/{zone_id}",
+        "OneZoneDefinition",
+        {
+            "Zone": {
+                "href": f"/zone/{zone_id}",
+                "ControlType": control_type,
+            }
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_scene_assignments(bridge: Bridge):
+    """Test reading a scene's preset assignments."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.get_scene_assignments("1")
+    )
+    await _serve_scene_preset_walk(bridge.leap, "1", _SCENE_1_PRESET)
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", _DIMMED_9)
+    await _serve(
+        bridge.leap, "ReadRequest", "/switchedlevelassignment/33", _SWITCHED_33
+    )
+    assignments = await task
+    assert assignments == [
+        {
+            "assignment_id": "9",
+            "href": "/dimmedlevelassignment/9",
+            "zone_id": "1",
+            "zone_href": "/zone/1",
+            "device_id": "2",
+            "control_type": "Dimmed",
+            "level": 50,
+            "fade_time": "2",
+            "delay_time": "0",
+        },
+        {
+            "assignment_id": "33",
+            "href": "/switchedlevelassignment/33",
+            "zone_id": "99",
+            "zone_href": "/zone/99",
+            "device_id": None,
+            "control_type": "Switched",
+            "level": 100,
+            "fade_time": None,
+            "delay_time": "0",
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_set_scene_diffs_by_zone(bridge: Bridge):
+    """Test that set_scene updates, creates, and deletes assignments."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene(
+            "1",
+            [
+                {"device_id": "2", "level": 75},
+                # naming the zone directly (as get_scene_assignments reports
+                # it) is equivalent to naming the device; ints coerce
+                {"zone_id": 6, "level": 100},
+            ],
+        )
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    await _serve(bridge.leap, "ReadRequest", "/zone/6", _zone_response("6", "Shade"))
+    await _serve_scene_preset_walk(
+        bridge.leap, "1", _SCENE_1_PRESET, button_name="renamed on the bridge"
+    )
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", _DIMMED_9)
+    await _serve(
+        bridge.leap, "ReadRequest", "/switchedlevelassignment/33", _SWITCHED_33
+    )
+    # zone 1 changed level: updated in place, keeping its fade
+    await _serve(
+        bridge.leap,
+        "UpdateRequest",
+        "/dimmedlevelassignment/9",
+        body={"DimmedLevelAssignment": {"Level": 75, "FadeTime": "2"}},
+    )
+    # zone 6 is new: created under the preset
+    await _serve(
+        bridge.leap,
+        "CreateRequest",
+        "/preset/1/shadelevelassignment",
+        body={
+            "ShadeLevelAssignment": {
+                "AssignableResource": {"href": "/zone/6"},
+                "Level": 100,
+                "DelayTime": "0",
+            }
+        },
+    )
+    # zone 99 is no longer in the scene: deleted
+    await _serve(
+        bridge.leap,
+        "DeleteRequest",
+        "/switchedlevelassignment/33",
+    )
+    await task
+    # with no name given, the cache picks up the bridge's current name
+    assert bridge.target.scenes["1"] == {
+        "scene_id": "1",
+        "name": "renamed on the bridge",
+    }
+
+
+@pytest.mark.asyncio
+async def test_set_scene_programs_an_empty_button_and_names_it(bridge: Bridge):
+    """Test that programming an unprogrammed virtual button creates a scene."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene(
+            "2",
+            [
+                {
+                    "device_id": "2",
+                    "level": 100,
+                    "fade_time": timedelta(milliseconds=500),
+                }
+            ],
+            name="scene 2",
+        )
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    await _serve_scene_preset_walk(
+        bridge.leap, "2", {"href": "/preset/2"}, button_name="Button 2"
+    )
+    await _serve(
+        bridge.leap,
+        "CreateRequest",
+        "/preset/2/dimmedlevelassignment",
+        body={
+            "DimmedLevelAssignment": {
+                "AssignableResource": {"href": "/zone/1"},
+                "Level": 100,
+                "FadeTime": "0.5",
+                "DelayTime": "0",
+            }
+        },
+    )
+    await _serve(
+        bridge.leap,
+        "UpdateRequest",
+        "/virtualbutton/2",
+        body={"VirtualButton": {"Name": "scene 2"}},
+    )
+    await task
+    assert bridge.target.scenes["2"] == {"scene_id": "2", "name": "scene 2"}
+
+
+@pytest.mark.asyncio
+async def test_set_scene_skips_unchanged_assignments_and_names(bridge: Bridge):
+    """Test that an unchanged assignment and an unchanged name send nothing."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene(
+            "1",
+            [{"device_id": "2", "level": 50}],  # matches the current assignment
+            name="scene 1",  # matches the current name
+        )
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    await _serve_scene_preset_walk(
+        bridge.leap,
+        "1",
+        {
+            "href": "/preset/1",
+            "DimmedLevelAssignments": [{"href": "/dimmedlevelassignment/9"}],
+        },
+    )
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", _DIMMED_9)
+    # the task completing after only the served reads proves nothing else
+    # was sent: no update, no create, no delete, no rename
+    await task
+
+
+@pytest.mark.asyncio
+async def test_set_scene_with_empty_list_clears_the_scene(bridge: Bridge):
+    """Test that an empty assignment list deletes everything."""
+    task = asyncio.get_running_loop().create_task(bridge.target.set_scene("1", []))
+    await _serve_scene_preset_walk(bridge.leap, "1", _SCENE_1_PRESET)
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", _DIMMED_9)
+    await _serve(
+        bridge.leap, "ReadRequest", "/switchedlevelassignment/33", _SWITCHED_33
+    )
+    await _serve(
+        bridge.leap,
+        "DeleteRequest",
+        "/dimmedlevelassignment/9",
+    )
+    await _serve(
+        bridge.leap,
+        "DeleteRequest",
+        "/switchedlevelassignment/33",
+    )
+    await task
+    # the virtual button is no longer a programmed scene
+    assert "1" not in bridge.target.scenes
+
+
+@pytest.mark.asyncio
+async def test_set_scene_creates_a_switched_assignment(bridge: Bridge):
+    """Test the Switched create body: SwitchedLevel, no Level, no FadeTime."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene(
+            "1", [{"device_id": "2", "level": 100, "delay_time": 1.5}]
+        )
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Switched"))
+    await _serve_scene_preset_walk(bridge.leap, "1", {"href": "/preset/1"})
+    await _serve(
+        bridge.leap,
+        "CreateRequest",
+        "/preset/1/switchedlevelassignment",
+        body={
+            "SwitchedLevelAssignment": {
+                "AssignableResource": {"href": "/zone/1"},
+                "SwitchedLevel": "On",
+                "DelayTime": "1.5",
+            }
+        },
+    )
+    await task
+
+
+@pytest.mark.asyncio
+async def test_set_scene_updates_a_switched_assignment_only_on_change(
+    bridge: Bridge,
+):
+    """Test the Switched update body (On -> Off) and the unchanged-On skip."""
+    switched_1 = _read_response(
+        "/switchedlevelassignment/40",
+        "OneSwitchedLevelAssignmentDefinition",
+        {
+            "SwitchedLevelAssignment": {
+                "href": "/switchedlevelassignment/40",
+                "AssignableResource": {"href": "/zone/1"},
+                "SwitchedLevel": "On",
+                "DelayTime": "0",
+            }
+        },
+    )
+    preset = {
+        "href": "/preset/1",
+        "SwitchedLevelAssignments": [{"href": "/switchedlevelassignment/40"}],
+    }
+
+    # On -> Off: updated; delay_time is ignored for an existing assignment
+    # (the asserted body carries no DelayTime)
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "2", "level": 0, "delay_time": 5}])
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Switched"))
+    await _serve_scene_preset_walk(bridge.leap, "1", preset)
+    await _serve(bridge.leap, "ReadRequest", "/switchedlevelassignment/40", switched_1)
+    await _serve(
+        bridge.leap,
+        "UpdateRequest",
+        "/switchedlevelassignment/40",
+        body={"SwitchedLevelAssignment": {"SwitchedLevel": "Off"}},
+    )
+    await task
+
+    # already On: the task completing after only the reads proves no write
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "2", "level": 100}])
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Switched"))
+    await _serve_scene_preset_walk(bridge.leap, "1", preset)
+    await _serve(bridge.leap, "ReadRequest", "/switchedlevelassignment/40", switched_1)
+    await task
+
+
+@pytest.mark.asyncio
+async def test_set_scene_replaces_an_assignment_whose_control_type_changed(
+    bridge: Bridge,
+):
+    """Test that a zone whose ControlType changed is deleted and recreated."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "2", "level": 100}])
+    )
+    # zone 1 now reads Switched, but its existing assignment is Dimmed,
+    # with a 3 s delay the recreate must keep
+    delayed_dimmed = _read_response(
+        "/dimmedlevelassignment/9",
+        "OneDimmedLevelAssignmentDefinition",
+        {
+            "DimmedLevelAssignment": {
+                "href": "/dimmedlevelassignment/9",
+                "AssignableResource": {"href": "/zone/1"},
+                "Level": 50,
+                "FadeTime": "2",
+                "DelayTime": "3",
+            }
+        },
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Switched"))
+    await _serve_scene_preset_walk(
+        bridge.leap,
+        "1",
+        {
+            "href": "/preset/1",
+            "DimmedLevelAssignments": [{"href": "/dimmedlevelassignment/9"}],
+        },
+    )
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", delayed_dimmed)
+    await _serve(
+        bridge.leap,
+        "DeleteRequest",
+        "/dimmedlevelassignment/9",
+    )
+    await _serve(
+        bridge.leap,
+        "CreateRequest",
+        "/preset/1/switchedlevelassignment",
+        body={
+            "SwitchedLevelAssignment": {
+                "AssignableResource": {"href": "/zone/1"},
+                "SwitchedLevel": "On",
+                "DelayTime": "3",
+            }
+        },
+    )
+    await task
+
+
+@pytest.mark.asyncio
+async def test_scene_assignments_targeting_non_zones_are_reported_and_refused(
+    bridge: Bridge,
+):
+    """Test an assignment whose target is not a zone: read reports it with
+    zone_id None; set_scene refuses the scene rather than mistargeting it."""
+    group_dimmed = _read_response(
+        "/dimmedlevelassignment/9",
+        "OneDimmedLevelAssignmentDefinition",
+        {
+            "DimmedLevelAssignment": {
+                "href": "/dimmedlevelassignment/9",
+                "AssignableResource": {"href": "/zonegroup/5"},
+                "Level": 50,
+                "FadeTime": "2",
+                "DelayTime": "0",
+            }
+        },
+    )
+    preset = {
+        "href": "/preset/1",
+        "DimmedLevelAssignments": [{"href": "/dimmedlevelassignment/9"}],
+    }
+
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.get_scene_assignments("1")
+    )
+    await _serve_scene_preset_walk(bridge.leap, "1", preset)
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", group_dimmed)
+    assignments = await task
+    assert assignments[0]["zone_href"] == "/zonegroup/5"
+    assert assignments[0]["zone_id"] is None
+    assert assignments[0]["device_id"] is None
+
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "2", "level": 75}])
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    await _serve_scene_preset_walk(bridge.leap, "1", preset)
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", group_dimmed)
+    with pytest.raises(ValueError, match="not zone targets"):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_get_scene_assignments_rejects_a_button_with_no_program(
+    bridge: Bridge,
+):
+    """Test a virtual button with no ProgrammingModel (a scene Pico's)."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.get_scene_assignments("1")
+    )
+    await _serve(
+        bridge.leap,
+        "ReadRequest",
+        "/virtualbutton/1",
+        _read_response(
+            "/virtualbutton/1",
+            "OneVirtualButtonDefinition",
+            {"VirtualButton": {"href": "/virtualbutton/1", "Name": "scene 1"}},
+        ),
+    )
+    with pytest.raises(ValueError, match="no programming model"):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_set_scene_refuses_unmanageable_assignment_kinds(bridge: Bridge):
+    """Test that a preset holding an unknown assignment kind is refused."""
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "2", "level": 75}])
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    await _serve_scene_preset_walk(
+        bridge.leap,
+        "1",
+        {
+            "href": "/preset/1",
+            "DimmedLevelAssignments": [{"href": "/dimmedlevelassignment/9"}],
+            "FanSpeedAssignments": [{"href": "/fanspeedassignment/17"}],
+        },
+    )
+    await _serve(bridge.leap, "ReadRequest", "/dimmedlevelassignment/9", _DIMMED_9)
+    with pytest.raises(ValueError, match="FanSpeedAssignments"):
+        await task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "assignments",
+    [
+        # device 4 is an occupancy sensor: no zone
+        pytest.param([{"device_id": "4", "level": 50}], id="device-without-zone"),
+        pytest.param([{"device_id": "2", "level": 101}], id="level-out-of-range"),
+        # hh:mm:ss / ISO durations are not decimal seconds
+        pytest.param(
+            [{"device_id": "2", "level": 50, "fade_time": "00:00:02"}],
+            id="fade-hh-mm-ss",
+        ),
+        pytest.param(
+            [{"device_id": "2", "level": 50, "fade_time": -2}], id="fade-negative"
+        ),
+        # non-ASCII digits are not decimal seconds either
+        pytest.param(
+            [{"device_id": "2", "level": 50, "fade_time": "\u0662"}],
+            id="fade-unicode-digit",
+        ),
+        # device 2's zone is 1, not 6 — a disagreeing pair is refused
+        pytest.param(
+            [{"device_id": "2", "zone_id": "6", "level": 50}],
+            id="device-zone-disagreement",
+        ),
+        pytest.param([{"level": 50}], id="neither-device-nor-zone"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_set_scene_rejects_bad_assignments(bridge: Bridge, assignments):
+    """Test that a bad assignment raises with nothing served at all.
+
+    Validation runs before the first request, so a bad entry cannot leave
+    the scene half-written.
+    """
+    with pytest.raises(ValueError):
+        await bridge.target.set_scene("1", assignments)
+
+
+@pytest.mark.asyncio
+async def test_set_scene_rejects_bad_input(bridge: Bridge):
+    """Test the rejections that need a name or a zone read first."""
+    with pytest.raises(ValueError):
+        await bridge.target.set_scene("1", [], name="x" * 51)
+
+    # a zone whose control type has no preset assignment type is rejected
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene("1", [{"device_id": "3", "level": 50}])
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/2", _zone_response("2", "FanSpeed"))
+    with pytest.raises(ValueError):
+        await task
+
+    # two spellings of the same zone: refused after the first entry's zone
+    # read, before any write
+    task = asyncio.get_running_loop().create_task(
+        bridge.target.set_scene(
+            "1", [{"device_id": "2", "level": 50}, {"zone_id": "1", "level": 60}]
+        )
+    )
+    await _serve(bridge.leap, "ReadRequest", "/zone/1", _zone_response("1", "Dimmed"))
+    with pytest.raises(ValueError, match="duplicate zone"):
+        await task
+
+
 @pytest.mark.asyncio
 async def test_reconnect_eof(bridge: Bridge):
     """Test that SmartBridge can reconnect on disconnect."""
