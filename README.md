@@ -102,6 +102,59 @@ reports direction, command, motion, or source attributes, support can be
 extended from captured protocol evidence without changing the general
 `OpenCloseStop` discovery classification.
 
+### Programming scenes
+
+Scenes are the bridge's virtual buttons; `activate_scene` presses one. The
+scene's contents — its preset's zone assignments — can also be read and
+written:
+
+```py
+# What does the scene do today?
+assignments = await bridge.get_scene_assignments("1")
+
+# Make the scene set one light to 75% and open one shade,
+# removing anything else it previously contained.
+await bridge.set_scene(
+    "1",
+    [
+        {"device_id": "2", "level": 75},
+        {"device_id": "7", "level": 100},
+    ],
+)
+```
+
+`set_scene` diffs by zone: it updates assignments in place (skipping ones
+that already match), creates missing ones, and deletes assignments for
+zones no longer listed. An empty list clears the scene. Programming an
+unprogrammed virtual button turns it into a scene; pass `name=` to name it
+(at most 50 characters — the bridge rejects longer names). Assignments may
+name a `device_id` or a `zone_id` (as `get_scene_assignments` reports), so
+what was read can be edited and written back.
+
+Assignments may carry `fade_time` and `delay_time` as decimal seconds
+(`"2"`, `"0.5"`, numbers, or timedeltas); the bridge rejects `hh:mm:ss`
+and ISO durations like `"PT4S"` here, unlike the zone command processor.
+Fade applies only to Dimmed zones, and delay only when an assignment is
+created; both are silently ignored where they do not apply. The assignment
+type is chosen from the zone's `ControlType`
+(`Dimmed`, `Switched`, or `Shade`); a zone can appear in a scene at most
+once, which the bridge itself enforces. Writes cost a few hundred
+milliseconds per changed assignment on a Smart Bridge Pro, so treat scene
+programming as a save-time operation, not something to do in the path of a
+command.
+
+These operations were verified against a Caséta Smart Bridge Pro,
+including the shape of real preset bodies: alongside the typed assignment
+collections, a preset carries `PresetAssignments` — the legacy untyped
+view, which mirrors the typed assignments one for one and is read-only —
+and that collection is recognized and ignored. Presets can also hold
+assignment kinds this library does not manage yet — fan speeds on Caséta,
+and the richer typed resources of RA3 and HomeWorks QSX processors
+(receptacles, color tuning, and others). `get_scene_assignments` does not
+report them, and `set_scene` refuses such a scene rather than silently
+leaving those assignments behind; support can be extended from captured
+protocol evidence.
+
 ### The leap tool
 
 For development and testing of new features, there is a `leap` command in the cli extras (`pip install pylutron_caseta[cli]`) which can be used for communicating directly with the bridge, similar to using `curl`.

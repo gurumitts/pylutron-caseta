@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import math
+import re
 import socket
 import ssl
 from datetime import timedelta
@@ -38,6 +39,37 @@ PING_INTERVAL = 60.0
 CONNECT_TIMEOUT = 5.0
 REQUEST_TIMEOUT = 5.0
 RECONNECT_DELAY = 2.0
+
+# The bridge rejects a virtual button Name longer than 50 characters
+# (characters, not bytes) with "400 The json request is malformed".
+SCENE_NAME_MAX_LENGTH = 50
+
+# A Preset body also carries "PresetAssignments" — the legacy untyped view
+# (AffectedZone/Level/Fade/Delay), which mirrors the typed assignments below
+# one for one and shares their id space. It is read-only and ignored here.
+_LEGACY_ASSIGNMENT_COLLECTION = "PresetAssignments"
+
+# Zone ControlType -> (collection key on the Preset body, assignment body key,
+# creation path segment under the preset). These are the typed preset
+# assignment resources; each zone may appear in a preset at most once (the
+# bridge refuses a second assignment for the same zone).
+_SCENE_ASSIGNMENT_KINDS = {
+    "Dimmed": (
+        "DimmedLevelAssignments",
+        "DimmedLevelAssignment",
+        "dimmedlevelassignment",
+    ),
+    "Switched": (
+        "SwitchedLevelAssignments",
+        "SwitchedLevelAssignment",
+        "switchedlevelassignment",
+    ),
+    "Shade": (
+        "ShadeLevelAssignments",
+        "ShadeLevelAssignment",
+        "shadelevelassignment",
+    ),
+}
 
 
 class Smartbridge:
@@ -613,6 +645,326 @@ class Smartbridge:
                 f"/virtualbutton/{scene_id}/commandprocessor",
                 {"Command": {"CommandType": "PressAndRelease"}},
             )
+
+    async def get_scene_assignments(self, scene_id: str) -> List[dict]:
+        """
+        Read what a scene does: the zone assignments of its preset.
+
+        Each entry describes one zone in the scene: ``assignment_id``,
+        ``href``, ``zone_href`` (the assignment's raw target), ``zone_id``
+        and ``device_id`` (None when the target is not a zone or matches no
+        known device), ``control_type`` ("Dimmed", "Switched" or "Shade"),
+        ``level`` (0-100; a Switched zone reports 100 for On and 0 for
+        Off), ``fade_time`` and ``delay_time`` (decimal seconds as strings,
+        e.g. "2" or "0.5", or None when the assignment does not carry
+        them).
+
+        Only Dimmed, Switched, and Shade assignments are reported; a preset
+        may also hold assignment kinds this library does not yet read (fan
+        speeds, for example), and those are not included.
+
+        :param scene_id: scene id, e.g. 23
+        :raises BridgeResponseError: when the scene does not exist
+        :raises ValueError: for a virtual button with no programming model
+            or preset (a scene Pico's, for example)
+        """
+        preset_href, _ = await self._get_scene_preset_href(scene_id)
+        assignments, _ = await self._read_scene_assignments(preset_href)
+        return assignments
+
+    async def set_scene(
+        self,
+        scene_id: str,
+        assignments: List[dict],
+        name: Optional[str] = None,
+    ):
+        """
+        Program a scene so its preset contains exactly ``assignments``.
+
+        The change is a diff by zone: assignments for new zones are created,
+        assignments whose values changed are updated in place, and
+        assignments for zones no longer listed are deleted. An empty list
+        clears the scene. Programming an unprogrammed virtual button turns
+        it into a scene; pass ``name`` to name it.
+
+        Each assignment is a dict with ``device_id`` (a device with a
+        zone) or ``zone_id`` (as reported by ``get_scene_assignments``),
+        and ``level`` (0-100; for a Switched zone any level above 0 means
+        On), and optionally ``fade_time`` and ``delay_time`` (decimal
+        seconds — strings, numbers, or timedeltas; note this differs from
+        ``set_value``'s hh:mm:ss ``fade_time``). Fade time applies only to
+        Dimmed zones; when omitted, an updated assignment keeps its current
+        fade and a new one gets "2" (the default fade). Delay applies only
+        at creation, where it defaults to "0"; both are silently ignored
+        where they do not apply.
+
+        Programming writes are save-time operations: expect a few hundred
+        milliseconds per changed assignment. Input validation runs before
+        the first write, but a bridge error partway through leaves the
+        scene partially written — re-read it with
+        ``get_scene_assignments``. Concurrent ``set_scene`` calls for the
+        same scene are unsupported (both diff the same snapshot). With an
+        empty list, ``name`` still renames the (now unprogrammed) virtual
+        button.
+
+        :param scene_id: scene id, e.g. 23
+        :param assignments: the scene's new contents, one entry per zone
+        :param name: optionally rename the scene (at most 50 characters)
+        :raises ValueError: for a name over 50 characters, an assignment
+            naming neither (or disagreeing) ``device_id``/``zone_id``, a
+            device without a zone, a zone whose control type cannot be in
+            a preset, a duplicate zone, a level outside 0-100, a bad fade
+            or delay, or a preset holding assignments this library cannot
+            manage
+        :raises BridgeResponseError: when the scene or a named zone does
+            not exist
+        :raises KeyError: for a ``device_id`` not known to the bridge
+        """
+        if name is not None and len(name) > SCENE_NAME_MAX_LENGTH:
+            raise ValueError(
+                f"scene name may be at most {SCENE_NAME_MAX_LENGTH} characters"
+            )
+        wanted = await self._normalize_scene_assignments(assignments)
+
+        preset_href, button_name = await self._get_scene_preset_href(scene_id)
+        current, unknown_kinds = await self._read_scene_assignments(preset_href)
+        if unknown_kinds:
+            raise ValueError(
+                f"scene {scene_id} holds assignment kinds this library "
+                f"cannot manage: {', '.join(sorted(unknown_kinds))}"
+            )
+        not_zones = [
+            entry["href"]
+            for entry in current
+            if not entry["zone_href"].startswith("/zone/")
+        ]
+        if not_zones:
+            raise ValueError(
+                f"scene {scene_id} holds assignments this library cannot "
+                f"manage (not zone targets): {', '.join(sorted(not_zones))}"
+            )
+        # diff on the full resource href, never a bare id (ids repeat across
+        # resource types)
+        have = {entry["zone_href"]: entry for entry in current}
+
+        for zone_id, (assignment, control_type) in wanted.items():
+            _, body_key, segment = _SCENE_ASSIGNMENT_KINDS[control_type]
+            existing = have.get(f"/zone/{zone_id}")
+            if existing is not None and existing["control_type"] != control_type:
+                # the zone's ControlType changed since the assignment was
+                # made (e.g. a dimmer swapped for a switch): the old resource
+                # cannot take the new kind's body. The recreate keeps the old
+                # delay unless the caller gave one.
+                await self._request("DeleteRequest", existing["href"])
+                if assignment["delay_time"] is None:
+                    assignment["delay_time"] = existing["delay_time"]
+                existing = None
+            body = self._scene_assignment_body(
+                assignment, control_type, existing, zone_id
+            )
+            if existing is None:
+                await self._request(
+                    "CreateRequest", f"{preset_href}/{segment}", {body_key: body}
+                )
+            elif self._scene_assignment_differs(existing, body):
+                await self._request("UpdateRequest", existing["href"], {body_key: body})
+        for zone_href, existing in have.items():
+            if id_from_href(zone_href) not in wanted:
+                await self._request("DeleteRequest", existing["href"])
+
+        # the cache reflects the assignment writes even if the rename below
+        # fails, and never claims a name the bridge did not accept; an
+        # exception before this point may still leave the scene partially
+        # written on the bridge (re-read with get_scene_assignments)
+        if not wanted:
+            # every assignment was deleted: the virtual button is no longer
+            # a programmed scene
+            self.scenes.pop(scene_id, None)
+        else:
+            self.scenes[scene_id] = {"scene_id": scene_id, "name": button_name}
+        if name is not None and name != button_name:
+            await self._request(
+                "UpdateRequest",
+                f"/virtualbutton/{scene_id}",
+                {"VirtualButton": {"Name": name}},
+            )
+            if wanted:
+                self.scenes[scene_id]["name"] = name
+
+    async def _normalize_scene_assignments(
+        self, assignments: List[dict]
+    ) -> Dict[str, Tuple[dict, str]]:
+        """Validate ``set_scene`` input before any write.
+
+        Returns zone id -> (normalized assignment, the zone's ControlType);
+        raises ValueError so a bad entry cannot leave a scene half-written.
+        """
+        wanted: Dict[str, Tuple[dict, str]] = {}
+        for assignment in assignments:
+            zone_id = assignment.get("zone_id")
+            if zone_id is not None:
+                zone_id = str(zone_id)
+            device_id = assignment.get("device_id")
+            if device_id is not None:
+                device_zone = self._get_zone_id(str(device_id))
+                if zone_id is None:
+                    if not device_zone:
+                        raise ValueError(
+                            f"device {device_id} has no zone and cannot be "
+                            "in a scene"
+                        )
+                    zone_id = device_zone
+                elif device_zone != zone_id:
+                    raise ValueError(
+                        f"assignment names device {device_id} (zone "
+                        f"{device_zone}) but zone_id {zone_id}"
+                    )
+            if zone_id is None:
+                raise ValueError("assignment needs a device_id or a zone_id")
+            if zone_id in wanted:
+                raise ValueError(
+                    f"duplicate zone {zone_id}: a scene holds at most one "
+                    "assignment per zone"
+                )
+            level = float(assignment["level"])
+            if not 0 <= level <= 100:
+                raise ValueError(f"level {level} is outside 0-100")
+            fade = assignment.get("fade_time")
+            delay = assignment.get("delay_time")
+            normalized = {
+                "level": level,
+                "fade_time": None if fade is None else _leap_seconds(fade),
+                "delay_time": None if delay is None else _leap_seconds(delay),
+            }
+            control_type = await self._get_zone_control_type(zone_id)
+            if control_type not in _SCENE_ASSIGNMENT_KINDS:
+                raise ValueError(
+                    f"zone {zone_id} has control type {control_type!r}, "
+                    "which cannot be in a preset"
+                )
+            wanted[zone_id] = (normalized, control_type)
+        return wanted
+
+    async def _get_scene_preset_href(self, scene_id: str) -> Tuple[str, str]:
+        """Walk virtual button -> programming model -> preset.
+
+        Returns the preset href and the virtual button's current name.
+        """
+        response = await self._request("ReadRequest", f"/virtualbutton/{scene_id}")
+        virtual_button = (response.Body or {}).get("VirtualButton", {})
+        button_name = virtual_button.get("Name", "")
+        model_href = (virtual_button.get("ProgrammingModel") or {}).get("href")
+        if model_href is None:
+            raise ValueError(f"scene {scene_id} has no programming model")
+        response = await self._request("ReadRequest", model_href)
+        model = (response.Body or {}).get("ProgrammingModel", {})
+        preset_href = (model.get("Preset") or {}).get("href")
+        if preset_href is None:
+            raise ValueError(f"scene {scene_id} has no preset")
+        return preset_href, button_name
+
+    async def _read_scene_assignments(
+        self, preset_href: str
+    ) -> Tuple[List[dict], List[str]]:
+        """Read a preset's typed assignment resources.
+
+        Returns the assignments of the kinds this library manages, and the
+        names of any other non-empty assignment collections on the preset.
+        """
+        response = await self._request("ReadRequest", preset_href)
+        preset = (response.Body or {}).get("Preset", {})
+        known_collections = {
+            collection for collection, _, _ in _SCENE_ASSIGNMENT_KINDS.values()
+        }
+        unknown_kinds = [
+            key
+            for key, value in preset.items()
+            if key.endswith("Assignments")
+            and key not in known_collections
+            and key != _LEGACY_ASSIGNMENT_COLLECTION
+            and value
+        ]
+        assignments: List[dict] = []
+        for control_type, (collection, body_key, _) in _SCENE_ASSIGNMENT_KINDS.items():
+            for ref in preset.get(collection) or []:
+                response = await self._request("ReadRequest", ref["href"])
+                body = (response.Body or {}).get(body_key, {})
+                zone_href = (body.get("AssignableResource") or {}).get("href", "")
+                is_zone = zone_href.startswith("/zone/")
+                zone_id = id_from_href(zone_href) if is_zone else None
+                device_id: Optional[str] = None
+                if zone_id is not None:
+                    try:
+                        device_id = self.get_device_by_zone_id(zone_id)["device_id"]
+                    except KeyError:
+                        pass
+                if control_type == "Switched":
+                    level = 100 if body.get("SwitchedLevel") == "On" else 0
+                else:
+                    level = int(body.get("Level", 0))
+                assignments.append(
+                    {
+                        "assignment_id": id_from_href(ref["href"]),
+                        "href": ref["href"],
+                        "zone_id": zone_id,
+                        "zone_href": zone_href,
+                        "device_id": device_id,
+                        "control_type": control_type,
+                        "level": level,
+                        "fade_time": body.get("FadeTime"),
+                        "delay_time": body.get("DelayTime"),
+                    }
+                )
+        return assignments, unknown_kinds
+
+    async def _get_zone_control_type(self, zone_id: str) -> str:
+        """Read a zone's ControlType (selects its preset assignment type)."""
+        response = await self._request("ReadRequest", f"/zone/{zone_id}")
+        return ((response.Body or {}).get("Zone") or {}).get("ControlType", "")
+
+    @staticmethod
+    def _scene_assignment_body(
+        assignment: dict,
+        control_type: str,
+        existing: Optional[dict],
+        zone_id: str,
+    ) -> dict:
+        """Build the LEAP body for one scene assignment write."""
+        body: dict
+        if control_type == "Dimmed":
+            fade = assignment["fade_time"]
+            if fade is None and existing is not None:
+                fade = existing["fade_time"]
+            body = {
+                "Level": int(round(assignment["level"])),
+                "FadeTime": fade if fade is not None else "2",
+            }
+        elif control_type == "Switched":
+            body = {"SwitchedLevel": "On" if assignment["level"] > 0 else "Off"}
+        else:
+            body = {"Level": int(round(assignment["level"]))}
+        if existing is None:
+            delay = assignment["delay_time"]
+            body = {
+                "AssignableResource": {"href": f"/zone/{zone_id}"},
+                **body,
+                "DelayTime": delay if delay is not None else "0",
+            }
+        return body
+
+    @staticmethod
+    def _scene_assignment_differs(existing: dict, body: dict) -> bool:
+        """Would writing ``body`` change the assignment on the bridge?"""
+        if "SwitchedLevel" in body:
+            existing_switched = "On" if existing["level"] > 0 else "Off"
+            if body["SwitchedLevel"] != existing_switched:
+                return True
+        elif body["Level"] != existing["level"]:
+            return True
+        fade = body.get("FadeTime")
+        if fade is not None and fade != existing["fade_time"]:
+            return True
+        return False
 
     async def activate_smart_away(self):
         """
@@ -1528,6 +1880,30 @@ class Smartbridge:
         for task in (self._monitor_task, self._ping_task, self._login_task):
             if task is not None and not task.done():
                 task.cancel()
+
+
+def _leap_seconds(value: Union[str, int, float, timedelta]) -> str:
+    """Format seconds for LEAP FadeTime/DelayTime: decimal-second strings.
+
+    Unlike the zone command processor's FadeTime (hh:mm:ss — see
+    ``_format_duration``), the preset assignment resources take decimal
+    seconds: the bridge accepts "2" or "0.5" but rejects "00:00:02" and ISO
+    durations like "PT4S".
+    """
+    if isinstance(value, timedelta):
+        value = value.total_seconds()
+    if isinstance(value, str):
+        if re.fullmatch(r"[0-9]+(\.[0-9]+)?", value) is None:
+            raise ValueError(
+                f'{value!r} is not a decimal number of seconds (e.g. "2", "0.5")'
+            )
+        return value
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise ValueError(f"{value!r} is not a non-negative number of seconds")
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.4f}".rstrip("0").rstrip(".")
 
 
 def _format_duration(duration: timedelta) -> str:

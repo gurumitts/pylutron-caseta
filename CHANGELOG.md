@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BUTTON_STATUS_LONG_HOLD` constant for the `LongHold` LEAP button event
   emitted by HomeWorks QSX processors.
+- Scene programming: `get_scene_assignments` reads what a scene does, and
+  `set_scene` programs a scene's preset to an exact set of zone assignments
+  (creating, updating, and deleting the typed preset assignment resources),
+  optionally renaming the scene. Programming an unprogrammed virtual button
+  creates a new scene. Verified against a Caséta Smart Bridge Pro.
 
 ## [0.29.0] - 2026-06-09
 
