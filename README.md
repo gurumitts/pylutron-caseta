@@ -104,12 +104,17 @@ extended from captured protocol evidence without changing the general
 
 ### Raw zone-status events
 
-`Smartbridge.add_zone_status_subscriber` provides an opt-in event stream for
+`Smartbridge.subscribe_zone_status` provides an opt-in event stream for
 callers that need the original zone status in addition to normalized device
 state. Each event identifies the zone and resolved device, includes the raw
-status payload, and identifies its delivery origin. The method supports multiple
-subscribers and returns an idempotent unsubscribe callback; existing device
-subscribers are unchanged.
+status payload, and identifies its delivery origin. Multiple subscribers are
+supported; existing device subscribers are unchanged. These listeners observe
+messages Smartbridge already processes without additional protocol subscriptions.
+
+Pass the callback to `Smartbridge.unsubscribe_zone_status` to remove it. Each
+subscribe call adds one registration, even for the same callback. Each unsubscribe
+call removes one matching registration and raises `ValueError` if none exists,
+following the low-level unsolicited-listener API.
 
 `ZoneStatusEventOrigin.SNAPSHOT` identifies status obtained from initialization
 reads or subscription responses, including reconnects. `NOTIFICATION` identifies

@@ -201,24 +201,20 @@ class Smartbridge:
         """
         self._subscribers[device_id] = callback_
 
-    def add_zone_status_subscriber(
+    def subscribe_zone_status(
         self, callback_: Callable[[ZoneStatusEvent], None]
-    ) -> Callable[[], None]:
-        """Subscribe to raw zone statuses and return an idempotent unsubscribe call."""
+    ) -> None:
+        """Register a callback for raw zone statuses; duplicates are allowed."""
         if not callable(callback_):
             raise TypeError("callback must be callable")
 
         self._zone_status_subscribers.append(callback_)
-        subscribed = True
 
-        def unsubscribe() -> None:
-            nonlocal subscribed
-            if not subscribed:
-                return
-            subscribed = False
-            self._zone_status_subscribers.remove(callback_)
-
-        return unsubscribe
+    def unsubscribe_zone_status(
+        self, callback_: Callable[[ZoneStatusEvent], None]
+    ) -> None:
+        """Remove one matching registration; raise ValueError if none exists."""
+        self._zone_status_subscribers.remove(callback_)
 
     def add_occupancy_subscriber(
         self, occupancy_group_id: str, callback_: Callable[[], None]

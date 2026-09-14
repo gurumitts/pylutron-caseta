@@ -2348,8 +2348,8 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
     """Test immutable snapshots and notifications, including repeated statuses."""
     first_events: List[smartbridge.ZoneStatusEvent] = []
     second_events: List[smartbridge.ZoneStatusEvent] = []
-    unsubscribe = bridge_uninit.target.add_zone_status_subscriber(first_events.append)
-    bridge_uninit.target.add_zone_status_subscriber(second_events.append)
+    bridge_uninit.target.subscribe_zone_status(first_events.append)
+    bridge_uninit.target.subscribe_zone_status(second_events.append)
 
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
 
@@ -2394,8 +2394,7 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
 
     assert second_events[-1].status == notification_event.status
 
-    unsubscribe()
-    unsubscribe()
+    bridge_uninit.target.unsubscribe_zone_status(first_events.append)
     notification = Response(
         CommuniqueType="ReadResponse",
         Header=ResponseHeader(
@@ -2422,7 +2421,7 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
 async def test_reconnect_zone_status_is_snapshot(bridge_uninit: Bridge, processor):
     """Test reconnect snapshots retain zones and reconcile changed state."""
     events: List[smartbridge.ZoneStatusEvent] = []
-    bridge_uninit.target.add_zone_status_subscriber(events.append)
+    bridge_uninit.target.subscribe_zone_status(events.append)
     await bridge_uninit.initialize(processor)
     zone_ids = {event.zone_id for event in events}
     assert zone_ids
@@ -2475,7 +2474,7 @@ async def test_caseta_initial_and_reconnect_zone_status_is_snapshot(
 ):
     """Test explicit Caseta status reads are reported as snapshots."""
     events: List[smartbridge.ZoneStatusEvent] = []
-    bridge_uninit.target.add_zone_status_subscriber(events.append)
+    bridge_uninit.target.subscribe_zone_status(events.append)
 
     await bridge_uninit.initialize(CASETA_PROCESSOR)
     assert events
@@ -2495,18 +2494,19 @@ async def test_caseta_initial_and_reconnect_zone_status_is_snapshot(
 
 @pytest.mark.asyncio
 async def test_zone_status_subscriptions_are_independent(bridge_uninit: Bridge):
-    """Test duplicate callbacks unsubscribe independently and isolate failures."""
+    """Test one-at-a-time removal and delivery past a failing subscriber."""
     with pytest.raises(TypeError):
-        bridge_uninit.target.add_zone_status_subscriber(cast(Any, None))
-
-    events: List[smartbridge.ZoneStatusEvent] = []
-    unsubscribe_first = bridge_uninit.target.add_zone_status_subscriber(events.append)
-    unsubscribe_second = bridge_uninit.target.add_zone_status_subscriber(events.append)
+        bridge_uninit.target.subscribe_zone_status(cast(Any, None))
 
     def raise_from_subscriber(_event: smartbridge.ZoneStatusEvent) -> None:
         raise RuntimeError("subscriber failed")
 
-    def send_zone_update() -> None:
+    events: List[smartbridge.ZoneStatusEvent] = []
+    bridge_uninit.target.subscribe_zone_status(raise_from_subscriber)
+    bridge_uninit.target.subscribe_zone_status(events.append)
+    bridge_uninit.target.subscribe_zone_status(events.append)
+
+    def send_zone_notification() -> None:
         bridge_uninit.leap.send_unsolicited(
             Response(
                 CommuniqueType="ReadResponse",
@@ -2521,19 +2521,18 @@ async def test_zone_status_subscriptions_are_independent(bridge_uninit: Bridge):
 
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
     events.clear()
-    unsubscribe_raising = bridge_uninit.target.add_zone_status_subscriber(
-        raise_from_subscriber
-    )
 
-    unsubscribe_first()
-    unsubscribe_first()
-    send_zone_update()
+    bridge_uninit.target.unsubscribe_zone_status(events.append)
+    send_zone_notification()
     assert len(events) == 1
 
-    unsubscribe_raising()
-    unsubscribe_second()
-    send_zone_update()
+    bridge_uninit.target.unsubscribe_zone_status(raise_from_subscriber)
+    bridge_uninit.target.unsubscribe_zone_status(events.append)
+    send_zone_notification()
     assert len(events) == 1
+
+    with pytest.raises(ValueError):
+        bridge_uninit.target.unsubscribe_zone_status(events.append)
 
 
 @pytest.mark.asyncio
