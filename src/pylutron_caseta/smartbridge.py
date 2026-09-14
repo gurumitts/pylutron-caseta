@@ -1,7 +1,6 @@
 """Provides an API to interact with the Lutron Caseta Smart Bridge & RA3 Processor."""
 
 import asyncio
-from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -69,7 +68,7 @@ def _immutable_copy(value: Any) -> Any:
         )
     if isinstance(value, list):
         return tuple(_immutable_copy(item) for item in value)
-    return deepcopy(value)
+    return value
 
 
 class Smartbridge:
