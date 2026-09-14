@@ -812,20 +812,18 @@ class Smartbridge:
         if device["device_id"] in self._subscribers:
             self._subscribers[device["device_id"]]()
 
-        if not self._zone_status_subscribers:
-            return
-
-        event = ZoneStatusEvent(
-            zone_id=zone,
-            device_id=device["device_id"],
-            status=_immutable_copy(status),
-            origin=origin,
-        )
-        for callback in tuple(self._zone_status_subscribers):
-            try:
-                callback(event)
-            except Exception:  # pylint: disable=broad-except
-                _LOG.exception("Zone status subscriber raised an exception")
+        if self._zone_status_subscribers:
+            event = ZoneStatusEvent(
+                zone_id=zone,
+                device_id=device["device_id"],
+                status=_immutable_copy(status),
+                origin=origin,
+            )
+            for callback in tuple(self._zone_status_subscribers):
+                try:
+                    callback(event)
+                except Exception:  # pylint: disable=broad-except
+                    _LOG.exception("Zone status subscriber raised an exception")
 
     def _handle_button_status(self, response: Response):
         _LOG.debug("Handling button status: %s", response)
