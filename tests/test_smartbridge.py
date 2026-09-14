@@ -190,6 +190,7 @@ class Bridge:
 
     async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
+        self.processor = processor
         loop = asyncio.get_running_loop()
         running_tasks: set[asyncio.Task] = set()
         try:
@@ -648,8 +649,8 @@ class Bridge:
         else:
             self.leap.running.set_exception(exception)
 
-    async def accept_connection(self, processor=CASETA_PROCESSOR):
-        """Wait for SmartBridge to reconnect."""
+    async def accept_connection(self):
+        """Wait for SmartBridge to reconnect to the same processor."""
         leap = await self.connections.get()
 
         async def wait(coro):
@@ -657,11 +658,13 @@ class Bridge:
             result = await coro
             return result
 
-        if processor == CASETA_PROCESSOR:
+        if self.processor == CASETA_PROCESSOR:
             await self._accept_connection(leap, wait)
-        elif processor == RA3_PROCESSOR:
+        elif self.processor == RA3_PROCESSOR:
+            self.ra3_button_list.clear()
+            self.ra3_button_led_list.clear()
             await self._accept_connection_ra3(leap, wait)
-        elif processor == HWQSX_PROCESSOR:
+        elif self.processor == HWQSX_PROCESSOR:
             self.qsx_button_list.clear()
             self.qsx_button_led_list.clear()
             await self._accept_connection_qsx(leap, wait)
@@ -2409,17 +2412,20 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_qsx_reconnect_zone_status_is_initial(bridge_uninit: Bridge):
-    """Test reconnect subscription snapshots are not reported as live updates."""
+@pytest.mark.parametrize("processor", [RA3_PROCESSOR, HWQSX_PROCESSOR])
+async def test_reconnect_zone_status_is_initial(bridge_uninit: Bridge, processor):
+    """Test reconnect snapshots retain the same zones and are initial events."""
     events: List[smartbridge.ZoneStatusEvent] = []
     bridge_uninit.target.add_zone_status_subscriber(events.append)
-    await bridge_uninit.initialize(HWQSX_PROCESSOR)
+    await bridge_uninit.initialize(processor)
+    zone_ids = {event.zone_id for event in events}
+    assert zone_ids
     events.clear()
 
     bridge_uninit.disconnect()
-    await bridge_uninit.accept_connection(HWQSX_PROCESSOR)
+    await bridge_uninit.accept_connection()
 
-    assert events
+    assert {event.zone_id for event in events} == zone_ids
     assert all(
         event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
     )
@@ -2441,7 +2447,7 @@ async def test_caseta_initial_and_reconnect_zone_status_is_initial(
 
     events.clear()
     bridge_uninit.disconnect()
-    await bridge_uninit.accept_connection(CASETA_PROCESSOR)
+    await bridge_uninit.accept_connection()
 
     assert events
     assert all(
