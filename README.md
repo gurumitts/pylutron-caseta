@@ -107,9 +107,23 @@ extended from captured protocol evidence without changing the general
 `Smartbridge.add_zone_status_subscriber` provides an opt-in event stream for
 callers that need the original zone status in addition to normalized device
 state. Each event identifies the zone and resolved device, includes the raw
-status payload, and classifies the status as an initial snapshot or an
-operational update. The method supports multiple subscribers and returns an
-idempotent unsubscribe callback; existing device subscribers are unchanged.
+status payload, and identifies its delivery origin. The method supports multiple
+subscribers and returns an idempotent unsubscribe callback; existing device
+subscribers are unchanged.
+
+`ZoneStatusEventOrigin.SNAPSHOT` identifies status obtained from initialization
+reads or subscription responses, including reconnects. `NOTIFICATION` identifies
+status delivered through a notification callback. This describes the delivery
+path, not whether a value changed, and does not guarantee an ordering between
+snapshots and notifications.
+
+A snapshot may contain changes made while disconnected. A notification may
+repeat unchanged values or concern attributes a consumer does not use. Both
+are processed normally and delivered to subscribers without deduplication.
+Neither origin proves that a command or physical movement occurred. Consumers
+decide how to reconcile state and whether a notification is relevant; for
+example, a consumer maintaining derived state may invalidate it on reconnect
+without treating the snapshot as a newly observed action.
 
 Subscribers receive a recursively immutable copy of each status. A subscriber
 cannot modify the event observed by another subscriber; mapping values are

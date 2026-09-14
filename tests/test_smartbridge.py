@@ -2345,7 +2345,7 @@ async def test_qsx_open_close_stop_cover_command(
 
 @pytest.mark.asyncio
 async def test_qsx_zone_status_events(bridge_uninit: Bridge):
-    """Test raw zone status subscribers receive snapshots and live updates."""
+    """Test immutable snapshots and notifications, including repeated statuses."""
     first_events: List[smartbridge.ZoneStatusEvent] = []
     second_events: List[smartbridge.ZoneStatusEvent] = []
     unsubscribe = bridge_uninit.target.add_zone_status_subscriber(first_events.append)
@@ -2353,10 +2353,10 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
 
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
 
-    initial_event = next(event for event in first_events if event.zone_id == "1999")
-    assert initial_event.device_id == "1999"
-    assert initial_event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL
-    assert initial_event.status == {"Zone": {"href": "/zone/1999"}}
+    snapshot_event = next(event for event in first_events if event.zone_id == "1999")
+    assert snapshot_event.device_id == "1999"
+    assert snapshot_event.origin is smartbridge.ZoneStatusEventOrigin.SNAPSHOT
+    assert snapshot_event.status == {"Zone": {"href": "/zone/1999"}}
     assert second_events == first_events
 
     status: Dict[str, Any] = {
@@ -2378,61 +2378,99 @@ async def test_qsx_zone_status_events(bridge_uninit: Bridge):
     status["FutureDirection"] = "changed after delivery"
     status["Zone"]["href"] = "/zone/changed-after-delivery"
 
-    update_event = first_events[-1]
-    assert update_event.origin is smartbridge.ZoneStatusEventOrigin.UPDATE
-    assert update_event.status["FutureDirection"] == "Opening"
-    assert update_event.status["Zone"]["href"] == "/zone/1999"
-    assert update_event.status["FutureSources"][0]["href"] == "/device/123"
+    notification_event = first_events[-1]
+    assert notification_event.origin is smartbridge.ZoneStatusEventOrigin.NOTIFICATION
+    assert notification_event.status["FutureDirection"] == "Opening"
+    assert notification_event.status["Zone"]["href"] == "/zone/1999"
+    assert notification_event.status["FutureSources"][0]["href"] == "/device/123"
     assert bridge_uninit.target.get_device_by_id("1999")["current_state"] == -1
 
     with pytest.raises(TypeError):
-        cast(Any, update_event.status)["FutureDirection"] = "Closing"
+        cast(Any, notification_event.status)["FutureDirection"] = "Closing"
     with pytest.raises(TypeError):
-        update_event.status["Zone"]["href"] = "/zone/mutated"
+        notification_event.status["Zone"]["href"] = "/zone/mutated"
     with pytest.raises(AttributeError):
-        update_event.status["FutureSources"].append({"href": "/device/456"})
+        notification_event.status["FutureSources"].append({"href": "/device/456"})
 
-    assert second_events[-1].status == update_event.status
+    assert second_events[-1].status == notification_event.status
 
     unsubscribe()
     unsubscribe()
+    notification = Response(
+        CommuniqueType="ReadResponse",
+        Header=ResponseHeader(
+            MessageBodyType="OneZoneStatus",
+            StatusCode=ResponseStatus(200, "OK"),
+            Url="/zone/1999/status",
+        ),
+        Body={"ZoneStatus": {"Zone": {"href": "/zone/1999"}}},
+    )
+    event_count = len(second_events)
+    bridge_uninit.leap.send_unsolicited(notification)
+    bridge_uninit.leap.send_unsolicited(notification)
+    assert first_events[-1] is notification_event
+    assert len(second_events) == event_count + 2
+    assert all(
+        event.origin is smartbridge.ZoneStatusEventOrigin.NOTIFICATION
+        and event.status == snapshot_event.status
+        for event in second_events[-2:]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("processor", [RA3_PROCESSOR, HWQSX_PROCESSOR])
+async def test_reconnect_zone_status_is_snapshot(bridge_uninit: Bridge, processor):
+    """Test reconnect snapshots retain zones and reconcile changed state."""
+    events: List[smartbridge.ZoneStatusEvent] = []
+    bridge_uninit.target.add_zone_status_subscriber(events.append)
+    await bridge_uninit.initialize(processor)
+    zone_ids = {event.zone_id for event in events}
+    assert zone_ids
+    snapshot_event = next(event for event in events if "Level" in event.status)
+    snapshot_level = snapshot_event.status["Level"]
+    changed_level = 100 if snapshot_level == 0 else 0
     bridge_uninit.leap.send_unsolicited(
         Response(
             CommuniqueType="ReadResponse",
             Header=ResponseHeader(
                 MessageBodyType="OneZoneStatus",
                 StatusCode=ResponseStatus(200, "OK"),
-                Url="/zone/1999/status",
+                Url=f"/zone/{snapshot_event.zone_id}/status",
             ),
-            Body={"ZoneStatus": {"Zone": {"href": "/zone/1999"}}},
+            Body={
+                "ZoneStatus": {
+                    "Zone": {"href": f"/zone/{snapshot_event.zone_id}"},
+                    "Level": changed_level,
+                }
+            },
         )
     )
-    assert first_events[-1] is update_event
-    assert second_events[-1].origin is smartbridge.ZoneStatusEventOrigin.UPDATE
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("processor", [RA3_PROCESSOR, HWQSX_PROCESSOR])
-async def test_reconnect_zone_status_is_initial(bridge_uninit: Bridge, processor):
-    """Test reconnect snapshots retain the same zones and are initial events."""
-    events: List[smartbridge.ZoneStatusEvent] = []
-    bridge_uninit.target.add_zone_status_subscriber(events.append)
-    await bridge_uninit.initialize(processor)
-    zone_ids = {event.zone_id for event in events}
-    assert zone_ids
+    assert (
+        bridge_uninit.target.get_device_by_id(snapshot_event.device_id)["current_state"]
+        == changed_level
+    )
     events.clear()
 
+    # The reconnect fixture reports the original level, changed while disconnected.
     bridge_uninit.disconnect()
     await bridge_uninit.accept_connection()
 
     assert {event.zone_id for event in events} == zone_ids
     assert all(
-        event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
+        event.origin is smartbridge.ZoneStatusEventOrigin.SNAPSHOT for event in events
+    )
+    reconnect_event = next(
+        event for event in events if event.zone_id == snapshot_event.zone_id
+    )
+    assert reconnect_event.status["Level"] == snapshot_level
+    assert (
+        bridge_uninit.target.get_device_by_id(snapshot_event.device_id)["current_state"]
+        == snapshot_level
     )
 
 
 @pytest.mark.asyncio
-async def test_caseta_initial_and_reconnect_zone_status_is_initial(
+async def test_caseta_initial_and_reconnect_zone_status_is_snapshot(
     bridge_uninit: Bridge,
 ):
     """Test explicit Caseta status reads are reported as snapshots."""
@@ -2442,7 +2480,7 @@ async def test_caseta_initial_and_reconnect_zone_status_is_initial(
     await bridge_uninit.initialize(CASETA_PROCESSOR)
     assert events
     assert all(
-        event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
+        event.origin is smartbridge.ZoneStatusEventOrigin.SNAPSHOT for event in events
     ), [(event.zone_id, event.origin) for event in events]
 
     events.clear()
@@ -2451,7 +2489,7 @@ async def test_caseta_initial_and_reconnect_zone_status_is_initial(
 
     assert events
     assert all(
-        event.origin is smartbridge.ZoneStatusEventOrigin.INITIAL for event in events
+        event.origin is smartbridge.ZoneStatusEventOrigin.SNAPSHOT for event in events
     )
 
 

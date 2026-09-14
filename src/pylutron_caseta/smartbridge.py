@@ -44,10 +44,10 @@ RECONNECT_DELAY = 2.0
 
 
 class ZoneStatusEventOrigin(Enum):
-    """The delivery origin of a zone-status event."""
+    """The delivery path of a zone status, not whether its values changed."""
 
-    INITIAL = "initial"
-    UPDATE = "update"
+    SNAPSHOT = "snapshot"
+    NOTIFICATION = "notification"
 
 
 @dataclass(frozen=True)
@@ -778,7 +778,7 @@ class Smartbridge:
     def _handle_one_zone_status(
         self,
         response: Response,
-        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.UPDATE,
+        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.NOTIFICATION,
     ) -> None:
         _LOG.debug("Handling single zone status: %s", response)
         body = response.Body
@@ -864,7 +864,7 @@ class Smartbridge:
     def _handle_multi_zone_status(
         self,
         response: Response,
-        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.UPDATE,
+        origin: ZoneStatusEventOrigin = ZoneStatusEventOrigin.NOTIFICATION,
     ) -> None:
         _LOG.debug("Handling multi zone status: %s", response)
 
@@ -996,7 +996,7 @@ class Smartbridge:
                             "ReadRequest", f"/zone/{device['zone']}/status"
                         )
                         self._handle_one_zone_status(
-                            response, ZoneStatusEventOrigin.INITIAL
+                            response, ZoneStatusEventOrigin.SNAPSHOT
                         )
 
             if not self._login_completed.done():
@@ -1582,7 +1582,7 @@ class Smartbridge:
         except BridgeResponseError as ex:
             _LOG.error("Failed zone subscription: %s", ex.response)
             return
-        self._handle_multi_zone_status(response, ZoneStatusEventOrigin.INITIAL)
+        self._handle_multi_zone_status(response, ZoneStatusEventOrigin.SNAPSHOT)
 
     async def _subscribe_to_smart_away_status(self):
         """Subscribe to Smart Away status updates."""
