@@ -44,7 +44,7 @@ RECONNECT_DELAY = 2.0
 
 
 class ZoneStatusEventOrigin(Enum):
-    """Identify whether a zone status is a snapshot or a live update."""
+    """The delivery origin of a zone-status event."""
 
     INITIAL = "initial"
     UPDATE = "update"
@@ -52,7 +52,7 @@ class ZoneStatusEventOrigin(Enum):
 
 @dataclass(frozen=True)
 class ZoneStatusEvent:
-    """Describe a zone status without interpreting device-specific attributes."""
+    """A zone status with uninterpreted device-specific attributes."""
 
     zone_id: str
     device_id: str
