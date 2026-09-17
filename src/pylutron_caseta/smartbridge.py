@@ -23,6 +23,7 @@ from . import (
     BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
+    PROCESSOR_PRODUCT_TYPES,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
     BridgeDisconnectedError,
     BridgeResponseError,
@@ -888,12 +889,11 @@ class Smartbridge:
             project_json = await self._request("ReadRequest", "/project")
             project = project_json.Body["Project"]
 
-            if (
-                project["ProductType"] == "Lutron RadioRA 3 Project"
-                or project["ProductType"] == "Lutron HWQS Project"
-            ):
-                # RadioRa3 or HomeWorks QSX Processor device detected
-                _LOG.debug("RA3 or QSX processor detected")
+            if project["ProductType"] in PROCESSOR_PRODUCT_TYPES:
+                # RadioRA 3, HomeWorks QSX or Athena processor detected
+                _LOG.debug(
+                    "Processor-based system detected: %s", project["ProductType"]
+                )
 
                 # Load processor as devices[1] for compatibility with lutron_caseta HA
                 # integration

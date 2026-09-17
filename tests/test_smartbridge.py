@@ -3072,3 +3072,22 @@ async def test_on_connect_callback() -> None:
         await init_task
 
     await bridge.target.close()
+
+
+def test_processor_product_types_contains_all_processor_projects():
+    """All processor-based systems must route to the processor code path."""
+    assert smartbridge.PROCESSOR_PRODUCT_TYPES == frozenset(
+        {
+            "Lutron RadioRA 3 Project",
+            "Lutron HWQS Project",
+            "Lutron Athena Project",
+        }
+    )
+
+
+def test_athena_project_fixture_declares_athena_product_type():
+    """The captured fixture must carry the ProductType the library keys on."""
+    project = response_from_json_file("athena/project.json")
+    product_type = project.Body["Project"]["ProductType"]
+    assert product_type == "Lutron Athena Project"
+    assert product_type in smartbridge.PROCESSOR_PRODUCT_TYPES
