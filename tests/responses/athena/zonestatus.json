@@ -1,0 +1,110 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/zone/status",
+    "MessageBodyType": "MultipleZoneStatus"
+  },
+  "CommuniqueType": "SubscribeResponse",
+  "Body": {
+    "ZoneStatuses": [
+      {
+        "href": "/zone/479/status",
+        "Level": 100,
+        "Zone": {
+          "href": "/zone/479"
+        }
+      },
+      {
+        "href": "/zone/582/status",
+        "Level": 100,
+        "ColorTuningStatus": {
+          "XYTuningLevel": {
+            "X": 0.1596,
+            "Y": 0.8404
+          },
+          "HSVTuningLevel": {
+            "Hue": 120,
+            "Saturation": 100
+          }
+        },
+        "Zone": {
+          "href": "/zone/582"
+        }
+      },
+      {
+        "href": "/zone/615/status",
+        "Level": 100,
+        "ColorTuningStatus": {
+          "XYTuningLevel": {
+            "X": 0.3804,
+            "Y": 0.3766
+          },
+          "HSVTuningLevel": {
+            "Hue": 40,
+            "Saturation": 16
+          },
+          "WhiteTuningLevel": {
+            "Kelvin": 4000
+          }
+        },
+        "Zone": {
+          "href": "/zone/615"
+        }
+      },
+      {
+        "href": "/zone/629/status",
+        "Level": 100,
+        "ColorTuningStatus": {
+          "XYTuningLevel": {
+            "X": 0.1596,
+            "Y": 0.8404
+          },
+          "HSVTuningLevel": {
+            "Hue": 120,
+            "Saturation": 100
+          }
+        },
+        "Zone": {
+          "href": "/zone/629"
+        }
+      },
+      {
+        "href": "/zone/687/status",
+        "Level": 100,
+        "ColorTuningStatus": {
+          "XYTuningLevel": {
+            "X": 0.3804,
+            "Y": 0.3766
+          },
+          "HSVTuningLevel": {
+            "Hue": 40,
+            "Saturation": 16
+          },
+          "WhiteTuningLevel": {
+            "Kelvin": 4000
+          }
+        },
+        "Zone": {
+          "href": "/zone/687"
+        }
+      },
+      {
+        "href": "/zone/1238/status",
+        "Level": 100,
+        "ColorTuningStatus": {
+          "XYTuningLevel": {
+            "X": 0.1596,
+            "Y": 0.8404
+          },
+          "HSVTuningLevel": {
+            "Hue": 120,
+            "Saturation": 100
+          }
+        },
+        "Zone": {
+          "href": "/zone/1238"
+        }
+      }
+    ]
+  }
+}

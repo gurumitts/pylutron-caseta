@@ -1,0 +1,174 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/895/associatedzone",
+    "MessageBodyType": "MultipleZoneDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Zones": [
+      {
+        "href": "/zone/479",
+        "XID": "HZYvuajb0tr4hJKqRAHHYC",
+        "Name": "2x2 Tiles",
+        "AvailableControlTypes": [
+          "Dimmed"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 4,
+        "ControlType": "Dimmed"
+      },
+      {
+        "href": "/zone/582",
+        "XID": "aWCJKGVwaUDOE4mUroehAX",
+        "Name": "East Above Cabinets",
+        "AvailableControlTypes": [
+          "Dimmed",
+          "WhiteTune",
+          "WarmDim",
+          "ColorTune"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 0,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 4000
+          }
+        },
+        "DefaultDimCurve": {
+          "href": "/curve/5"
+        },
+        "ControlType": "ColorTune"
+      },
+      {
+        "href": "/zone/615",
+        "XID": "RXGg7N_Y9smSFIcBRnWYbZ",
+        "Name": "East Below Cabinets",
+        "AvailableControlTypes": [
+          "Dimmed",
+          "WhiteTune",
+          "WarmDim",
+          "ColorTune"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 1,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 4000
+          }
+        },
+        "DefaultDimCurve": {
+          "href": "/curve/5"
+        },
+        "ControlType": "ColorTune"
+      },
+      {
+        "href": "/zone/629",
+        "XID": "k-_MI7xkMoQfmKbCfX3gQ3",
+        "Name": "Coffee",
+        "AvailableControlTypes": [
+          "Dimmed",
+          "WhiteTune",
+          "WarmDim",
+          "ColorTune"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 2,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 4000
+          }
+        },
+        "DefaultDimCurve": {
+          "href": "/curve/5"
+        },
+        "ControlType": "ColorTune"
+      },
+      {
+        "href": "/zone/687",
+        "XID": "qDnWQ2kxWQR-VyZuQ24GJj",
+        "Name": "West Below Cabinets",
+        "AvailableControlTypes": [
+          "Dimmed",
+          "WhiteTune",
+          "WarmDim",
+          "ColorTune"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 3,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 4000
+          }
+        },
+        "DefaultDimCurve": {
+          "href": "/curve/5"
+        },
+        "ControlType": "ColorTune"
+      },
+      {
+        "href": "/zone/1238",
+        "XID": "RV4_EhVndynUNDXPGLXZ-j",
+        "Name": "West Above Cabinet",
+        "AvailableControlTypes": [
+          "Dimmed",
+          "WhiteTune",
+          "WarmDim",
+          "ColorTune"
+        ],
+        "Category": {
+          "Type": "",
+          "IsLight": true
+        },
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 5,
+        "ColorTuningProperties": {
+          "WhiteTuningLevelRange": {
+            "Min": 1800,
+            "Max": 4000
+          }
+        },
+        "DefaultDimCurve": {
+          "href": "/curve/5"
+        },
+        "ControlType": "ColorTune"
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area",
+    "MessageBodyType": "MultipleAreaDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Areas": [
+      {
+        "href": "/area/3",
+        "XID": "KvYuUNIdZnYt43nVw4I4sF",
+        "Name": "LEAP Testing",
+        "SortOrder": 0,
+        "IsLeaf": false
+      },
+      {
+        "href": "/area/114",
+        "XID": "7AwFOT3G5hVIt222PcCMM4",
+        "Name": "Floor 1",
+        "Parent": {
+          "href": "/area/3"
+        },
+        "SortOrder": 0,
+        "IsLeaf": false
+      },
+      {
+        "href": "/area/707",
+        "XID": "mzvknnpQe3PDOQTh15UJyp",
+        "Name": "Equipment Room",
+        "Parent": {
+          "href": "/area/114"
+        },
+        "SortOrder": 1,
+        "IsLeaf": true
+      },
+      {
+        "href": "/area/895",
+        "XID": "x5_Ch-gtZbBeISMn3f05Zf",
+        "Name": "Kitchen",
+        "Parent": {
+          "href": "/area/114"
+        },
+        "SortOrder": 0,
+        "IsLeaf": true
+      }
+    ]
+  }
+}
