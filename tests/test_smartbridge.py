@@ -240,9 +240,7 @@ class Bridge:
             fake_leap = await self.connections.get()
             if processor == CASETA_PROCESSOR:
                 await self._accept_connection(fake_leap, wait)
-            elif processor == RA3_PROCESSOR:
-                await self._accept_connection_ra3(fake_leap, wait)
-            elif processor in (HWQSX_PROCESSOR, ATHENA_PROCESSOR):
+            elif processor in (RA3_PROCESSOR, HWQSX_PROCESSOR, ATHENA_PROCESSOR):
                 await self._accept_connection_processor(fake_leap, wait, processor)
 
             await connect_task
@@ -469,99 +467,6 @@ class Bridge:
         target = self.button_led_lists.get(bridge_type)
         if target is not None:
             target.extend(button_leds)
-
-    async def _accept_connection_ra3(self, leap, wait):
-        """Accept a connection from SmartBridge (implementation)."""
-        ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
-
-        # Read request on /areas
-        ra3_area_list_result = response_from_json_file(f"{ra3_response_path}areas.json")
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/area")
-        response.set_result(ra3_area_list_result)
-        leap.requests.task_done()
-
-        # Read request on /project
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/project")
-        response.set_result(response_from_json_file(f"{ra3_response_path}project.json"))
-        leap.requests.task_done()
-
-        # Read request on /device?where=IsThisDevice:true
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}/processor.json")
-        )
-        leap.requests.task_done()
-
-        # Read request on each area's control stations & zones
-        for area_id in (
-            re.sub(r".*/", "", area["href"])
-            for area in ra3_area_list_result.Body.get("Areas", [])
-        ):
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="ReadRequest",
-                url=f"/area/{area_id}/associatedcontrolstation",
-            )
-            station_result = response_from_json_file(
-                f"{ra3_response_path}area/{area_id}/controlstation.json"
-            )
-            response.set_result(station_result)
-            leap.requests.task_done()
-            await self._process_station(station_result, leap, wait, RA3_PROCESSOR)
-
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
-            )
-            zone_result = response_from_json_file(
-                f"{ra3_response_path}area/{area_id}/associatedzone.json"
-            )
-            response.set_result(zone_result)
-            leap.requests.task_done()
-
-        # Read request on /zone/status
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="SubscribeRequest", url="/zone/status"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}zonestatus.json")
-        )
-        leap.requests.task_done()
-
-        # Subscribe request on /button/{button}/status/event
-        for button in self.ra3_button_list:
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
-            )
-            response.set_result(self.button_subscription_data_result)
-            leap.requests.task_done()
-
-        # Read request on /device?where=IsThisDevice:false
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}device-list.json")
-        )
-        leap.requests.task_done()
-
-        # Subscribe request on /area/status
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="SubscribeRequest", url="/area/status"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}area/status-subscribe.json")
-        )
-        leap.requests.task_done()
 
     async def _accept_connection_processor(self, leap, wait, processor):
         """Accept a connection as a mock RA3/QSX/Athena processor."""
