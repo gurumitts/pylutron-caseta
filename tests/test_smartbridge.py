@@ -78,6 +78,7 @@ class _FakeLeap:
             list
         )
         self._unsolicited: List[Callable[[Response], None]] = []
+        self.requests_seen: "List[Tuple[Request, asyncio.Future[Response]]]" = []
 
     async def request(
         self,
@@ -92,6 +93,7 @@ class _FakeLeap:
             communique_type=communique_type, url=url, body=body, paging=paging
         )
 
+        self.requests_seen.append((obj, future))
         await self.requests.put((obj, future))
 
         return await future
@@ -3043,6 +3045,59 @@ async def test_qsx_get_devices_for_invalid_zone(qsx_processor: Bridge):
         assert False
     except KeyError:
         assert True
+
+
+@pytest.mark.asyncio
+async def test_is_athena_connected(athena_processor: Bridge):
+    """The Athena processor completes the LEAP login handshake."""
+    assert athena_processor.target.is_connected() is True
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_loads_processor_as_device_one(athena_processor: Bridge):
+    """The processor is exposed as devices['1'] for Home Assistant."""
+    devices = athena_processor.target.get_devices()
+    processor = devices["1"]
+    assert processor["type"] == "AthenaProcessor"
+    assert processor["model"] == "REP-QP-2L"
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_does_not_use_caseta_only_endpoints(athena_processor: Bridge):
+    """Athena must not be sent Caseta-only requests such as Smart Away.
+
+    This is the regression guard for the original 400 BadRequest on
+    /system/away/1/status.
+    """
+    requested_urls = [request.url for request, _ in athena_processor.leap.requests_seen]
+    assert not any("/system/away" in url for url in requested_urls)
+    assert not any(url == "/scene" for url in requested_urls)
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_device_list(athena_processor: Bridge):
+    """Zones and the keypad from the captured project are loaded."""
+    devices = athena_processor.target.get_devices()
+
+    # Six zones live in area 895; see "Captured Athena project" above.
+    zone_ids = {"479", "582", "615", "629", "687", "1238"}
+    assert zone_ids.issubset(set(devices)), sorted(zone_ids - set(devices))
+
+    # The SeeTouchKeypad is loaded from the area's control station.
+    assert "812" in devices
+    assert devices["812"]["type"] == "SeeTouchKeypad"
+
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_loads_all_areas(athena_processor: Bridge):
+    """All four project areas load, including the three with no content."""
+    assert set(athena_processor.target.areas) == {"3", "114", "707", "895"}
+    await athena_processor.target.close()
 
 
 @pytest.mark.asyncio
