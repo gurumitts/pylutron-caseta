@@ -568,10 +568,10 @@ class Bridge:
         response_path = RESPONSE_PATH[processor]
 
         # Read request on /areas
-        qsx_area_list_result = response_from_json_file(f"{response_path}areas.json")
+        area_list_result = response_from_json_file(f"{response_path}areas.json")
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
-        response.set_result(qsx_area_list_result)
+        response.set_result(area_list_result)
         leap.requests.task_done()
 
         # Read request on /project
@@ -591,7 +591,7 @@ class Bridge:
         # Read request on each area's control stations & zones
         for area_id in (
             re.sub(r".*/", "", area["href"])
-            for area in qsx_area_list_result.Body.get("Areas", [])
+            for area in area_list_result.Body.get("Areas", [])
         ):
             request, response = await wait(leap.requests.get())
             assert request == Request(
@@ -3082,9 +3082,24 @@ async def test_athena_device_list(athena_processor: Bridge):
     """Zones and the keypad from the captured project are loaded."""
     devices = athena_processor.target.get_devices()
 
-    # Six zones live in area 895; see "Captured Athena project" above.
-    zone_ids = {"479", "582", "615", "629", "687", "1238"}
-    assert zone_ids.issubset(set(devices)), sorted(zone_ids - set(devices))
+    # Area 895 is the only area with zones in the captured fixtures; the
+    # other three areas return 204 NoContent for associatedzone.
+    expected_devices = {
+        "1",
+        "479",
+        "582",
+        "615",
+        "629",
+        "687",
+        "1238",
+        "812",
+        "819",
+        "820",
+        "821",
+        "822",
+        "823",
+    }
+    assert set(devices) == expected_devices
 
     # The SeeTouchKeypad is loaded from the area's control station.
     assert "812" in devices
@@ -3147,7 +3162,7 @@ async def test_on_connect_callback() -> None:
     await bridge.target.close()
 
 
-def test_processor_product_types_contains_all_processor_projects():
+def test_processor_product_types_contains_all_processor_projects() -> None:
     """All processor-based systems must route to the processor code path."""
     assert smartbridge.PROCESSOR_PRODUCT_TYPES == frozenset(
         {
@@ -3158,9 +3173,10 @@ def test_processor_product_types_contains_all_processor_projects():
     )
 
 
-def test_athena_project_fixture_declares_athena_product_type():
+def test_athena_project_fixture_declares_athena_product_type() -> None:
     """The captured fixture must carry the ProductType the library keys on."""
     project = response_from_json_file("athena/project.json")
+    assert project.Body is not None
     product_type = project.Body["Project"]["ProductType"]
     assert product_type == "Lutron Athena Project"
     assert product_type in smartbridge.PROCESSOR_PRODUCT_TYPES
