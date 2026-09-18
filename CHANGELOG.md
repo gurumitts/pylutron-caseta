@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BUTTON_STATUS_LONG_HOLD` constant for the `LongHold` LEAP button event
   emitted by HomeWorks QSX processors.
+- Add support for Lutron Athena processors (ProductType `"Lutron Athena Project"`).
 
 ## [0.29.0] - 2026-06-09
 
