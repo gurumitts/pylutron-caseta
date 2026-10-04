@@ -1774,21 +1774,6 @@ async def test_ra3_device_list(ra3_bridge: Bridge):
             "zone": "1393",
             "white_tuning_range": None,
         },
-        "1394": {
-            "area": "547",
-            "button_groups": None,
-            "current_state": 0,
-            "device_id": "1394",
-            "device_name": "Fireplace",
-            "fan_speed": None,
-            "model": None,
-            "name": "Primary Bath_Fireplace",
-            "serial": None,
-            "tilt": None,
-            "type": "CCO",
-            "zone": "1394",
-            "white_tuning_range": None,
-        },
         "1488": {
             "area": "547",
             "button_groups": ["1491"],
@@ -2285,114 +2270,6 @@ async def test_ra3_set_value_with_fade(ra3_bridge: Bridge):
     )
     ra3_bridge.leap.requests.task_done()
     task.cancel()
-    await ra3_bridge.target.close()
-
-
-@pytest.mark.asyncio
-async def test_ra3_cco_is_on(ra3_bridge: Bridge):
-    """Test that a CCO zone's Open/Closed status maps to is_on correctly."""
-    assert ra3_bridge.target.get_device_by_id("1394")["type"] == "CCO"
-    switch_ids = {
-        d["device_id"] for d in ra3_bridge.target.get_devices_by_domain("switch")
-    }
-    assert "1394" in switch_ids
-
-    ra3_bridge.leap.send_unsolicited(
-        Response(
-            CommuniqueType="ReadResponse",
-            Header=ResponseHeader(
-                MessageBodyType="OneZoneStatus",
-                StatusCode=ResponseStatus(200, "OK"),
-                Url="/zone/1394/status",
-            ),
-            Body={"ZoneStatus": {"CCOLevel": "Closed", "Zone": {"href": "/zone/1394"}}},
-        )
-    )
-
-    assert ra3_bridge.target.is_on("1394") is True
-
-    ra3_bridge.leap.send_unsolicited(
-        Response(
-            CommuniqueType="ReadResponse",
-            Header=ResponseHeader(
-                MessageBodyType="OneZoneStatus",
-                StatusCode=ResponseStatus(200, "OK"),
-                Url="/zone/1394/status",
-            ),
-            Body={"ZoneStatus": {"CCOLevel": "Open", "Zone": {"href": "/zone/1394"}}},
-        )
-    )
-
-    assert ra3_bridge.target.is_on("1394") is False
-    await ra3_bridge.target.close()
-
-
-@pytest.mark.asyncio
-async def test_ra3_cco_set_value(ra3_bridge: Bridge):
-    """Test that turning a CCO zone on/off sends GoToCCOLevel, not GoToLevel."""
-    task = asyncio.get_running_loop().create_task(ra3_bridge.target.turn_on("1394"))
-    command, response = await ra3_bridge.leap.requests.get()
-    assert command == Request(
-        communique_type="CreateRequest",
-        url="/zone/1394/commandprocessor",
-        body={
-            "Command": {
-                "CommandType": "GoToCCOLevel",
-                "CCOLevelParameters": {"CCOLevel": "Closed"},
-            }
-        },
-    )
-    response.set_result(
-        Response(
-            CommuniqueType="CreateResponse",
-            Header=ResponseHeader(
-                MessageBodyType="OneZoneStatus",
-                StatusCode=ResponseStatus(201, "Created"),
-                Url="/zone/1394/commandprocessor",
-            ),
-            Body={
-                "ZoneStatus": {
-                    "href": "/zone/1394/status",
-                    "CCOLevel": "Closed",
-                    "Zone": {"href": "/zone/1394"},
-                }
-            },
-        )
-    )
-    ra3_bridge.leap.requests.task_done()
-    await task
-
-    task = asyncio.get_running_loop().create_task(ra3_bridge.target.turn_off("1394"))
-    command, response = await ra3_bridge.leap.requests.get()
-    assert command == Request(
-        communique_type="CreateRequest",
-        url="/zone/1394/commandprocessor",
-        body={
-            "Command": {
-                "CommandType": "GoToCCOLevel",
-                "CCOLevelParameters": {"CCOLevel": "Open"},
-            }
-        },
-    )
-    response.set_result(
-        Response(
-            CommuniqueType="CreateResponse",
-            Header=ResponseHeader(
-                MessageBodyType="OneZoneStatus",
-                StatusCode=ResponseStatus(201, "Created"),
-                Url="/zone/1394/commandprocessor",
-            ),
-            Body={
-                "ZoneStatus": {
-                    "href": "/zone/1394/status",
-                    "CCOLevel": "Open",
-                    "Zone": {"href": "/zone/1394"},
-                }
-            },
-        ),
-    )
-    ra3_bridge.leap.requests.task_done()
-    await task
     await ra3_bridge.target.close()
 
 

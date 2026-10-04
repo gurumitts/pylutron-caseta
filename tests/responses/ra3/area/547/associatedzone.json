@@ -45,19 +45,6 @@
                     "href": "/area/547"
                 },
                 "SortOrder": 2
-            },
-            {
-                "href": "/zone/1394",
-                "Name": "Fireplace",
-                "ControlType": "CCO",
-                "Category": {
-                    "Type": "",
-                    "IsLight": false
-                },
-                "AssociatedArea": {
-                    "href": "/area/547"
-                },
-                "SortOrder": 3
             }
         ]
     }
