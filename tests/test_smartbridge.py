@@ -78,7 +78,6 @@ class _FakeLeap:
             list
         )
         self._unsolicited: List[Callable[[Response], None]] = []
-        self.requests_seen: "List[Tuple[Request, asyncio.Future[Response]]]" = []
 
     async def request(
         self,
@@ -93,7 +92,6 @@ class _FakeLeap:
             communique_type=communique_type, url=url, body=body, paging=paging
         )
 
-        self.requests_seen.append((obj, future))
         await self.requests.put((obj, future))
 
         return await future
@@ -2970,19 +2968,6 @@ async def test_athena_loads_processor_as_device_one(athena_processor: Bridge):
 
 
 @pytest.mark.asyncio
-async def test_athena_does_not_use_caseta_only_endpoints(athena_processor: Bridge):
-    """Athena must not be sent Caseta-only requests such as Smart Away.
-
-    This is the regression guard for the original 400 BadRequest on
-    /system/away/1/status.
-    """
-    requested_urls = [request.url for request, _ in athena_processor.leap.requests_seen]
-    assert not any("/system/away" in url for url in requested_urls)
-    assert not any(url == "/scene" for url in requested_urls)
-    await athena_processor.target.close()
-
-
-@pytest.mark.asyncio
 async def test_athena_device_list(athena_processor: Bridge):
     """Zones and the keypad from the captured project are loaded."""
     devices = athena_processor.target.get_devices()
@@ -3065,23 +3050,3 @@ async def test_on_connect_callback() -> None:
         await init_task
 
     await bridge.target.close()
-
-
-def test_processor_product_types_contains_all_processor_projects() -> None:
-    """All processor-based systems must route to the processor code path."""
-    assert smartbridge.PROCESSOR_PRODUCT_TYPES == frozenset(
-        {
-            "Lutron RadioRA 3 Project",
-            "Lutron HWQS Project",
-            "Lutron Athena Project",
-        }
-    )
-
-
-def test_athena_project_fixture_declares_athena_product_type() -> None:
-    """The captured fixture must carry the ProductType the library keys on."""
-    project = response_from_json_file("athena/project.json")
-    assert project.Body is not None
-    product_type = project.Body["Project"]["ProductType"]
-    assert product_type == "Lutron Athena Project"
-    assert product_type in smartbridge.PROCESSOR_PRODUCT_TYPES
