@@ -57,6 +57,7 @@ _LEAP_DEVICE_TYPES = {
         "Switched",
         "KeypadLED",
         "DivaSmartSwitch",
+        "CCO",
     ],
     "fan": [
         "CasetaFanSpeedController",

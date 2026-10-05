@@ -103,6 +103,14 @@
       "StatusAccuracy": "Good"
     },
     {
+      "href": "/zone/993/status",
+      "CCOLevel": "Open",
+      "Zone": {
+        "href": "/zone/993"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
       "href": "/zone/1692/status",
       "Level": 50,
       "Vibrancy": 25,

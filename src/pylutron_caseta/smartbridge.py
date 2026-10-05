@@ -443,6 +443,25 @@ class Smartbridge:
         if not zone_id:
             return
 
+        # Handle CCO (Contact Closure Output) zones -- e.g. a gas fireplace
+        # or irrigation valve relay. These don't take a 0-100 Level like a
+        # dimmer/switch; LEAP commands them with a discrete Open/Closed
+        # state via a dedicated CommandType instead.
+        if device.get("type") == "CCO":
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToCCOLevel",
+                        "CCOLevelParameters": {
+                            "CCOLevel": "Closed" if value else "Open"
+                        },
+                    }
+                },
+            )
+            return
+
         # Handle Ketra lamps and Lumaris RGB + Tunable White Tape Light
         if device.get("type") in ["SpectrumTune", "ColorTune"]:
             spectrum_params: Dict[str, Union[str, int]] = {}
@@ -747,6 +766,13 @@ class Smartbridge:
     def _handle_zone_status(self, status):
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
+        # CCO (Contact Closure Output) zones report their state via CCOLevel
+        # ("Open"/"Closed") instead of Level -- map it onto the same
+        # current_state convention (>0 means on) used by every other zone
+        # type, rather than leaving it at the -1 default forever.
+        cco_level = status.get("CCOLevel")
+        if cco_level is not None:
+            level = 100 if cco_level == "Closed" else 0
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
         color = ColorMode.get_color_from_leap(status)

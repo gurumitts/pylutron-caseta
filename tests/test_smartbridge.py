@@ -2293,6 +2293,114 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge):
     await qsx_processor.target.close()
 
 
+@pytest.mark.asyncio
+async def test_qsx_cco_is_on(qsx_processor: Bridge):
+    """Test that a CCO zone's Open/Closed status maps to is_on correctly."""
+    assert qsx_processor.target.get_device_by_id("993")["type"] == "CCO"
+    switch_ids = {
+        d["device_id"] for d in qsx_processor.target.get_devices_by_domain("switch")
+    }
+    assert "993" in switch_ids
+
+    qsx_processor.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/993/status",
+            ),
+            Body={"ZoneStatus": {"CCOLevel": "Closed", "Zone": {"href": "/zone/993"}}},
+        )
+    )
+
+    assert qsx_processor.target.is_on("993") is True
+
+    qsx_processor.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/993/status",
+            ),
+            Body={"ZoneStatus": {"CCOLevel": "Open", "Zone": {"href": "/zone/993"}}},
+        )
+    )
+
+    assert qsx_processor.target.is_on("993") is False
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_cco_set_value(qsx_processor: Bridge):
+    """Test that turning a CCO zone on/off sends GoToCCOLevel, not GoToLevel."""
+    task = asyncio.get_running_loop().create_task(qsx_processor.target.turn_on("993"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/993/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToCCOLevel",
+                "CCOLevelParameters": {"CCOLevel": "Closed"},
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/993/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/993/status",
+                    "CCOLevel": "Closed",
+                    "Zone": {"href": "/zone/993"},
+                }
+            },
+        )
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+
+    task = asyncio.get_running_loop().create_task(qsx_processor.target.turn_off("993"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/993/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToCCOLevel",
+                "CCOLevelParameters": {"CCOLevel": "Open"},
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/993/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/993/status",
+                    "CCOLevel": "Open",
+                    "Zone": {"href": "/zone/993"},
+                }
+            },
+        ),
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+    await qsx_processor.target.close()
+
+
 @pytest.mark.parametrize(
     ("method_name", "command_type"),
     [
