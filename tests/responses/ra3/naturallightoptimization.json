@@ -1,0 +1,78 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/system/naturallightoptimization",
+    "MessageBodyType": "MultipleNaturalLightOptimizationDefinition"
+  },
+  "Body": {
+    "NaturalLightOptimizations": [
+      {
+        "href": "/naturallightoptimization/9001",
+        "StartTime": {
+          "NaturalLightOptimizationEventType": "Astronomic",
+          "AstronomicEventType": "Sunrise",
+          "AstronomicTimeOffset": "0"
+        },
+        "EndTime": {
+          "NaturalLightOptimizationEventType": "Astronomic",
+          "AstronomicEventType": "Sunset",
+          "AstronomicTimeOffset": "0"
+        },
+        "AssociatedAreas": [
+          {
+            "href": "/area/547",
+            "Name": "Primary Bath",
+            "AffectedZones": [
+              {
+                "href": "/zone/1377",
+                "Name": "Shower & Tub"
+              }
+            ]
+          }
+        ],
+        "AffectedResources": [
+          {
+            "href": "/naturallightoptimization/9001/affectedresource/9002",
+            "Resource": {
+              "href": "/zone/1377"
+            }
+          }
+        ]
+      },
+      {
+        "href": "/naturallightoptimization/9003",
+        "StartTime": {
+          "NaturalLightOptimizationEventType": "Astronomic",
+          "AstronomicEventType": "Sunrise",
+          "AstronomicTimeOffset": "0"
+        },
+        "EndTime": {
+          "NaturalLightOptimizationEventType": "Astronomic",
+          "AstronomicEventType": "Sunset",
+          "AstronomicTimeOffset": "0"
+        },
+        "AssociatedAreas": [
+          {
+            "href": "/area/766",
+            "Name": "Entry",
+            "AffectedZones": [
+              {
+                "href": "/zone/2107",
+                "Name": "Landscape"
+              }
+            ]
+          }
+        ],
+        "AffectedResources": [
+          {
+            "href": "/naturallightoptimization/9003/affectedresource/9004",
+            "Resource": {
+              "href": "/zone/2107"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
