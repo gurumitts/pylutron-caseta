@@ -31,6 +31,17 @@ _KEYPADS = [
     "N-CVLpqtTTOIeG-4hcjKgw",  # Vierti Hybrid Keypad (HD-4B, HD-3RL)
 ]
 
+# ProductType values reported by /project for processor-based systems.
+# These share the LEAP area -> control-station -> zone device model, unlike
+# the Caseta Smart Bridge which exposes /device and /scene directly.
+PROCESSOR_PRODUCT_TYPES = frozenset(
+    {
+        "Lutron RadioRA 3 Project",
+        "Lutron HWQS Project",
+        "Lutron Athena Project",
+    }
+)
+
 _LEAP_DEVICE_TYPES = {
     "light": [
         "WallDimmer",

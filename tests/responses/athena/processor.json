@@ -1,0 +1,81 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device?where=IsThisDevice:true",
+    "MessageBodyType": "MultipleDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Devices": [
+      {
+        "Name": "Enclosure Device 001",
+        "DeviceType": "AthenaProcessor",
+        "AssociatedArea": {
+          "href": "/area/707"
+        },
+        "href": "/device/779",
+        "SerialNumber": 87654323,
+        "NetworkInterfaces": [
+          {
+            "MACAddress": "aa:bb:cc:dd:ee:ff"
+          }
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "REP-QP-2L",
+        "OwnedLinks": [
+          {
+            "href": "/link/781",
+            "LinkType": "QS"
+          },
+          {
+            "href": "/link/786",
+            "LinkType": "QS"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/779/linknode/780"
+          },
+          {
+            "href": "/device/779/linknode/785"
+          }
+        ],
+        "FirmwareImage": {
+          "Firmware": {
+            "DisplayName": "26.06.45f000"
+          },
+          "Installed": {
+            "Year": 2026,
+            "Month": 9,
+            "Day": 14,
+            "Hour": 16,
+            "Minute": 48,
+            "Second": 30,
+            "Utc": "-5:00:00"
+          }
+        },
+        "DeviceFirmwarePackage": {
+          "Package": {
+            "DisplayName": "002.025.033r000"
+          }
+        },
+        "Databases": [
+          {
+            "href": "/database/@Project",
+            "Type": "Project"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "8130101"
+        },
+        "AddressedState": "Addressed",
+        "IsThisDevice": true,
+        "AssociatedLink": {
+          "href": "/link/786"
+        }
+      }
+    ]
+  }
+}

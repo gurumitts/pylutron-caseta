@@ -1,0 +1,45 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device/812",
+    "MessageBodyType": "OneDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Device": {
+      "Name": "Device 1",
+      "DeviceType": "SeeTouchKeypad",
+      "AssociatedArea": {
+        "href": "/area/895"
+      },
+      "AssociatedControlStation": {
+        "href": "/controlstation/810",
+        "XID": "7PinDbPs4J8RuC9tYMZbTa"
+      },
+      "href": "/device/812",
+      "SerialNumber": 87654321,
+      "Parent": {
+        "href": "/project"
+      },
+      "ModelNumber": "QSWS2-5BRLI",
+      "LinkNodes": [
+        {
+          "href": "/device/812/linknode/814"
+        }
+      ],
+      "FirmwareImage": {
+        "href": "/firmwareimage/812",
+        "Device": {
+          "href": "/device/812"
+        }
+      },
+      "DeviceClass": {
+        "HexadecimalEncoding": "1010201"
+      },
+      "AddressedState": "Addressed",
+      "AssociatedLink": {
+        "href": "/link/781"
+      }
+    }
+  }
+}
