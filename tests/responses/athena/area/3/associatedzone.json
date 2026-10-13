@@ -1,0 +1,9 @@
+{
+  "Header": {
+    "StatusCode": "204 NoContent",
+    "Url": "/area/3/associatedzone",
+    "MessageBodyType": null
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": null
+}

@@ -1,0 +1,42 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/project",
+    "MessageBodyType": "OneProjectDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Project": {
+      "href": "/project",
+      "Name": "LEAP Testing",
+      "ProductType": "Lutron Athena Project",
+      "MasterDeviceList": {
+        "Devices": [
+          {
+            "href": "/device/779"
+          },
+          {
+            "href": "/device/722"
+          }
+        ]
+      },
+      "Contacts": [
+        {
+          "href": "/contactinfo/149"
+        }
+      ],
+      "TimeclockEventRules": {
+        "href": "/project/timeclockeventrules"
+      },
+      "ProjectModifiedTimestamp": {
+        "Year": 2026,
+        "Month": 9,
+        "Day": 14,
+        "Hour": 22,
+        "Minute": 3,
+        "Second": 55,
+        "Utc": "0"
+      }
+    }
+  }
+}
