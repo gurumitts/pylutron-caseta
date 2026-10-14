@@ -131,6 +131,7 @@ class Smartbridge:
         blocking disk IO.
         """
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.check_hostname = False
         ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
         ssl_context.load_cert_chain(certfile, keyfile)

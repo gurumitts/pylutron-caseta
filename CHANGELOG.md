@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   emitted by HomeWorks QSX processors.
 - Support for Lutron Athena processors (`ProductType` `"Lutron Athena Project"`).
 
+### Fixed
+
+- TLS connections on Python 3.14.8, while retaining paired certificate
+  verification and suppressing SNI.
+
 ## [0.29.0] - 2026-06-09
 
 ### Added
