@@ -131,7 +131,6 @@ class Smartbridge:
         blocking disk IO.
         """
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        # Bridge connections omit SNI but still verify the paired CA.
         ssl_context.check_hostname = False
         ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
         ssl_context.load_verify_locations(ca_certs)
