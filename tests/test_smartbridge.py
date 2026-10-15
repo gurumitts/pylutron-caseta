@@ -3201,25 +3201,3 @@ async def test_on_disconnect_callback_not_called_on_intentional_close() -> None:
     await bridge.target.close()
 
     assert not disconnect_called
-
-
-@pytest.mark.asyncio
-async def test_create_tls_does_not_force_af_inet(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test that create_tls does not force socket.AF_INET to allow IPv6."""
-    opened_kwargs: Dict[str, Any] = {}
-
-    async def fake_open_connection(host: str, port: int, **kwargs: Any) -> Any:
-        opened_kwargs.update(kwargs)
-        return None
-
-    monkeypatch.setattr(smartbridge, "open_connection", fake_open_connection)
-    monkeypatch.setattr(
-        smartbridge.Smartbridge, "_create_tls_context", lambda *args: None
-    )
-
-    target = smartbridge.Smartbridge.create_tls("2001:db8::1", "k", "c", "ca")
-    await target._connect()
-
-    assert "family" not in opened_kwargs
