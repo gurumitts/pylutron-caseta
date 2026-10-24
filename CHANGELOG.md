@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.30.1] - 2026-10-24
+
+### Fixed
+
+- LAP pairing blocking file IO in asyncio loop
+
 ## [0.30.0] - 2026-10-24
 
 ### Added
@@ -401,7 +407,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ability to interact with Caséta bridge using LIP over Telnet and LEAP over SSH.
 
-[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.30.0...HEAD
+[unreleased]: https://github.com/gurumitts/pylutron-caseta/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/gurumitts/pylutron-caseta/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/gurumitts/pylutron-caseta/compare/v0.27.0...v0.28.0
