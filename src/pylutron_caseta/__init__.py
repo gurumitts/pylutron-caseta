@@ -31,6 +31,17 @@ _KEYPADS = [
     "N-CVLpqtTTOIeG-4hcjKgw",  # Vierti Hybrid Keypad (HD-4B, HD-3RL)
 ]
 
+# ProductType values reported by /project for processor-based systems.
+# These share the LEAP area -> control-station -> zone device model, unlike
+# the Caseta Smart Bridge which exposes /device and /scene directly.
+PROCESSOR_PRODUCT_TYPES = frozenset(
+    {
+        "Lutron RadioRA 3 Project",
+        "Lutron HWQS Project",
+        "Lutron Athena Project",
+    }
+)
+
 _LEAP_DEVICE_TYPES = {
     "light": [
         "WallDimmer",
@@ -57,6 +68,7 @@ _LEAP_DEVICE_TYPES = {
         "Switched",
         "KeypadLED",
         "DivaSmartSwitch",
+        "CCO",
     ],
     "fan": [
         "CasetaFanSpeedController",
@@ -79,6 +91,7 @@ _LEAP_DEVICE_TYPES = {
         "SerenaTiltOnlyWoodBlind",
         "PalladiomWireFreeShade",
         "SerenaEssentialsRollerShade",
+        "OpenCloseStop",
     ],
     "sensor": [
         "FourGroupRemote",
@@ -107,6 +120,7 @@ RA3_OCCUPANCY_SENSOR_DEVICE_TYPES = [
 BUTTON_STATUS_PRESSED = "Press"
 BUTTON_STATUS_RELEASED = "Release"
 BUTTON_STATUS_MULTITAP = "MultiTap"
+BUTTON_STATUS_LONG_HOLD = "LongHold"
 
 
 class BridgeDisconnectedError(Exception):

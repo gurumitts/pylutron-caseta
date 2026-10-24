@@ -102,6 +102,19 @@
             "Max": 5000
           }
         }
+      },
+      {
+        "href": "/zone/993",
+        "Name": "Fireplace",
+        "ControlType": "CCO",
+        "Category": {
+          "Type": "",
+          "IsLight": false
+        },
+        "AssociatedArea": {
+          "href": "/area/804"
+        },
+        "SortOrder": 3
       }
     ]
   }

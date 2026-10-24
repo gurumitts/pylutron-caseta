@@ -42,11 +42,13 @@ _LOG = logging.getLogger(__name__)
 CASETA_PROCESSOR = "Caseta"
 RA3_PROCESSOR = "RA3"
 HWQSX_PROCESSOR = "QSX"
+ATHENA_PROCESSOR = "Athena"
 
 RESPONSE_PATH = {
     CASETA_PROCESSOR: "",
     RA3_PROCESSOR: "ra3/",
     HWQSX_PROCESSOR: "hwqsx/",
+    ATHENA_PROCESSOR: "athena/",
 }
 
 
@@ -153,10 +155,11 @@ T = TypeVar("T")
 class Bridge:
     """A test harness around SmartBridge."""
 
-    def __init__(self, on_connect_callback=None):
+    def __init__(self, on_connect_callback=None, on_disconnect_callback=None):
         """Create a new Bridge in a disconnected state."""
         self.connections = asyncio.Queue()
         self.leap = None
+        self._on_disconnect_callback = on_disconnect_callback
 
         self.button_list_result = response_from_json_file("buttons.json")
         self.occupancy_group_list_result = response_from_json_file(
@@ -178,6 +181,8 @@ class Bridge:
         self.ra3_button_led_list = []
         self.qsx_button_list = []
         self.qsx_button_led_list = []
+        self.athena_button_list = []
+        self.athena_button_led_list = []
 
         async def fake_connect():
             """Open a fake LEAP connection for the test."""
@@ -185,7 +190,27 @@ class Bridge:
             await self.connections.put(leap)
             return leap
 
-        self.target = smartbridge.Smartbridge(fake_connect, on_connect_callback)
+        self.target = smartbridge.Smartbridge(
+            fake_connect, on_connect_callback, on_disconnect_callback
+        )
+
+    @property
+    def button_lists(self):
+        """Map each processor type to its collected button ids."""
+        return {
+            RA3_PROCESSOR: self.ra3_button_list,
+            HWQSX_PROCESSOR: self.qsx_button_list,
+            ATHENA_PROCESSOR: self.athena_button_list,
+        }
+
+    @property
+    def button_led_lists(self):
+        """Map each processor type to its collected button LED ids."""
+        return {
+            RA3_PROCESSOR: self.ra3_button_led_list,
+            HWQSX_PROCESSOR: self.qsx_button_led_list,
+            ATHENA_PROCESSOR: self.athena_button_led_list,
+        }
 
     async def initialize(self, processor=CASETA_PROCESSOR):
         """Perform the initial connection with SmartBridge."""
@@ -216,10 +241,8 @@ class Bridge:
             fake_leap = await self.connections.get()
             if processor == CASETA_PROCESSOR:
                 await self._accept_connection(fake_leap, wait)
-            elif processor == RA3_PROCESSOR:
-                await self._accept_connection_ra3(fake_leap, wait)
-            elif processor == HWQSX_PROCESSOR:
-                await self._accept_connection_qsx(fake_leap, wait)
+            elif processor in (RA3_PROCESSOR, HWQSX_PROCESSOR, ATHENA_PROCESSOR):
+                await self._accept_connection_processor(fake_leap, wait, processor)
 
             await connect_task
 
@@ -425,10 +448,9 @@ class Bridge:
                 for button in group["Buttons"]
             ]
         )
-        if bridge_type == RA3_PROCESSOR:
-            self.ra3_button_list.extend(buttons)
-        elif bridge_type == HWQSX_PROCESSOR:
-            self.qsx_button_list.extend(buttons)
+        target = self.button_lists.get(bridge_type)
+        if target is not None:
+            target.extend(buttons)
 
     def _populate_button_led_list_from_buttongroups(self, buttongroups, bridge_type):
         """Add button LEDs from a set of buttongroups to the proper processor list
@@ -443,26 +465,25 @@ class Bridge:
             for button in group["Buttons"]:
                 if button.get("AssociatedLED", None) is not None:
                     button_leds.append(id_from_href(button["AssociatedLED"]["href"]))
-        if bridge_type == RA3_PROCESSOR:
-            self.ra3_button_led_list.extend(button_leds)
-        elif bridge_type == HWQSX_PROCESSOR:
-            self.qsx_button_led_list.extend(button_leds)
+        target = self.button_led_lists.get(bridge_type)
+        if target is not None:
+            target.extend(button_leds)
 
-    async def _accept_connection_ra3(self, leap, wait):
-        """Accept a connection from SmartBridge (implementation)."""
-        ra3_response_path = RESPONSE_PATH[RA3_PROCESSOR]
+    async def _accept_connection_processor(self, leap, wait, processor):
+        """Accept a connection as a mock RA3/QSX/Athena processor."""
+        response_path = RESPONSE_PATH[processor]
 
         # Read request on /areas
-        ra3_area_list_result = response_from_json_file(f"{ra3_response_path}areas.json")
+        area_list_result = response_from_json_file(f"{response_path}areas.json")
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/area")
-        response.set_result(ra3_area_list_result)
+        response.set_result(area_list_result)
         leap.requests.task_done()
 
         # Read request on /project
         request, response = await wait(leap.requests.get())
         assert request == Request(communique_type="ReadRequest", url="/project")
-        response.set_result(response_from_json_file(f"{ra3_response_path}project.json"))
+        response.set_result(response_from_json_file(f"{response_path}project.json"))
         leap.requests.task_done()
 
         # Read request on /device?where=IsThisDevice:true
@@ -470,15 +491,13 @@ class Bridge:
         assert request == Request(
             communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
         )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}/processor.json")
-        )
+        response.set_result(response_from_json_file(f"{response_path}processor.json"))
         leap.requests.task_done()
 
         # Read request on each area's control stations & zones
         for area_id in (
             re.sub(r".*/", "", area["href"])
-            for area in ra3_area_list_result.Body.get("Areas", [])
+            for area in area_list_result.Body.get("Areas", [])
         ):
             request, response = await wait(leap.requests.get())
             assert request == Request(
@@ -486,109 +505,12 @@ class Bridge:
                 url=f"/area/{area_id}/associatedcontrolstation",
             )
             station_result = response_from_json_file(
-                f"{ra3_response_path}area/{area_id}/controlstation.json"
-            )
-            response.set_result(station_result)
-            leap.requests.task_done()
-            await self._process_station(station_result, leap, wait, RA3_PROCESSOR)
-
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
-            )
-            zone_result = response_from_json_file(
-                f"{ra3_response_path}area/{area_id}/associatedzone.json"
-            )
-            response.set_result(zone_result)
-            leap.requests.task_done()
-
-        # Read request on /zone/status
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="SubscribeRequest", url="/zone/status"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}zonestatus.json")
-        )
-        leap.requests.task_done()
-
-        # Subscribe request on /button/{button}/status/event
-        for button in self.ra3_button_list:
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
-            )
-            response.set_result(self.button_subscription_data_result)
-            leap.requests.task_done()
-
-        # Read request on /device?where=IsThisDevice:false
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}device-list.json")
-        )
-        leap.requests.task_done()
-
-        # Subscribe request on /area/status
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="SubscribeRequest", url="/area/status"
-        )
-        response.set_result(
-            response_from_json_file(f"{ra3_response_path}area/status-subscribe.json")
-        )
-        leap.requests.task_done()
-
-    async def _accept_connection_qsx(self, leap, wait):
-        """Accept a connection as a mock QSX processor (implementation)."""
-        hwqsx_response_path = RESPONSE_PATH[HWQSX_PROCESSOR]
-
-        # Read request on /areas
-        qsx_area_list_result = response_from_json_file(
-            f"{hwqsx_response_path}areas.json"
-        )
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/area")
-        response.set_result(qsx_area_list_result)
-        leap.requests.task_done()
-
-        # Read request on /project
-        request, response = await wait(leap.requests.get())
-        assert request == Request(communique_type="ReadRequest", url="/project")
-        response.set_result(
-            response_from_json_file(f"{hwqsx_response_path}project.json")
-        )
-        leap.requests.task_done()
-
-        # Read request on /device?where=IsThisDevice:true
-        request, response = await wait(leap.requests.get())
-        assert request == Request(
-            communique_type="ReadRequest", url="/device?where=IsThisDevice:true"
-        )
-        response.set_result(
-            response_from_json_file(f"{hwqsx_response_path}processor.json")
-        )
-        leap.requests.task_done()
-
-        # Read request on each area's control stations & zones
-        for area_id in (
-            re.sub(r".*/", "", area["href"])
-            for area in qsx_area_list_result.Body.get("Areas", [])
-        ):
-            request, response = await wait(leap.requests.get())
-            assert request == Request(
-                communique_type="ReadRequest",
-                url=f"/area/{area_id}/associatedcontrolstation",
-            )
-            station_result = response_from_json_file(
-                f"{hwqsx_response_path}area/{area_id}/controlstation.json"
+                f"{response_path}area/{area_id}/controlstation.json"
             )
             response.set_result(station_result)
             leap.requests.task_done()
             await self._process_station(
-                station_result, leap, wait, bridge_type=HWQSX_PROCESSOR
+                station_result, leap, wait, bridge_type=processor
             )
 
             request, response = await wait(leap.requests.get())
@@ -596,7 +518,7 @@ class Bridge:
                 communique_type="ReadRequest", url=f"/area/{area_id}/associatedzone"
             )
             zone_result = response_from_json_file(
-                f"{hwqsx_response_path}area/{area_id}/associatedzone.json"
+                f"{response_path}area/{area_id}/associatedzone.json"
             )
             response.set_result(zone_result)
             leap.requests.task_done()
@@ -606,13 +528,11 @@ class Bridge:
         assert request == Request(
             communique_type="SubscribeRequest", url="/zone/status"
         )
-        response.set_result(
-            response_from_json_file(f"{hwqsx_response_path}zonestatus.json")
-        )
+        response.set_result(response_from_json_file(f"{response_path}zonestatus.json"))
         leap.requests.task_done()
 
         # Subscribe request on /button/{button}/status/event
-        for button in self.qsx_button_list:
+        for button in self.button_lists[processor]:
             request, response = await wait(leap.requests.get())
             assert request == Request(
                 communique_type="SubscribeRequest", url=f"/button/{button}/status/event"
@@ -625,9 +545,7 @@ class Bridge:
         assert request == Request(
             communique_type="ReadRequest", url="/device?where=IsThisDevice:false"
         )
-        response.set_result(
-            response_from_json_file(f"{hwqsx_response_path}device-list.json")
-        )
+        response.set_result(response_from_json_file(f"{response_path}device-list.json"))
         leap.requests.task_done()
 
         # Subscribe request on /area/status
@@ -636,7 +554,7 @@ class Bridge:
             communique_type="SubscribeRequest", url="/area/status"
         )
         response.set_result(
-            response_from_json_file(f"{hwqsx_response_path}area/status-subscribe.json")
+            response_from_json_file(f"{response_path}area/status-subscribe.json")
         )
         leap.requests.task_done()
 
@@ -697,6 +615,14 @@ async def fixture_bridge_ra3(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, No
 async def fixture_bridge_qsx(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, None]:
     """Create a QSX processor attached to a fake reader and writer."""
     await bridge_uninit.initialize(HWQSX_PROCESSOR)
+
+    yield bridge_uninit
+
+
+@pytest_asyncio.fixture(name="athena_processor")
+async def fixture_bridge_athena(bridge_uninit: Bridge) -> AsyncGenerator[Bridge, None]:
+    """Create an Athena processor attached to a fake reader and writer."""
+    await bridge_uninit.initialize(ATHENA_PROCESSOR)
 
     yield bridge_uninit
 
@@ -1644,6 +1570,42 @@ async def test_reconnect_error(bridge: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_relogin_failure_closes_connection(
+    bridge: Bridge, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that a failed re-login tears down the connection and retries.
+
+    Regression test for the "half-alive" state seen when a processor reboots:
+    if a request made during re-login fails (for example, it times out because
+    the processor is still starting up), the bridge must close the connection
+    and retry login on a new connection instead of leaving a session where
+    commands work but status subscriptions were never re-established.
+    """
+    # Reconnect immediately, so the test can wait for each reconnect directly
+    # instead of for a set number of event loop iterations.
+    monkeypatch.setattr(smartbridge, "RECONNECT_DELAY", 0.0)
+
+    bridge.disconnect()
+
+    # Accept the new connection, but fail the first login request, simulating
+    # a processor that accepts connections but is too slow to answer.
+    leap = await bridge.connections.get()
+    request, response = await leap.requests.get()
+    assert request == Request(communique_type="ReadRequest", url="/area")
+    response.set_exception(asyncio.TimeoutError())
+    leap.requests.task_done()
+    bridge.connections.task_done()
+
+    # The bridge should close the half-logged-in connection and reconnect.
+    # accept_connection completes the full login sequence, including
+    # accept_connection waits for that new connection and completes the full
+    # login sequence, including re-subscribing to status updates.
+    await bridge.accept_connection()
+
+    assert bridge.target.is_connected()
+
+
+@pytest.mark.asyncio
 async def test_reconnect_timeout():
     """Test that SmartBridge can reconnect if the remote does not respond."""
     bridge = Bridge()
@@ -2287,6 +2249,156 @@ async def test_qsx_set_keypad_led_value(qsx_processor: Bridge):
     )
     qsx_processor.leap.requests.task_done()
     task.cancel()
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_cco_is_on(qsx_processor: Bridge):
+    """Test that a CCO zone's Open/Closed status maps to is_on correctly."""
+    assert qsx_processor.target.get_device_by_id("993")["type"] == "CCO"
+    switch_ids = {
+        d["device_id"] for d in qsx_processor.target.get_devices_by_domain("switch")
+    }
+    assert "993" in switch_ids
+
+    qsx_processor.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/993/status",
+            ),
+            Body={"ZoneStatus": {"CCOLevel": "Closed", "Zone": {"href": "/zone/993"}}},
+        )
+    )
+
+    assert qsx_processor.target.is_on("993") is True
+
+    qsx_processor.leap.send_unsolicited(
+        Response(
+            CommuniqueType="ReadResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(200, "OK"),
+                Url="/zone/993/status",
+            ),
+            Body={"ZoneStatus": {"CCOLevel": "Open", "Zone": {"href": "/zone/993"}}},
+        )
+    )
+
+    assert qsx_processor.target.is_on("993") is False
+    await qsx_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_qsx_cco_set_value(qsx_processor: Bridge):
+    """Test that turning a CCO zone on/off sends GoToCCOLevel, not GoToLevel."""
+    task = asyncio.get_running_loop().create_task(qsx_processor.target.turn_on("993"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/993/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToCCOLevel",
+                "CCOLevelParameters": {"CCOLevel": "Closed"},
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/993/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/993/status",
+                    "CCOLevel": "Closed",
+                    "Zone": {"href": "/zone/993"},
+                }
+            },
+        )
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+
+    task = asyncio.get_running_loop().create_task(qsx_processor.target.turn_off("993"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/993/commandprocessor",
+        body={
+            "Command": {
+                "CommandType": "GoToCCOLevel",
+                "CCOLevelParameters": {"CCOLevel": "Open"},
+            }
+        },
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                MessageBodyType="OneZoneStatus",
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/993/commandprocessor",
+            ),
+            Body={
+                "ZoneStatus": {
+                    "href": "/zone/993/status",
+                    "CCOLevel": "Open",
+                    "Zone": {"href": "/zone/993"},
+                }
+            },
+        ),
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+    await qsx_processor.target.close()
+
+
+@pytest.mark.parametrize(
+    ("method_name", "command_type"),
+    [
+        ("raise_cover", "Raise"),
+        ("lower_cover", "Lower"),
+        ("stop_cover", "Stop"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_qsx_open_close_stop_cover_command(
+    qsx_processor: Bridge, method_name: str, command_type: str
+):
+    """Test commands for an OpenCloseStop cover without inventing state."""
+    devices = qsx_processor.target.get_devices_by_domain("cover")
+    device = next(device for device in devices if device["device_id"] == "1999")
+    assert device["type"] == "OpenCloseStop"
+    assert device["current_state"] == -1
+
+    method = getattr(qsx_processor.target, method_name)
+    task = asyncio.get_running_loop().create_task(method("1999"))
+    command, response = await qsx_processor.leap.requests.get()
+    assert command == Request(
+        communique_type="CreateRequest",
+        url="/zone/1999/commandprocessor",
+        body={"Command": {"CommandType": command_type}},
+    )
+    response.set_result(
+        Response(
+            CommuniqueType="CreateResponse",
+            Header=ResponseHeader(
+                StatusCode=ResponseStatus(201, "Created"),
+                Url="/zone/1999/commandprocessor",
+            ),
+        ),
+    )
+    qsx_processor.leap.requests.task_done()
+    await task
+
+    assert device["current_state"] == -1
     await qsx_processor.target.close()
 
 
@@ -2986,6 +3098,61 @@ async def test_qsx_get_devices_for_invalid_zone(qsx_processor: Bridge):
 
 
 @pytest.mark.asyncio
+async def test_is_athena_connected(athena_processor: Bridge):
+    """The Athena processor completes the LEAP login handshake."""
+    assert athena_processor.target.is_connected() is True
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_loads_processor_as_device_one(athena_processor: Bridge):
+    """The processor is exposed as devices['1'] for Home Assistant."""
+    devices = athena_processor.target.get_devices()
+    processor = devices["1"]
+    assert processor["type"] == "AthenaProcessor"
+    assert processor["model"] == "REP-QP-2L"
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_device_list(athena_processor: Bridge):
+    """Zones and the keypad from the captured project are loaded."""
+    devices = athena_processor.target.get_devices()
+
+    # Area 895 is the only area with zones in the captured fixtures; the
+    # other three areas return 204 NoContent for associatedzone.
+    expected_devices = {
+        "1",
+        "479",
+        "582",
+        "615",
+        "629",
+        "687",
+        "1238",
+        "812",
+        "819",
+        "820",
+        "821",
+        "822",
+        "823",
+    }
+    assert set(devices) == expected_devices
+
+    # The SeeTouchKeypad is loaded from the area's control station.
+    assert "812" in devices
+    assert devices["812"]["type"] == "SeeTouchKeypad"
+
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
+async def test_athena_loads_all_areas(athena_processor: Bridge):
+    """All four project areas load, including the three with no content."""
+    assert set(athena_processor.target.areas) == {"3", "114", "707", "895"}
+    await athena_processor.target.close()
+
+
+@pytest.mark.asyncio
 async def test_ra3_occupancy_group_list(ra3_bridge: Bridge):
     """Test the list of occupancy groups loaded by the bridge."""
     # Occupancy group 766 has multiple sensor devices, but should only appear once
@@ -3030,3 +3197,43 @@ async def test_on_connect_callback() -> None:
         await init_task
 
     await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_on_disconnect_callback() -> None:
+    """Test that the on disconnect callback is called when connection is lost."""
+    loop = asyncio.get_running_loop()
+    disconnect_future: asyncio.Future[None] = loop.create_future()
+
+    def _on_disconnect_callback() -> None:
+        if not disconnect_future.done():
+            disconnect_future.set_result(None)
+
+    bridge = Bridge(on_disconnect_callback=_on_disconnect_callback)
+    await bridge.initialize(CASETA_PROCESSOR)
+
+    # Simulate connection loss by closing the leap connection
+    bridge.leap.close()
+
+    # Wait for disconnect callback to be called
+    await asyncio.wait_for(disconnect_future, timeout=5.0)
+
+    await bridge.target.close()
+
+
+@pytest.mark.asyncio
+async def test_on_disconnect_callback_not_called_on_intentional_close() -> None:
+    """Test that the on disconnect callback is NOT called on intentional close()."""
+    disconnect_called = False
+
+    def _on_disconnect_callback() -> None:
+        nonlocal disconnect_called
+        disconnect_called = True
+
+    bridge = Bridge(on_disconnect_callback=_on_disconnect_callback)
+    await bridge.initialize(CASETA_PROCESSOR)
+
+    # Intentionally close the bridge - should NOT trigger disconnect callback
+    await bridge.target.close()
+
+    assert not disconnect_called

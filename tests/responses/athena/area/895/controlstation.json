@@ -1,0 +1,31 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/895/associatedcontrolstation",
+    "MessageBodyType": "MultipleControlStationDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "ControlStations": [
+      {
+        "href": "/controlstation/810",
+        "XID": "7PinDbPs4J8RuC9tYMZbTa",
+        "Name": "Control Station 1",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "SortOrder": 0,
+        "AssociatedGangedDevices": [
+          {
+            "Device": {
+              "href": "/device/812",
+              "DeviceType": "SeeTouchKeypad",
+              "AddressedState": "Addressed"
+            },
+            "GangPosition": 0
+          }
+        ]
+      }
+    ]
+  }
+}

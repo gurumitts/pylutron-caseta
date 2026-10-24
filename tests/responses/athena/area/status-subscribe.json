@@ -1,0 +1,33 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/area/status",
+    "MessageBodyType": "MultipleAreaStatus"
+  },
+  "CommuniqueType": "SubscribeResponse",
+  "Body": {
+    "AreaStatuses": [
+      {
+        "href": "/area/3/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/114/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/707/status",
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      },
+      {
+        "href": "/area/895/status",
+        "Level": 100,
+        "OccupancyStatus": "Unknown",
+        "CurrentScene": null
+      }
+    ]
+  }
+}

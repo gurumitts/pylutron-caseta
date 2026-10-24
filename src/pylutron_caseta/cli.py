@@ -3,7 +3,6 @@
 import asyncio
 import functools
 import logging
-import socket
 import ssl
 import urllib.parse
 from contextlib import asynccontextmanager
@@ -19,6 +18,7 @@ from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZerocon
 
 import pylutron_caseta.leap
 from pylutron_caseta.pairing import async_pair
+from pylutron_caseta.utils import make_tls_context
 
 
 def _cli_main(main):
@@ -197,10 +197,6 @@ async def leap_scan(interface: List[str], timeout: float):
 async def _connect(
     resource: urllib.parse.ParseResult, cacert: str, cert: str, key: str
 ) -> AsyncIterator[pylutron_caseta.leap.LeapProtocol]:
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    ssl_context.load_verify_locations(cacert)
-    ssl_context.load_cert_chain(cert, key)
-
     if resource.hostname is None:
         raise ValueError("Hostname must be specified")
 
@@ -208,8 +204,8 @@ async def _connect(
         resource.hostname,
         resource.port or 8081,
         server_hostname="",
-        ssl=ssl_context,
-        family=socket.AF_INET,
+        ssl=await make_tls_context(key, cert, cacert),
+        happy_eyeballs_delay=0.25,
     )
     run = asyncio.ensure_future(protocol.run())
 

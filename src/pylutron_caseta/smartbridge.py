@@ -3,18 +3,10 @@
 import asyncio
 import logging
 import math
-import socket
-import ssl
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 from .color_value import ColorMode, WarmDimmingColorValue
 
-
-try:
-    from asyncio import get_running_loop as get_loop
-except ImportError:
-    # For Python 3.6 and earlier, we have to use get_event_loop instead
-    from asyncio import get_event_loop as get_loop
 
 from . import (
     _KEYPADS,
@@ -23,13 +15,14 @@ from . import (
     BUTTON_STATUS_RELEASED,
     FAN_OFF,
     OCCUPANCY_GROUP_UNKNOWN,
+    PROCESSOR_PRODUCT_TYPES,
     RA3_OCCUPANCY_SENSOR_DEVICE_TYPES,
     BridgeDisconnectedError,
     BridgeResponseError,
 )
 from .leap import LeapProtocol, id_from_href, open_connection
 from .messages import Response
-from .utils import asyncio_timeout
+from .utils import asyncio_timeout, make_tls_context
 
 _LOG = logging.getLogger(__name__)
 
@@ -51,6 +44,7 @@ class Smartbridge:
         self,
         connect: Callable[[], Coroutine[Any, Any, LeapProtocol]],
         on_connect_callback: Optional[Callable[[], None]] = None,
+        on_disconnect_callback: Optional[Callable[[], None]] = None,
     ) -> None:
         """Initialize the Smart Bridge."""
         self.devices: Dict[str, dict] = {}
@@ -75,6 +69,8 @@ class Smartbridge:
         self._monitor_task: Optional[asyncio.Task] = None
         self._ping_task: Optional[asyncio.Task] = None
         self._on_connect_callback = on_connect_callback
+        self._on_disconnect_callback = on_disconnect_callback
+        self._notified_connected = False
 
     @property
     def logged_in(self):
@@ -112,26 +108,9 @@ class Smartbridge:
             self._login_completed.cancel()
             self._login_completed = asyncio.get_running_loop().create_future()
 
-        self._monitor_task = get_loop().create_task(self._monitor())
+        self._monitor_task = asyncio.get_running_loop().create_task(self._monitor())
 
         await self._login_completed
-
-    @staticmethod
-    def _create_tls_context(
-        keyfile: str, certfile: str, ca_certs: str
-    ) -> ssl.SSLContext:
-        """Create a TLS context for the Smart Bridge.
-
-        This is called in the executor to avoid blocking the event loop
-        since calling load_cert_chain and load_verify_locations does
-        blocking disk IO.
-        """
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-        ssl_context.load_verify_locations(ca_certs)
-        ssl_context.load_cert_chain(certfile, keyfile)
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-        return ssl_context
 
     @classmethod
     def create_tls(
@@ -142,23 +121,21 @@ class Smartbridge:
         ca_certs: str,
         port: int = LEAP_PORT,
         on_connect_callback: Optional[Callable[[], None]] = None,
+        on_disconnect_callback: Optional[Callable[[], None]] = None,
     ) -> "Smartbridge":
-        """Initialize the Smart Bridge using TLS over IPv4."""
+        """Initialize the Smart Bridge using TLS."""
 
         async def _connect() -> LeapProtocol:
-            ssl_context = await get_loop().run_in_executor(
-                None, cls._create_tls_context, keyfile, certfile, ca_certs
-            )
+            ssl_context = await make_tls_context(keyfile, certfile, ca_certs)
             res = await open_connection(
                 hostname,
                 port,
                 server_hostname="",
                 ssl=ssl_context,
-                family=socket.AF_INET,
             )
             return res
 
-        return cls(_connect, on_connect_callback)
+        return cls(_connect, on_connect_callback, on_disconnect_callback)
 
     def add_subscriber(self, device_id: str, callback_: Callable[[], None]):
         """
@@ -439,6 +416,25 @@ class Smartbridge:
         if not zone_id:
             return
 
+        # Handle CCO (Contact Closure Output) zones -- e.g. a gas fireplace
+        # or irrigation valve relay. These don't take a 0-100 Level like a
+        # dimmer/switch; LEAP commands them with a discrete Open/Closed
+        # state via a dedicated CommandType instead.
+        if device.get("type") == "CCO":
+            await self._request(
+                "CreateRequest",
+                f"/zone/{zone_id}/commandprocessor",
+                {
+                    "Command": {
+                        "CommandType": "GoToCCOLevel",
+                        "CCOLevelParameters": {
+                            "CCOLevel": "Closed" if value else "Open"
+                        },
+                    }
+                },
+            )
+            return
+
         # Handle Ketra lamps and Lumaris RGB + Tunable White Tape Light
         if device.get("type") in ["SpectrumTune", "ColorTune"]:
             spectrum_params: Dict[str, Union[str, int]] = {}
@@ -527,18 +523,18 @@ class Smartbridge:
     async def raise_cover(self, device_id: str):
         """Will raise a cover."""
         await self._send_zone_create_request(device_id, "Raise")
-        # If set_value is called, we get an optimistic callback right
-        # away with the value, if we use Raise we have to set it
-        # as one won't come unless Stop is called or something goes wrong.
-        self.devices[device_id]["current_state"] = 100
+        # Position-capable covers need an optimistic endpoint because Raise does not
+        # produce an immediate callback. OpenCloseStop zones have no position state.
+        if self.devices[device_id]["type"] != "OpenCloseStop":
+            self.devices[device_id]["current_state"] = 100
 
     async def lower_cover(self, device_id: str):
         """Will lower a cover."""
         await self._send_zone_create_request(device_id, "Lower")
-        # If set_value is called, we get an optimistic callback right
-        # away with the value, if we use Lower we have to set it
-        # as one won't come unless Stop is called or something goes wrong.
-        self.devices[device_id]["current_state"] = 0
+        # Position-capable covers need an optimistic endpoint because Lower does not
+        # produce an immediate callback. OpenCloseStop zones have no position state.
+        if self.devices[device_id]["type"] != "OpenCloseStop":
+            self.devices[device_id]["current_state"] = 0
 
     async def set_fan(self, device_id: str, value: str):
         """
@@ -687,6 +683,7 @@ class Smartbridge:
 
             if self._on_connect_callback:
                 self._on_connect_callback()
+            self._notified_connected = True
 
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -699,7 +696,6 @@ class Smartbridge:
 
             await self._leap.run()
             _LOG.warning("LEAP session ended. Reconnecting...")
-            await asyncio.sleep(RECONNECT_DELAY)
         # ignore OSError too.
         # sometimes you get OSError instead of ConnectionError.
         except (
@@ -710,7 +706,6 @@ class Smartbridge:
             BridgeDisconnectedError,
         ) as ex:
             _LOG.warning("Reconnecting after error: %s", ex)
-            await asyncio.sleep(RECONNECT_DELAY)
         finally:
             if self._login_task is not None:
                 self._login_task.cancel()
@@ -724,6 +719,16 @@ class Smartbridge:
                 self._leap.close()
                 self._leap = None
 
+        if self._notified_connected:
+            self._notified_connected = False
+            if self._on_disconnect_callback:
+                try:
+                    self._on_disconnect_callback()
+                except Exception:
+                    _LOG.exception("Got exception from on_disconnect_callback")
+
+        await asyncio.sleep(RECONNECT_DELAY)
+
     def _handle_one_zone_status(self, response: Response):
         _LOG.debug("Handling single zone status: %s", response)
         body = response.Body
@@ -734,6 +739,13 @@ class Smartbridge:
     def _handle_zone_status(self, status):
         zone = id_from_href(status["Zone"]["href"])
         level = status.get("Level", -1)
+        # CCO (Contact Closure Output) zones report their state via CCOLevel
+        # ("Open"/"Closed") instead of Level -- map it onto the same
+        # current_state convention (>0 means on) used by every other zone
+        # type, rather than leaving it at the -1 default forever.
+        cco_level = status.get("CCOLevel")
+        if cco_level is not None:
+            level = 100 if cco_level == "Closed" else 0
         fan_speed = status.get("FanSpeed", None)
         tilt = status.get("Tilt", None)
         color = ColorMode.get_color_from_leap(status)
@@ -888,12 +900,11 @@ class Smartbridge:
             project_json = await self._request("ReadRequest", "/project")
             project = project_json.Body["Project"]
 
-            if (
-                project["ProductType"] == "Lutron RadioRA 3 Project"
-                or project["ProductType"] == "Lutron HWQS Project"
-            ):
-                # RadioRa3 or HomeWorks QSX Processor device detected
-                _LOG.debug("RA3 or QSX processor detected")
+            if project["ProductType"] in PROCESSOR_PRODUCT_TYPES:
+                # RadioRA 3, HomeWorks QSX or Athena processor detected
+                _LOG.debug(
+                    "Processor-based system detected: %s", project["ProductType"]
+                )
 
                 # Load processor as devices[1] for compatibility with lutron_caseta HA
                 # integration
@@ -930,6 +941,21 @@ class Smartbridge:
         except Exception as ex:
             if not self._login_completed.done():
                 self._login_completed.set_exception(ex)
+            else:
+                # The initial login already completed on a previous
+                # connection, so nothing is awaiting this task and the
+                # failure would otherwise be silent. If the connection were
+                # left open, requests would keep working but the
+                # subscriptions that deliver zone, button, and occupancy
+                # status updates were never re-established, leaving the
+                # bridge half-alive. Close the connection so that _monitor
+                # reconnects and login is retried until it completes.
+                _LOG.warning(
+                    "Re-login failed after reconnect. Closing connection.",
+                    exc_info=1,
+                )
+                if self._leap is not None:
+                    self._leap.close()
             raise
 
     async def _ping(self):
