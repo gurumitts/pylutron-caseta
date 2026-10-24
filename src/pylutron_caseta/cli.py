@@ -208,6 +208,7 @@ async def _connect(
         resource.port or 8081,
         server_hostname="",
         ssl=ssl_context,
+        happy_eyeballs_delay=0.25,
     )
     run = asyncio.ensure_future(protocol.run())
 
