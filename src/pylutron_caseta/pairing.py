@@ -2,11 +2,9 @@
 
 import asyncio
 import logging
-import socket
 import ssl
 import tempfile
 from typing import Callable, Optional, Tuple, TypedDict
-import os
 
 import orjson
 from cryptography import x509
@@ -16,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID  # type: ignore
 
 from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM, LUTRON_ROOT_CA_PEM
-from .utils import asyncio_timeout
+from .utils import asyncio_timeout, make_tls_context
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,10 +72,7 @@ async def async_pair(
     server_addr: str, ready: Optional[Callable[[], None]] = None
 ) -> PairingData:
     """Pair with a lutron bridge."""
-    loop = asyncio.get_running_loop()
-    csr, key_bytes_pem, ssl_context = await loop.run_in_executor(
-        None, _generate_csr_with_ssl_context
-    )
+    csr, key_bytes_pem, ssl_context = await _generate_csr_with_ssl_context()
 
     try:
         cert_pem, ca_pem = await _async_generate_certificate(
@@ -94,8 +89,8 @@ async def async_pair(
         # Discard the ca_pem for caseta and replace with LUTRON_ROOT_CA_PEM
         ca_pem = LUTRON_ROOT_CA_PEM
 
-    signed_ssl_context = await loop.run_in_executor(
-        None, _generate_signed_ssl_context, key_bytes_pem, cert_pem, ca_pem
+    signed_ssl_context = await _generate_signed_ssl_context(
+        key_bytes_pem, cert_pem, ca_pem
     )
 
     leap_response = await _async_verify_certificate(server_addr, signed_ssl_context)
@@ -126,7 +121,7 @@ async def _async_generate_certificate(
             8083,
             server_hostname="",
             ssl=ssl_context,
-            family=socket.AF_INET,
+            happy_eyeballs_delay=0.25,
         )
 
     json_socket = JsonSocket(reader, writer)
@@ -201,7 +196,7 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             8081,
             server_hostname="",
             ssl=signed_ssl_context,
-            family=socket.AF_INET,
+            happy_eyeballs_delay=0.25,
         )
     json_socket = JsonSocket(reader, writer)
 
@@ -218,12 +213,12 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             return leap_response
 
 
-def _generate_csr_with_ssl_context() -> (
+async def _generate_csr_with_ssl_context() -> (
     Tuple[x509.CertificateSigningRequest, bytes, ssl.SSLContext]
 ):
-    with tempfile.NamedTemporaryFile(delete=False) as lap_cert_temp_file:
-        with tempfile.NamedTemporaryFile(delete=False) as lap_key_temp_file:
-            try:
+    with tempfile.NamedTemporaryFile() as lap_cert_temp_file:
+        with tempfile.NamedTemporaryFile() as lap_key_temp_file:
+            with tempfile.NamedTemporaryFile() as lap_ca_temp_file:
                 private_key = _generate_private_key()
                 key_bytes_pem = _convert_private_key_to_pem(private_key)
 
@@ -233,42 +228,31 @@ def _generate_csr_with_ssl_context() -> (
                 lap_cert_temp_file.flush()
                 lap_key_temp_file.write(LAP_KEY_PEM.encode("ASCII"))
                 lap_key_temp_file.flush()
+                lap_ca_temp_file.write(LAP_CA_PEM.encode("ASCII"))
+                lap_ca_temp_file.flush()
 
-                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-                ssl_context.load_verify_locations(cadata=LAP_CA_PEM)
-                ssl_context.load_cert_chain(
-                    lap_cert_temp_file.name, lap_key_temp_file.name
+                ssl_context = await make_tls_context(
+                    lap_key_temp_file.name,
+                    lap_cert_temp_file.name,
+                    lap_ca_temp_file.name,
                 )
-                ssl_context.verify_mode = ssl.CERT_REQUIRED
 
                 return csr, key_bytes_pem, ssl_context
-            finally:
-                lap_key_temp_file.close()
-                lap_cert_temp_file.close()
-                os.remove(lap_key_temp_file.name)
-                os.remove(lap_cert_temp_file.name)
 
 
-def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem):
-    with tempfile.NamedTemporaryFile(delete=False) as key_temp_file:
-        key_temp_file.write(key_bytes_pem)
-        key_temp_file.flush()
-
-        with tempfile.NamedTemporaryFile(delete=False) as cert_temp_file:
-            try:
+async def _generate_signed_ssl_context(
+    key_bytes_pem, cert_pem, ca_pem
+) -> ssl.SSLContext:
+    with tempfile.NamedTemporaryFile() as key_temp_file:
+        with tempfile.NamedTemporaryFile() as cert_temp_file:
+            with tempfile.NamedTemporaryFile() as ca_temp_file:
+                key_temp_file.write(key_bytes_pem)
+                key_temp_file.flush()
                 cert_temp_file.write(cert_pem.encode("ASCII"))
                 cert_temp_file.flush()
+                ca_temp_file.write(ca_pem.encode("ASCII"))
+                ca_temp_file.flush()
 
-                signed_ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-                signed_ssl_context.load_verify_locations(cadata=ca_pem)
-                signed_ssl_context.load_cert_chain(
-                    cert_temp_file.name, key_temp_file.name
+                return await make_tls_context(
+                    key_temp_file.name, cert_temp_file.name, ca_temp_file.name
                 )
-                signed_ssl_context.verify_mode = ssl.CERT_REQUIRED
-
-                return signed_ssl_context
-            finally:
-                key_temp_file.close()
-                cert_temp_file.close()
-                os.remove(key_temp_file.name)
-                os.remove(cert_temp_file.name)

@@ -1,0 +1,329 @@
+{
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/device?where=IsThisDevice:false",
+    "MessageBodyType": "MultipleDeviceDefinition"
+  },
+  "CommuniqueType": "ReadResponse",
+  "Body": {
+    "Devices": [
+      {
+        "Name": "4",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/616",
+        "SerialNumber": 87654328,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/615"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/616/linknode/621"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "5",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/630",
+        "SerialNumber": 87654329,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/629"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/630/linknode/635"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "7",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/675",
+        "SerialNumber": 87654330,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/582"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/675/linknode/680"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "3",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/681",
+        "SerialNumber": 87654326,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/615"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/681/linknode/686"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "Device 1",
+        "DeviceType": "SeeTouchKeypad",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "AssociatedControlStation": {
+          "href": "/controlstation/810",
+          "XID": "7PinDbPs4J8RuC9tYMZbTa"
+        },
+        "href": "/device/812",
+        "SerialNumber": 87654321,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "QSWS2-5BRLI",
+        "LinkNodes": [
+          {
+            "href": "/device/812/linknode/814"
+          }
+        ],
+        "FirmwareImage": {
+          "href": "/firmwareimage/812",
+          "Device": {
+            "href": "/device/812"
+          }
+        },
+        "DeviceClass": {
+          "HexadecimalEncoding": "1010201"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/781"
+        }
+      },
+      {
+        "Name": "2",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/583",
+        "SerialNumber": 87654327,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/582"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/583/linknode/588"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "6",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/657",
+        "SerialNumber": 87654324,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/1238"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/657/linknode/662"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "8",
+        "DeviceType": "Lumaris",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/688",
+        "SerialNumber": 87654325,
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "CM-MTK-RGBTW-IN",
+        "LocalZones": [
+          {
+            "href": "/zone/687"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/688/linknode/693"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "61e0101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "2x2 Tiles (1)",
+        "DeviceType": "AthenaWirelessNode",
+        "AssociatedArea": {
+          "href": "/area/895"
+        },
+        "href": "/device/768",
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "A-WN-D01-RF-XX",
+        "LocalZones": [
+          {
+            "href": "/zone/479"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/768/linknode/769"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "16260101"
+        },
+        "AddressedState": "Unaddressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      },
+      {
+        "Name": "Athena Wireless Processor",
+        "DeviceType": "AthenaProcessor",
+        "AssociatedArea": {
+          "href": "/area/707"
+        },
+        "href": "/device/722",
+        "SerialNumber": 87654322,
+        "NetworkInterfaces": [
+          {
+            "MACAddress": "aa:bb:cc:dd:ee:f0"
+          }
+        ],
+        "Parent": {
+          "href": "/project"
+        },
+        "ModelNumber": "DualRadioProcCommercial",
+        "OwnedLinks": [
+          {
+            "href": "/link/724",
+            "LinkType": "ClearConnectTypeX"
+          },
+          {
+            "href": "/link/726",
+            "LinkType": "RF"
+          }
+        ],
+        "LinkNodes": [
+          {
+            "href": "/device/722/linknode/725"
+          },
+          {
+            "href": "/device/722/linknode/723"
+          }
+        ],
+        "DeviceClass": {
+          "HexadecimalEncoding": "8190101"
+        },
+        "AddressedState": "Addressed",
+        "AssociatedLink": {
+          "href": "/link/724"
+        }
+      }
+    ]
+  }
+}

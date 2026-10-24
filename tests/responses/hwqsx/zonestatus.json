@@ -58,6 +58,11 @@
       "StatusAccuracy": "Good"
     },
     {
+      "Zone": {
+        "href": "/zone/1999"
+      }
+    },
+    {
       "href": "/zone/1362/status",
       "Level": 0,
       "Zone": {
@@ -94,6 +99,14 @@
       },
       "Zone": {
         "href": "/zone/985"
+      },
+      "StatusAccuracy": "Good"
+    },
+    {
+      "href": "/zone/993/status",
+      "CCOLevel": "Open",
+      "Zone": {
+        "href": "/zone/993"
       },
       "StatusAccuracy": "Good"
     },
