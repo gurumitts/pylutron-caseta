@@ -1,10 +1,12 @@
 """Guide the user through pairing and save the necessary files."""
 
 import asyncio
+import contextlib
+import functools
 import logging
 import ssl
 import tempfile
-from typing import Callable, Optional, Tuple, TypedDict
+from typing import AsyncIterator, Callable, Optional, Tuple, TypedDict
 
 import orjson
 from cryptography import x509
@@ -166,10 +168,16 @@ async def _async_generate_certificate(
     return signing_result["Certificate"], signing_result["RootCertificate"]
 
 
-def _generate_private_key():
+async def _generate_private_key():
     LOGGER.info("Generating a new private key...")
-    return rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
+    return await asyncio.get_running_loop().run_in_executor(
+        None,
+        functools.partial(
+            rsa.generate_private_key,
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        ),
     )
 
 
@@ -213,46 +221,65 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             return leap_response
 
 
+@contextlib.asynccontextmanager
+async def _temp_files(*contents: bytes) -> AsyncIterator[Tuple[str, ...]]:
+    """
+    Writes the provided values to temp files and returns their paths.
+    """
+
+    def _make_files(*contents: bytes) -> Tuple[contextlib.ExitStack, Tuple[str, ...]]:
+        paths: list[str] = []
+        with contextlib.ExitStack() as stack:
+            for content in contents:
+                file = tempfile.NamedTemporaryFile()
+                stack.push(file)
+                file.write(content)
+                file.flush()
+                paths.append(file.name)
+
+            new_stack = stack.pop_all()
+
+        return (
+            new_stack,
+            tuple(paths),
+        )
+
+    loop = asyncio.get_running_loop()
+
+    stack, paths = await loop.run_in_executor(None, _make_files, *contents)
+
+    try:
+        yield paths
+    finally:
+        await loop.run_in_executor(None, lambda: stack.close())
+
+
 async def _generate_csr_with_ssl_context() -> (
     Tuple[x509.CertificateSigningRequest, bytes, ssl.SSLContext]
 ):
-    with tempfile.NamedTemporaryFile() as lap_cert_temp_file:
-        with tempfile.NamedTemporaryFile() as lap_key_temp_file:
-            with tempfile.NamedTemporaryFile() as lap_ca_temp_file:
-                private_key = _generate_private_key()
-                key_bytes_pem = _convert_private_key_to_pem(private_key)
+    async with _temp_files(
+        LAP_KEY_PEM.encode("ASCII"),
+        LAP_CERT_PEM.encode("ASCII"),
+        LAP_CA_PEM.encode("ASCII"),
+    ) as (key, cert, ca):
+        private_key = await _generate_private_key()
+        key_bytes_pem = _convert_private_key_to_pem(private_key)
 
-                csr = _generate_csr(private_key)
+        csr = _generate_csr(private_key)
 
-                lap_cert_temp_file.write(LAP_CERT_PEM.encode("ASCII"))
-                lap_cert_temp_file.flush()
-                lap_key_temp_file.write(LAP_KEY_PEM.encode("ASCII"))
-                lap_key_temp_file.flush()
-                lap_ca_temp_file.write(LAP_CA_PEM.encode("ASCII"))
-                lap_ca_temp_file.flush()
+        ssl_context = await make_tls_context(
+            key,
+            cert,
+            ca,
+        )
 
-                ssl_context = await make_tls_context(
-                    lap_key_temp_file.name,
-                    lap_cert_temp_file.name,
-                    lap_ca_temp_file.name,
-                )
-
-                return csr, key_bytes_pem, ssl_context
+        return csr, key_bytes_pem, ssl_context
 
 
 async def _generate_signed_ssl_context(
     key_bytes_pem, cert_pem, ca_pem
 ) -> ssl.SSLContext:
-    with tempfile.NamedTemporaryFile() as key_temp_file:
-        with tempfile.NamedTemporaryFile() as cert_temp_file:
-            with tempfile.NamedTemporaryFile() as ca_temp_file:
-                key_temp_file.write(key_bytes_pem)
-                key_temp_file.flush()
-                cert_temp_file.write(cert_pem.encode("ASCII"))
-                cert_temp_file.flush()
-                ca_temp_file.write(ca_pem.encode("ASCII"))
-                ca_temp_file.flush()
-
-                return await make_tls_context(
-                    key_temp_file.name, cert_temp_file.name, ca_temp_file.name
-                )
+    async with _temp_files(
+        key_bytes_pem, cert_pem.encode("ASCII"), ca_pem.encode("ASCII")
+    ) as (key, cert, ca):
+        return await make_tls_context(key, cert, ca)

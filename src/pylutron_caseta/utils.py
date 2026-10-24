@@ -19,12 +19,11 @@ def _make_tls_context(keyfile: str, certfile: str, ca_certs: str) -> ssl.SSLCont
     return context
 
 
-"""Create a TLS context for the Smart Bridge."""
-
-
 async def make_tls_context(
     keyfile: str, certfile: str, ca_certs: str
 ) -> ssl.SSLContext:
+    """Create a TLS context for the Smart Bridge."""
+
     return await asyncio.get_running_loop().run_in_executor(
         None, _make_tls_context, keyfile, certfile, ca_certs
     )
