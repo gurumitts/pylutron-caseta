@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - TLS connections on Python 3.14.8
+- Bridge left in half-alive state after login failure
 
 ## [0.29.0] - 2026-06-09
 
