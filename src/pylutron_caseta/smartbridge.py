@@ -3,17 +3,10 @@
 import asyncio
 import logging
 import math
-import ssl
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 from .color_value import ColorMode, WarmDimmingColorValue
 
-
-try:
-    from asyncio import get_running_loop as get_loop
-except ImportError:
-    # For Python 3.6 and earlier, we have to use get_event_loop instead
-    from asyncio import get_event_loop as get_loop
 
 from . import (
     _KEYPADS,
@@ -29,7 +22,7 @@ from . import (
 )
 from .leap import LeapProtocol, id_from_href, open_connection
 from .messages import Response
-from .utils import asyncio_timeout
+from .utils import asyncio_timeout, make_tls_context
 
 _LOG = logging.getLogger(__name__)
 
@@ -115,26 +108,9 @@ class Smartbridge:
             self._login_completed.cancel()
             self._login_completed = asyncio.get_running_loop().create_future()
 
-        self._monitor_task = get_loop().create_task(self._monitor())
+        self._monitor_task = asyncio.get_running_loop().create_task(self._monitor())
 
         await self._login_completed
-
-    @staticmethod
-    def _create_tls_context(
-        keyfile: str, certfile: str, ca_certs: str
-    ) -> ssl.SSLContext:
-        """Create a TLS context for the Smart Bridge.
-
-        This is called in the executor to avoid blocking the event loop
-        since calling load_cert_chain and load_verify_locations does
-        blocking disk IO.
-        """
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-        ssl_context.load_verify_locations(ca_certs)
-        ssl_context.load_cert_chain(certfile, keyfile)
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-        return ssl_context
 
     @classmethod
     def create_tls(
@@ -150,9 +126,7 @@ class Smartbridge:
         """Initialize the Smart Bridge using TLS."""
 
         async def _connect() -> LeapProtocol:
-            ssl_context = await get_loop().run_in_executor(
-                None, cls._create_tls_context, keyfile, certfile, ca_certs
-            )
+            ssl_context = await make_tls_context(keyfile, certfile, ca_certs)
             res = await open_connection(
                 hostname,
                 port,
