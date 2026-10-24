@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Pairing blocking the event loop while generating the private key and
+  certificate files.
+
 ## [0.30.0] - 2026-10-24
 
 ### Added

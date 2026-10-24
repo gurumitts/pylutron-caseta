@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID  # type: ignore
 
 from .assets import LAP_CA_PEM, LAP_CERT_PEM, LAP_KEY_PEM, LUTRON_ROOT_CA_PEM
-from .utils import asyncio_timeout, make_tls_context
+from .utils import _make_tls_context, asyncio_timeout
 
 LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +72,10 @@ async def async_pair(
     server_addr: str, ready: Optional[Callable[[], None]] = None
 ) -> PairingData:
     """Pair with a lutron bridge."""
-    csr, key_bytes_pem, ssl_context = await _generate_csr_with_ssl_context()
+    loop = asyncio.get_running_loop()
+    csr, key_bytes_pem, ssl_context = await loop.run_in_executor(
+        None, _generate_csr_with_ssl_context
+    )
 
     try:
         cert_pem, ca_pem = await _async_generate_certificate(
@@ -89,8 +92,8 @@ async def async_pair(
         # Discard the ca_pem for caseta and replace with LUTRON_ROOT_CA_PEM
         ca_pem = LUTRON_ROOT_CA_PEM
 
-    signed_ssl_context = await _generate_signed_ssl_context(
-        key_bytes_pem, cert_pem, ca_pem
+    signed_ssl_context = await loop.run_in_executor(
+        None, _generate_signed_ssl_context, key_bytes_pem, cert_pem, ca_pem
     )
 
     leap_response = await _async_verify_certificate(server_addr, signed_ssl_context)
@@ -213,7 +216,7 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             return leap_response
 
 
-async def _generate_csr_with_ssl_context() -> (
+def _generate_csr_with_ssl_context() -> (
     Tuple[x509.CertificateSigningRequest, bytes, ssl.SSLContext]
 ):
     with tempfile.NamedTemporaryFile() as lap_cert_temp_file:
@@ -231,7 +234,7 @@ async def _generate_csr_with_ssl_context() -> (
                 lap_ca_temp_file.write(LAP_CA_PEM.encode("ASCII"))
                 lap_ca_temp_file.flush()
 
-                ssl_context = await make_tls_context(
+                ssl_context = _make_tls_context(
                     lap_key_temp_file.name,
                     lap_cert_temp_file.name,
                     lap_ca_temp_file.name,
@@ -240,9 +243,7 @@ async def _generate_csr_with_ssl_context() -> (
                 return csr, key_bytes_pem, ssl_context
 
 
-async def _generate_signed_ssl_context(
-    key_bytes_pem, cert_pem, ca_pem
-) -> ssl.SSLContext:
+def _generate_signed_ssl_context(key_bytes_pem, cert_pem, ca_pem) -> ssl.SSLContext:
     with tempfile.NamedTemporaryFile() as key_temp_file:
         with tempfile.NamedTemporaryFile() as cert_temp_file:
             with tempfile.NamedTemporaryFile() as ca_temp_file:
@@ -253,6 +254,6 @@ async def _generate_signed_ssl_context(
                 ca_temp_file.write(ca_pem.encode("ASCII"))
                 ca_temp_file.flush()
 
-                return await make_tls_context(
+                return _make_tls_context(
                     key_temp_file.name, cert_temp_file.name, ca_temp_file.name
                 )
