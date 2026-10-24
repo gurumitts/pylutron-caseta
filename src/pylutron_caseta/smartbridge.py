@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import math
-import socket
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union, Coroutine, Any
 from .color_value import ColorMode, WarmDimmingColorValue
@@ -124,7 +123,7 @@ class Smartbridge:
         on_connect_callback: Optional[Callable[[], None]] = None,
         on_disconnect_callback: Optional[Callable[[], None]] = None,
     ) -> "Smartbridge":
-        """Initialize the Smart Bridge using TLS over IPv4."""
+        """Initialize the Smart Bridge using TLS."""
 
         async def _connect() -> LeapProtocol:
             ssl_context = await make_tls_context(keyfile, certfile, ca_certs)
@@ -133,7 +132,6 @@ class Smartbridge:
                 port,
                 server_hostname="",
                 ssl=ssl_context,
-                family=socket.AF_INET,
             )
             return res
 
