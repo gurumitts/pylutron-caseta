@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   emitted by HomeWorks QSX processors.
 - Support for Lutron Athena processors (`ProductType` `"Lutron Athena Project"`).
 
+### Changed
+
+- Bridge connections will be attempted over IPv6.
+
 ## [0.29.0] - 2026-06-09
 
 ### Added

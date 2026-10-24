@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import socket
 import ssl
 import tempfile
 from typing import Callable, Optional, Tuple, TypedDict
@@ -126,7 +125,7 @@ async def _async_generate_certificate(
             8083,
             server_hostname="",
             ssl=ssl_context,
-            family=socket.AF_INET,
+            happy_eyeballs_delay=0.25,
         )
 
     json_socket = JsonSocket(reader, writer)
@@ -201,7 +200,7 @@ async def _async_verify_certificate(server_addr, signed_ssl_context):
             8081,
             server_hostname="",
             ssl=signed_ssl_context,
-            family=socket.AF_INET,
+            happy_eyeballs_delay=0.25,
         )
     json_socket = JsonSocket(reader, writer)
 

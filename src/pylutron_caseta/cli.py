@@ -3,7 +3,6 @@
 import asyncio
 import functools
 import logging
-import socket
 import ssl
 import urllib.parse
 from contextlib import asynccontextmanager
@@ -209,7 +208,7 @@ async def _connect(
         resource.port or 8081,
         server_hostname="",
         ssl=ssl_context,
-        family=socket.AF_INET,
+        happy_eyeballs_delay=0.25,
     )
     run = asyncio.ensure_future(protocol.run())
 
