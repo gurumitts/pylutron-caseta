@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import functools
 import logging
 import ssl
 import tempfile
@@ -167,10 +168,16 @@ async def _async_generate_certificate(
     return signing_result["Certificate"], signing_result["RootCertificate"]
 
 
-def _generate_private_key():
+async def _generate_private_key():
     LOGGER.info("Generating a new private key...")
-    return rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
+    return await asyncio.get_running_loop().run_in_executor(
+        None,
+        functools.partial(
+            rsa.generate_private_key,
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        ),
     )
 
 
@@ -255,7 +262,7 @@ async def _generate_csr_with_ssl_context() -> (
         LAP_CERT_PEM.encode("ASCII"),
         LAP_CA_PEM.encode("ASCII"),
     ) as (key, cert, ca):
-        private_key = _generate_private_key()
+        private_key = await _generate_private_key()
         key_bytes_pem = _convert_private_key_to_pem(private_key)
 
         csr = _generate_csr(private_key)
