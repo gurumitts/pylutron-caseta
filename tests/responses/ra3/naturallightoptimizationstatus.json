@@ -1,0 +1,26 @@
+{
+  "CommuniqueType": "ReadResponse",
+  "Header": {
+    "StatusCode": "200 OK",
+    "Url": "/system/naturallightoptimization/status",
+    "MessageBodyType": "MultipleNaturalLightOptimizationStatus"
+  },
+  "Body": {
+    "NaturalLightOptimizationStatuses": [
+      {
+        "href": "/naturallightoptimization/9001/status",
+        "NaturalLightOptimization": {
+          "href": "/naturallightoptimization/9001"
+        },
+        "EnabledState": "Enabled"
+      },
+      {
+        "href": "/naturallightoptimization/9003/status",
+        "NaturalLightOptimization": {
+          "href": "/naturallightoptimization/9003"
+        },
+        "EnabledState": "Disabled"
+      }
+    ]
+  }
+}
