@@ -1,5 +1,6 @@
 """Tests to validate low-level network interactions."""
 import asyncio
+import logging
 import orjson
 from typing import AsyncGenerator, Iterable, NamedTuple, Tuple
 
@@ -7,6 +8,7 @@ import pytest
 import pytest_asyncio
 
 from pylutron_caseta import BridgeDisconnectedError
+from pylutron_caseta import leap
 from pylutron_caseta.leap import LeapProtocol
 from pylutron_caseta.messages import Response, ResponseHeader, ResponseStatus
 
@@ -307,3 +309,94 @@ async def test_subscribe_tagged_404(pipe: Pipe):
 
     # The subscription should not be registered.
     assert {} == pipe.leap._tagged_subscriptions  # pylint: disable=protected-access
+
+
+async def _read_tag(pipe: Pipe) -> str:
+    """Read one request sent by the LeapProtocol and return its ClientTag."""
+    received = orjson.loads(await pipe.test_reader.readline())
+    return received["Header"]["ClientTag"]
+
+
+def _send_response(pipe: Pipe, tag: str, url: str):
+    """Send a successful ReadResponse with the given tag."""
+    response_obj = {
+        "CommuniqueType": "ReadResponse",
+        "Header": {"ClientTag": tag, "StatusCode": "200 OK", "Url": url},
+        "Body": {"ok": True},
+    }
+    pipe.test_writer.write(orjson.dumps(response_obj) + b"\r\n")
+
+
+async def _round_trip(pipe: Pipe):
+    """Complete one request, so every earlier message has been processed."""
+    task = asyncio.create_task(pipe.leap.request("ReadRequest", "/flush"))
+    _send_response(pipe, await _read_tag(pipe), "/flush")
+    await task
+
+
+async def _abandon_by_timeout(pipe: Pipe) -> str:
+    task = asyncio.create_task(
+        asyncio.wait_for(pipe.leap.request("ReadRequest", "/slow"), 0.01)
+    )
+    tag = await _read_tag(pipe)
+    with pytest.raises(asyncio.TimeoutError):
+        await task
+    return tag
+
+
+async def _abandon_by_cancel(pipe: Pipe) -> str:
+    task = asyncio.create_task(pipe.leap.request("ReadRequest", "/slow"))
+    tag = await _read_tag(pipe)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    return tag
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("abandon", [_abandon_by_timeout, _abandon_by_cancel])
+async def test_late_response_is_not_an_error(pipe: Pipe, caplog, abandon):
+    """
+    Test a response that arrives after its request was abandoned.
+
+    The bridge answers every request, so a request that timed out or was cancelled
+    will still get a response. That response is expected and should not be logged
+    as an error.
+    """
+    tag = await abandon(pipe)
+
+    _send_response(pipe, tag, "/slow")
+    await _round_trip(pipe)
+
+    problems = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert problems == []
+
+
+@pytest.mark.asyncio
+async def test_unknown_response_is_an_error(pipe: Pipe, caplog):
+    """Test a response with a tag that was never sent is still logged as an error."""
+    _send_response(pipe, "never-sent", "/test")
+    await _round_trip(pipe)
+
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "never-sent" in errors[0].getMessage()
+
+
+@pytest.mark.asyncio
+async def test_abandoned_tags_are_bounded(pipe: Pipe, caplog, monkeypatch):
+    """Test only the most recent abandoned requests are remembered."""
+    monkeypatch.setattr(leap, "_ABANDONED_TAG_LIMIT", 3, raising=False)
+
+    tags = [await _abandon_by_cancel(pipe) for _ in range(4)]
+
+    # the oldest abandoned request has been forgotten
+    _send_response(pipe, tags[0], "/slow")
+    # the newest are still remembered
+    for tag in tags[1:]:
+        _send_response(pipe, tag, "/slow")
+    await _round_trip(pipe)
+
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert tags[0] in errors[0].getMessage()

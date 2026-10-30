@@ -13,6 +13,7 @@ from .messages import Response
 
 _LOG = logging.getLogger(__name__)
 _DEFAULT_LIMIT = 2**18
+_ABANDONED_TAG_LIMIT = 100
 
 
 def _make_tag() -> str:
@@ -31,6 +32,9 @@ class LeapProtocol:
         self._reader = reader
         self._writer = writer
         self._in_flight_requests: Dict[str, "asyncio.Future[Response]"] = {}
+        # tags of requests that timed out or were cancelled, oldest first; the
+        # bridge still answers them, so their responses are expected
+        self._abandoned_tags: Dict[str, None] = {}
         self._tagged_subscriptions: Dict[str, Callable[[Response], None]] = {}
         self._unsolicited_subs: List[Callable[[Response], None]] = []
 
@@ -65,6 +69,9 @@ class LeapProtocol:
         def clean_up(future):
             if future.cancelled():
                 self._in_flight_requests.pop(tag, None)
+                self._abandoned_tags[tag] = None
+                while len(self._abandoned_tags) > _ABANDONED_TAG_LIMIT:
+                    del self._abandoned_tags[next(iter(self._abandoned_tags))]
 
         future.add_done_callback(clean_up)
 
@@ -101,6 +108,14 @@ class LeapProtocol:
                                 "received for subscription %s: %s", tag, resp_json
                             )
                             subscription(Response.from_json(resp_json))
+                        elif tag in self._abandoned_tags:
+                            del self._abandoned_tags[tag]
+                            _LOG.debug(
+                                "received late response for abandoned request "
+                                "%s: %s",
+                                tag,
+                                resp_json,
+                            )
                         else:
                             _LOG.error(
                                 "Was not expecting message with tag %s: %s",
