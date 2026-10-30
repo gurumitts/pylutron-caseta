@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- A response that arrives after its request timed out or was cancelled is no
+  longer logged as an error ("Was not expecting message with tag").
+
 ## [0.30.1] - 2026-10-24
 
 ### Fixed
